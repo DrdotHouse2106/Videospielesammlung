@@ -15,6 +15,22 @@ export function katalogZeileZuObjekt(zeile) {
   return { ...rest, plattformen: JSON.parse(zeile.plattformen || '[]') };
 }
 
+/**
+ * Entfernt interne Moderationsangaben für Unbeteiligte: KI-Hinweise sieht nur das Moderationsteam,
+ * Prüfnotizen nur Ersteller und Moderationsteam.
+ */
+export function fuerBenutzer(eintrag, benutzer) {
+  if (!eintrag) return eintrag;
+  const moderator = istModerator(benutzer);
+  const eigener = Boolean(benutzer && eintrag.erstellt_von === benutzer.id);
+  const { ki_hinweis: kiHinweis, pruefung_notiz: notiz, ...rest } = eintrag;
+  return {
+    ...rest,
+    ...(moderator ? { ki_hinweis: kiHinweis } : {}),
+    ...(moderator || eigener ? { pruefung_notiz: notiz } : {}),
+  };
+}
+
 /** SQL-Bedingung: Katalogeintrag (Alias k) ist für @benutzer sichtbar. */
 export const SICHTBAR_SQL = "(k.status = 'freigegeben' OR k.erstellt_von = @benutzer OR @moderator = 1)";
 export const sichtbarParameter = (benutzer) => ({ benutzer: benutzer?.id ?? -1, moderator: istModerator(benutzer) ? 1 : 0 });

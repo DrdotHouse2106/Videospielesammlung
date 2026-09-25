@@ -43,6 +43,7 @@ eigener Eintrag für Raritäten, die in keiner Datenbank stehen.
 - [Affiliate-Links („Hier kaufen“)](#affiliate-links-hier-kaufen)
 - [Administration & rechtliche Seiten](#administration--rechtliche-seiten)
 - [Automatischer Preisimport (eBay)](#automatischer-preisimport-ebay)
+- [KI-Vorprüfung (optional)](#ki-vorprüfung-optional)
 - [Öffentlich hosten – Checkliste](#öffentlich-hosten--checkliste)
 - [Sicherheit](#sicherheit)
 - [IGDB-Zugang einrichten](#igdb-zugang-einrichten)
@@ -164,6 +165,10 @@ Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 | `EBAY_CATEGORY_IDS`    | –                         | Optional: eBay-Kategorien eingrenzen (kommagetrennt) |
 | `PRICE_IMPORT_HOURS`   | `24`                      | Automatischer Preisimport alle X Stunden (`0` = aus) |
 | `PRICE_IMPORT_MAX`     | `150`                     | Max. Katalogeinträge pro Import-Durchlauf |
+| `AI_PROVIDER`          | `aus`                     | KI-Vorprüfung: `anthropic`, `gemini`, `openai` (auch kompatible/lokale Modelle) oder `aus` |
+| `AI_API_KEY` / `AI_MODEL` / `AI_BASE_URL` | –       | Zugangsdaten, Modell und (für OpenAI-kompatible Dienste) Adresse |
+| `AI_AUTO_APPROVE` / `AI_AUTO_REJECT` | `true`       | Darf die KI selbst freigeben bzw. ablehnen? |
+| `AI_MIN_CONFIDENCE`    | `0.85`                    | Mindest-Sicherheit für automatische Entscheidungen |
 | `AFFILIATE_LINKS`      | `true`                    | „Hier kaufen“-Links anzeigen |
 | `AFFILIATE_AMAZON_TAG` | aus dem Code              | Amazon-PartnerNet-ID (überschreibt `server/affiliate-konfiguration.js`) |
 | `AFFILIATE_EBAY_CAMPID`| aus dem Code              | eBay-Partner-Network-Kampagnen-ID |
@@ -279,6 +284,43 @@ Ist `PRICECHARTING_TOKEN` gesetzt, werden im selben Durchlauf auch die Marktprei
 > öffentliche Schnittstelle; automatisches Auslesen ihrer Seiten („Scraping“) verstößt in der Regel gegen deren Nutzungsbedingungen
 > und ist deshalb nicht eingebaut. Solche Angebote können Nutzer weiterhin manuell melden. Verkaufte (statt angebotene) Artikel liefert
 > eBay nur über die zugangsbeschränkte „Marketplace Insights API“.
+
+---
+
+## KI-Vorprüfung (optional)
+
+Wenn viele Einreichungen anfallen, kann eine KI **eingereichte Katalogeinträge und Varianten vorprüfen**. Der Anbieter ist frei wählbar:
+**Claude** (Anthropic), **Gemini** (Google) oder jeder **OpenAI-kompatible** Dienst – z. B. OpenAI, Mistral, OpenRouter oder ein
+**lokales Modell** über Ollama/LM Studio (dann verlassen keine Daten deinen Server).
+
+```env
+AI_PROVIDER=anthropic          # oder gemini / openai
+AI_API_KEY=...
+AI_MODEL=                      # bei anthropic optional (Standard: claude-opus-5; günstiger z. B. claude-haiku-4-5)
+# AI_BASE_URL=http://ollama:11434/v1   # nur für OpenAI-kompatible/lokale Dienste
+```
+
+**So funktioniert es:**
+
+1. Die KI erhält nur die Daten der Einreichung (Titel, Plattform, Jahr, Beschreibung …) und ähnliche vorhandene Einträge –
+   **keine Benutzernamen oder sonstigen Kontodaten**.
+2. Sie schlägt *freigeben*, *ablehnen* oder *unklar* samt Begründung und Sicherheit vor.
+3. **Nur bei ausreichender Sicherheit** (`AI_MIN_CONFIDENCE`) wird automatisch entschieden. Unsichere Fälle, mögliche Duplikate,
+   Einreichungen mit Links oder Anweisungen an die KI sowie alle Fehler landen beim Moderationsteam – mit der Einschätzung der KI als Hinweis.
+4. Automatische Entscheidungen sind für den Einreicher **klar gekennzeichnet** („Automatisch durch KI abgelehnt: …“ mit Begründung).
+   Er kann jederzeit eine **menschliche Überprüfung anfordern**; danach entscheidet ausschließlich ein Moderator.
+5. Jede Prüfung steht im **KI-Protokoll** (*Moderation → KI-Protokoll*); Moderatoren können automatische Entscheidungen zurücknehmen.
+6. **Scans und Dokumente werden nie automatisch freigegeben** – die Rechtelage kann eine KI nicht zuverlässig beurteilen.
+
+**Rechtliche Hinweise für Betreiber** (keine Rechtsberatung):
+
+- **Datenschutz:** Mit einem externen KI-Anbieter einen Auftragsverarbeitungsvertrag (AVV/DPA) abschließen, die Übermittlung
+  (z. B. in die USA) in der Datenschutzerklärung nennen und keine kostenlosen Tarife nutzen, die Eingaben zum Training verwenden.
+  Mit einem lokalen Modell entfällt die Übermittlung.
+- **Digital Services Act:** In den Nutzungsbedingungen offenlegen, dass automatisierte Werkzeuge zur Moderation eingesetzt werden
+  (Art. 14 DSA), und bei Ablehnungen die Begründung inkl. Hinweis auf die automatisierte Entscheidung sowie den Weg zur
+  Überprüfung nennen (Art. 17 DSA) – beides ist eingebaut bzw. in den Vorlagen enthalten.
+- **Haftung:** Eine KI-Freigabe gilt rechtlich wie eine Freigabe durch das Moderationsteam.
 
 ---
 
@@ -605,7 +647,14 @@ Kurz gesagt: Forken, Branch anlegen, `npm test` und `npm run build` grün halten
 
 ## Lizenz
 
-Veröffentlicht unter der [MIT-Lizenz](LICENSE).
+Veröffentlicht unter der **[PolyForm Noncommercial License 1.0.0](LICENSE)** ([deutsche Zusammenfassung](LIZENZ.md)):
+
+- ✅ **Private, Hobby- und gemeinnützige Nutzung** ist erlaubt – inklusive Selbsthosting für dich, Familie, Freunde oder deinen Verein.
+- ❌ **Kommerzielle Nutzung** (z. B. kostenpflichtiger Dienst, eigene Werbe-/Affiliate-Einnahmen, Einsatz im Unternehmen) ist ohne
+  gesonderte Erlaubnis nicht gestattet. Anfragen für eine kommerzielle Lizenz gern über ein Issue.
+
+Die Software ist damit „source-available“: Der Quellcode ist offen einsehbar, im Sinne der Open Source Initiative
+aber keine „Open Source“-Software.
 
 Spieldaten und Coverbilder stammen von [IGDB.com](https://www.igdb.com) und unterliegen deren
 Nutzungsbedingungen. Marktpreise optional von [PriceCharting](https://www.pricecharting.com),

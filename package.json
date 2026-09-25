@@ -1,8 +1,8 @@
 {
   "name": "videospielesammlung",
   "version": "1.0.0",
-  "description": "Open-Source-PWA zur Verwaltung deiner Retro- und Videospielsammlung – Spiele, Konsolen und Zubehör, mit Barcode-Scanner und IGDB-Anbindung.",
-  "license": "MIT",
+  "description": "Quelloffene PWA zur Verwaltung deiner Retro- und Videospielsammlung – Spiele, Konsolen und Zubehör, mit Barcode-Scanner und IGDB-Anbindung.",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -17,6 +17,7 @@
     "test": "node --test \"test/**/*.test.js\""
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
     "better-sqlite3": "^13.0.3",
     "express": "^5.2.1",
     "multer": "^2.0.2",

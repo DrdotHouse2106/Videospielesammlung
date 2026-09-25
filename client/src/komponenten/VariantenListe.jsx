@@ -52,6 +52,7 @@ export default function VariantenListe({ katalogId, katalogTyp, varianten, onGea
                 </span>
                 {v.status !== 'freigegeben' && <StatusAbzeichen status={v.status} className="mt-1" />}
                 {v.status === 'abgelehnt' && v.pruefung_notiz && <span className="block text-xs text-gefahr">{v.pruefung_notiz}</span>}
+                {v.status === 'freigegeben' && v.automatisch_geprueft === 1 && <span className="abzeichen mt-1" title="Automatisch durch KI geprüft">KI-geprüft</span>}
               </span>
               {benutzer && (
                 <button type="button" className="knopf-sekundaer shrink-0 px-2.5 py-1 text-xs"
@@ -69,6 +70,11 @@ export default function VariantenListe({ katalogId, katalogTyp, varianten, onGea
                     <Symbol name="muell" className="size-4" />
                   </button>
                 </span>
+              )}
+              {v.eigene && v.status === 'abgelehnt' && v.automatisch_geprueft === 1 && (
+                <button type="button" className="text-xs text-akzent-hell underline" onClick={() => aktion(() => api.menschlichePruefung('varianten', v.id), 'Ein Moderator prüft die Variante.')}>
+                  Menschliche Prüfung
+                </button>
               )}
               {v.eigene && ['privat', 'abgelehnt'].includes(v.status) && (
                 <button type="button" className="text-xs text-akzent-hell underline" onClick={() => aktion(() => api.varianteAendern(v.id, { einreichen: true }), 'Zur Prüfung eingereicht.')}>

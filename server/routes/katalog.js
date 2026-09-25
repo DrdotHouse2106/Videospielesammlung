@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { istModerator } from '../../shared/konstanten.js';
-import { katalogZeileZuObjekt } from '../services/katalog.js';
+import { katalogZeileZuObjekt, fuerBenutzer } from '../services/katalog.js';
 import {
   pruefeKatalogEintrag, pruefeVariante, pruefePreismeldung, pruefeKommentar, ValidierungsFehler,
 } from '../services/validierung.js';
@@ -8,7 +8,7 @@ import { normalisiereBarcode } from '../services/titel.js';
 
 const nichtGefunden = (res, was = 'Katalogeintrag') => res.status(404).json({ fehler: `${was} nicht gefunden.` });
 
-export function katalogRouter({ db, katalog, dateien }) {
+export function katalogRouter({ db, katalog, dateien, ki }) {
   const router = Router();
 
   // Eigene, noch nicht freigegebene Einträge darf der Ersteller ändern; Moderatoren alle Einträge.
@@ -24,13 +24,16 @@ export function katalogRouter({ db, katalog, dateien }) {
   // Kombinierte Suche: lokaler Katalog (freigegeben + eigene) + IGDB.
   router.get('/suche', async (req, res) => {
     const typ = ['spiel', 'konsole', 'zubehoer'].includes(req.query.typ) ? req.query.typ : null;
-    res.json(await katalog.suche(String(req.query.q ?? ''), typ, req.benutzer));
+    const ergebnis = await katalog.suche(String(req.query.q ?? ''), typ, req.benutzer);
+    const f = (e) => fuerBenutzer(e, req.benutzer);
+    res.json({ ...ergebnis, lokal: ergebnis.lokal.map(f), online: ergebnis.online.map(f) });
   });
 
   router.get('/barcode/:code', async (req, res) => {
     const code = normalisiereBarcode(req.params.code);
     if (!code) return res.status(400).json({ fehler: 'Ungültiger Barcode. Erwartet wird eine EAN-8, UPC-A, EAN-13 oder GTIN-14.' });
-    res.json(await katalog.sucheBarcode(code, req.benutzer));
+    const ergebnis = await katalog.sucheBarcode(code, req.benutzer);
+    res.json({ ...ergebnis, treffer: ergebnis.treffer.map((e) => fuerBenutzer(e, req.benutzer)) });
   });
 
   // Eigene Einträge (privat, eingereicht, abgelehnt, freigegeben)
@@ -41,7 +44,7 @@ export function katalogRouter({ db, katalog, dateien }) {
 
   router.get('/:id', (req, res) => {
     const eintrag = sichtbarOder404(req, res);
-    if (eintrag) res.json(eintrag);
+    if (eintrag) res.json(fuerBenutzer(eintrag, req.benutzer));
   });
 
   router.post('/', (req, res) => {
@@ -49,6 +52,7 @@ export function katalogRouter({ db, katalog, dateien }) {
     const eintrag = katalog.legeEigenenAn(daten, req.benutzer, {
       einreichen: Boolean(req.body?.einreichen), veroeffentlichen: Boolean(req.body?.veroeffentlichen),
     });
+    if (eintrag.status === 'eingereicht') ki.anstossen();
     res.status(201).json(eintrag);
   });
 
@@ -77,7 +81,21 @@ export function katalogRouter({ db, katalog, dateien }) {
     const e = katalog.holeEintrag(Number(req.params.id));
     if (!e || e.erstellt_von !== req.benutzer.id) return nichtGefunden(res);
     if (!['privat', 'abgelehnt'].includes(e.status)) return res.status(409).json({ fehler: 'Dieser Eintrag ist bereits eingereicht oder freigegeben.' });
-    db.prepare("UPDATE katalog SET status = 'eingereicht', eingereicht_am = datetime('now'), pruefung_notiz = NULL WHERE id = ?").run(e.id);
+    db.prepare(`UPDATE katalog SET status = 'eingereicht', eingereicht_am = datetime('now'), pruefung_notiz = NULL,
+      automatisch_geprueft = 0, ki_hinweis = NULL WHERE id = ?`).run(e.id);
+    ki.anstossen();
+    res.json(katalog.holeEintrag(e.id));
+  });
+
+  // Nach einer automatischen (KI-)Entscheidung: Prüfung durch einen Menschen verlangen
+  router.post('/:id/menschliche-pruefung', (req, res) => {
+    const e = katalog.holeEintrag(Number(req.params.id));
+    if (!e || e.erstellt_von !== req.benutzer.id) return nichtGefunden(res);
+    if (!e.automatisch_geprueft || e.status !== 'abgelehnt') {
+      return res.status(409).json({ fehler: 'Nur automatisch abgelehnte Einträge können zur menschlichen Prüfung gegeben werden.' });
+    }
+    db.prepare(`UPDATE katalog SET status = 'eingereicht', eingereicht_am = datetime('now'), menschliche_pruefung = 1,
+      automatisch_geprueft = 0, ki_hinweis = ? WHERE id = ?`).run(`Einreicher widerspricht der KI-Ablehnung: ${e.pruefung_notiz ?? ''}`.slice(0, 1500), e.id);
     res.json(katalog.holeEintrag(e.id));
   });
 
@@ -99,7 +117,8 @@ export function katalogRouter({ db, katalog, dateien }) {
   router.get('/:id/varianten', (req, res) => {
     const e = sichtbarOder404(req, res);
     if (!e) return;
-    res.json(variantenSichtbar.all({ katalog: e.id, benutzer: req.benutzer.id, moderator: istModerator(req.benutzer) ? 1 : 0 }));
+    res.json(variantenSichtbar.all({ katalog: e.id, benutzer: req.benutzer.id, moderator: istModerator(req.benutzer) ? 1 : 0 })
+      .map((v) => fuerBenutzer(v, req.benutzer)));
   });
 
   router.post('/:id/varianten', (req, res) => {
@@ -110,9 +129,11 @@ export function katalogRouter({ db, katalog, dateien }) {
     if (istModerator(req.benutzer) && req.body?.veroeffentlichen) status = 'freigegeben';
     else if (req.body?.einreichen) status = 'eingereicht';
     const v = db.prepare(`
-      INSERT INTO katalog_varianten (katalog_id, bezeichnung, modellnummer, farbe, edition, region, erscheinungsjahr, beschreibung, status, erstellt_von)
-      VALUES (@katalog_id, @bezeichnung, @modellnummer, @farbe, @edition, @region, @erscheinungsjahr, @beschreibung, @status, @erstellt_von)
+      INSERT INTO katalog_varianten (katalog_id, bezeichnung, modellnummer, farbe, edition, region, erscheinungsjahr, beschreibung, status, erstellt_von, eingereicht_am)
+      VALUES (@katalog_id, @bezeichnung, @modellnummer, @farbe, @edition, @region, @erscheinungsjahr, @beschreibung, @status, @erstellt_von,
+              CASE WHEN @status = 'eingereicht' THEN datetime('now') END)
       RETURNING *`).get({ ...daten, katalog_id: e.id, status, erstellt_von: req.benutzer.id });
+    if (status === 'eingereicht') ki.anstossen();
     res.status(201).json(v);
   });
 
@@ -149,7 +170,7 @@ export function katalogRouter({ db, katalog, dateien }) {
 }
 
 /** Varianten, Kommentare und Preis-Meldungen einzeln bearbeiten/löschen. */
-export function katalogUnterRouter({ db }) {
+export function katalogUnterRouter({ db, ki }) {
   const router = Router();
 
   router.put('/varianten/:id', (req, res) => {
@@ -158,10 +179,25 @@ export function katalogUnterRouter({ db }) {
     if (!darf) return nichtGefunden(res, 'Variante');
     const daten = pruefeVariante({ ...v, ...req.body });
     let status = v.status;
-    if (req.body?.einreichen && ['privat', 'abgelehnt'].includes(v.status)) status = 'eingereicht';
-    res.json(db.prepare(`UPDATE katalog_varianten SET bezeichnung = @bezeichnung, modellnummer = @modellnummer, farbe = @farbe,
-      edition = @edition, region = @region, erscheinungsjahr = @erscheinungsjahr, beschreibung = @beschreibung, status = @status
-      WHERE id = @id RETURNING *`).get({ ...daten, status, id: v.id }));
+    const neuEingereicht = req.body?.einreichen && ['privat', 'abgelehnt'].includes(v.status);
+    if (neuEingereicht) status = 'eingereicht';
+    const ergebnis = db.prepare(`UPDATE katalog_varianten SET bezeichnung = @bezeichnung, modellnummer = @modellnummer, farbe = @farbe,
+      edition = @edition, region = @region, erscheinungsjahr = @erscheinungsjahr, beschreibung = @beschreibung, status = @status,
+      eingereicht_am = CASE WHEN @neu = 1 THEN datetime('now') ELSE eingereicht_am END,
+      automatisch_geprueft = CASE WHEN @neu = 1 THEN 0 ELSE automatisch_geprueft END
+      WHERE id = @id RETURNING *`).get({ ...daten, status, id: v.id, neu: neuEingereicht ? 1 : 0 });
+    if (neuEingereicht) ki.anstossen();
+    res.json(ergebnis);
+  });
+
+  router.post('/varianten/:id/menschliche-pruefung', (req, res) => {
+    const v = db.prepare('SELECT * FROM katalog_varianten WHERE id = ? AND erstellt_von = ?').get(Number(req.params.id), req.benutzer.id);
+    if (!v) return nichtGefunden(res, 'Variante');
+    if (!v.automatisch_geprueft || v.status !== 'abgelehnt') {
+      return res.status(409).json({ fehler: 'Nur automatisch abgelehnte Varianten können zur menschlichen Prüfung gegeben werden.' });
+    }
+    res.json(db.prepare(`UPDATE katalog_varianten SET status = 'eingereicht', eingereicht_am = datetime('now'), menschliche_pruefung = 1,
+      automatisch_geprueft = 0, ki_hinweis = ? WHERE id = ? RETURNING *`).get(`Einreicher widerspricht der KI-Ablehnung: ${v.pruefung_notiz ?? ''}`.slice(0, 1500), v.id));
   });
 
   router.delete('/varianten/:id', (req, res) => {

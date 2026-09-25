@@ -163,6 +163,9 @@ export const api = {
   meldungen: (status) => anfrage(`/api/moderation/meldungen${abfrage({ status })}`),
   meldungErledigen: (id, daten) => anfrage(`/api/moderation/meldungen/${id}/erledigen`, { methode: 'POST', daten }),
   adminUebersicht: () => anfrage('/api/admin/uebersicht'),
+  menschlichePruefung: (bereich, id) => anfrage(`/api/${bereich === 'katalog' ? 'katalog' : 'varianten'}/${id}/menschliche-pruefung`, { methode: 'POST', daten: {} }),
+  kiProtokoll: () => anfrage('/api/moderation/ki-protokoll'),
+  kiZuruecknehmen: (bereich, id) => anfrage(`/api/moderation/${bereich}/${id}/zuruecknehmen`, { methode: 'POST', daten: {} }),
   preisimportStarten: () => anfrage('/api/admin/preisimport', { methode: 'POST', daten: {} }),
 
   // Administration

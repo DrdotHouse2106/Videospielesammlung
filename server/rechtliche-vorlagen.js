@@ -84,6 +84,7 @@ Rechtsgrundlage: § 25 Abs. 2 Nr. 2 TDDDG, Art. 6 Abs. 1 lit. b DSGVO.
 - **Spiel- und Preisdaten** (IGDB, Barcode-Datenbanken, PriceCharting, eBay, Europäische Zentralbank) werden **vom Server** abgefragt – dabei werden keine personenbezogenen Daten von dir übermittelt.
 - **Affiliate-Links (Amazon, eBay u. a.):** Erst wenn du auf einen solchen Link klickst, wirst du zum jeweiligen Anbieter weitergeleitet, der dann eigene Cookies setzen und Daten verarbeiten kann. Es gelten die Datenschutzhinweise des Anbieters.
 - **Kamera (Barcode-Scanner):** Das Kamerabild wird ausschließlich lokal in deinem Browser ausgewertet und nicht übertragen.
+- **KI-Vorprüfung (falls aktiviert):** Eingereichte Katalogeinträge und Varianten (Titel, Plattform, Jahr, Beschreibung, Modellnummer u. ä.) werden zur Vorprüfung an [Anbieter, z. B. Anthropic PBC / Google / lokal] übermittelt – ohne Benutzernamen oder Kontodaten. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (effiziente Moderation). Mit dem Anbieter besteht ein Auftragsverarbeitungsvertrag. [Bei Übermittlung in Drittländer: Garantien ergänzen. Abschnitt löschen, wenn keine KI genutzt wird.]
 
 ## 8. Speicherdauer
 
@@ -127,19 +128,23 @@ Nicht erlaubt sind rechtswidrige, beleidigende oder irreführende Inhalte sowie 
 
 Eingereichte Inhalte können vom Moderationsteam geprüft, bearbeitet, abgelehnt oder entfernt werden. Rechtswidrige Inhalte können jederzeit über „Melden“ gemeldet werden; wir prüfen Meldungen zeitnah und entfernen Inhalte, wenn sie rechtswidrig sind.
 
-## 5. Preise und Angaben ohne Gewähr
+## 5. Automatisierte Vorprüfung
+
+[Abschnitt löschen, wenn keine KI-Vorprüfung aktiviert ist.] Eingereichte Katalogeinträge und Varianten können automatisiert durch ein KI-System vorgeprüft werden. Bei ausreichender Sicherheit werden sie automatisch freigegeben oder abgelehnt; unklare Fälle prüft das Moderationsteam. Automatische Entscheidungen werden mit Begründung als solche gekennzeichnet. Gegen eine automatische Ablehnung kannst du jederzeit eine Überprüfung durch einen Menschen anfordern. Scans und Dokumente werden nie automatisch freigegeben.
+
+## 6. Preise und Angaben ohne Gewähr
 
 Wert- und Preisangaben (Marktpreise, Community-Werte, Meldungen) sind unverbindliche Schätzungen ohne Gewähr.
 
-## 6. Affiliate-Links
+## 7. Affiliate-Links
 
 Links unter „Hier zum Kauf verfügbar“ sind Werbung (Partnerlinks). Kaufverträge kommen ausschließlich mit dem jeweiligen Anbieter zustande.
 
-## 7. Kündigung
+## 8. Kündigung
 
 Du kannst dein Konto jederzeit selbst löschen. Wir können Konten bei Verstößen gegen diese Bedingungen sperren.
 
-## 8. Haftung
+## 9. Haftung
 
 Wir haften unbeschränkt bei Vorsatz und grober Fahrlässigkeit sowie nach dem Produkthaftungsgesetz. Im Übrigen haften wir nur bei Verletzung wesentlicher Pflichten, begrenzt auf den vorhersehbaren Schaden.
 

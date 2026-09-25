@@ -74,6 +74,24 @@ function Uebersicht({ d }) {
           <Symbol name="weiter" className="size-5 text-leise" />
         </a>
       )}
+      <section className="karte space-y-1 p-4 text-sm">
+        <h2 className="mb-1 font-semibold">KI-Vorprüfung</h2>
+        {d.ki.aktiv ? (
+          <>
+            <p>Anbieter: <strong>{d.ki.anbieter}</strong> · Modell: <strong>{d.ki.modell}</strong></p>
+            <p className="text-leise">
+              Automatisch freigeben: {d.ki.automatischFreigeben ? 'ja' : 'nein'} · automatisch ablehnen: {d.ki.automatischAblehnen ? 'ja' : 'nein'} ·
+              ab {Math.round(d.ki.mindestKonfidenz * 100)} % Sicherheit
+            </p>
+            <p className="text-leise">
+              Letzte 7 Tage: {d.ki.letzte7Tage.length ? d.ki.letzte7Tage.map((z) => `${z.anzahl}× ${z.ergebnis}`).join(', ') : 'keine Prüfungen'}
+            </p>
+            <a href="#/moderation?reiter=ki" className="text-akzent-hell underline">Zum KI-Protokoll</a>
+          </>
+        ) : (
+          <p className="text-leise">Aus. Aktivieren über <code>AI_PROVIDER</code> und <code>AI_API_KEY</code> in der .env (Claude, Gemini oder OpenAI-kompatibel).</p>
+        )}
+      </section>
       <section className="karte p-4">
         <h2 className="mb-2 font-semibold">Dienste & Einstellungen</h2>
         <ul className="grid gap-1 text-sm sm:grid-cols-2">

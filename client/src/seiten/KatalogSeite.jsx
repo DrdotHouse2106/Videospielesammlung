@@ -76,6 +76,9 @@ export default function KatalogSeite({ route, id }) {
               ))}
               {e.erscheinungsjahr && <span className="abzeichen">{e.erscheinungsjahr}</span>}
               {e.status !== 'freigegeben' && <StatusAbzeichen status={e.status} />}
+              {e.status === 'freigegeben' && e.automatisch_geprueft === 1 && (
+                <span className="abzeichen" title="Dieser Eintrag wurde automatisch durch eine KI geprüft und freigegeben.">KI-geprüft</span>
+              )}
             </div>
             {e.hersteller && <p className="text-sm text-leise">{e.hersteller}</p>}
             {e.beschreibung && <p className="text-sm whitespace-pre-line">{e.beschreibung}</p>}
@@ -89,7 +92,22 @@ export default function KatalogSeite({ route, id }) {
             <div className="rounded-xl border border-rand p-3 text-sm">
               {e.status === 'privat' && <p>Dieser Eintrag ist <strong>privat</strong> – nur du siehst ihn.</p>}
               {e.status === 'eingereicht' && <p>Eingereicht – das Moderationsteam prüft den Eintrag.</p>}
-              {e.status === 'abgelehnt' && <p className="text-gefahr">Abgelehnt{e.pruefung_notiz ? `: ${e.pruefung_notiz}` : ''}</p>}
+              {e.status === 'abgelehnt' && !e.automatisch_geprueft && <p className="text-gefahr">Abgelehnt{e.pruefung_notiz ? `: ${e.pruefung_notiz}` : ''}</p>}
+              {e.status === 'abgelehnt' && e.automatisch_geprueft === 1 && (
+                <div className="space-y-2">
+                  <p className="flex items-start gap-2 text-gefahr">
+                    <span className="abzeichen shrink-0">KI</span>
+                    <span>{e.pruefung_notiz}</span>
+                  </p>
+                  <p className="text-xs text-leise">
+                    Diese Entscheidung wurde automatisch getroffen. Du kannst den Eintrag überarbeiten und erneut einreichen
+                    oder eine Prüfung durch einen Moderator verlangen.
+                  </p>
+                  <button type="button" className="knopf-primaer px-3 py-1.5" onClick={() => aktion(() => api.menschlichePruefung('katalog', e.id), 'Ein Moderator prüft den Eintrag.')}>
+                    Menschliche Überprüfung anfordern
+                  </button>
+                </div>
+              )}
               <div className="mt-2 flex gap-2">
                 {['privat', 'abgelehnt'].includes(e.status) && (
                   <button type="button" className="knopf-sekundaer px-3 py-1.5" onClick={() => aktion(() => api.katalogEinreichen(e.id), 'Zur Prüfung eingereicht.')}>

@@ -309,6 +309,34 @@ const MIGRATIONEN = [
     const einfuegen = db.prepare('INSERT OR IGNORE INTO seiten (slug, titel, inhalt) VALUES (?, ?, ?)');
     for (const v of RECHTLICHE_VORLAGEN) einfuegen.run(v.slug, v.titel, v.inhalt);
   },
+  // 7: KI-Vorprüfung von Einreichungen
+  `
+  CREATE TABLE ki_pruefungen (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    bereich      TEXT    NOT NULL,          -- katalog, varianten
+    ziel_id      INTEGER NOT NULL,
+    anbieter     TEXT    NOT NULL,
+    modell       TEXT,
+    entscheidung TEXT,                      -- Vorschlag der KI: freigeben, ablehnen, unklar
+    konfidenz    REAL,
+    begruendung  TEXT,
+    hinweise     TEXT,                      -- interne Hinweise für das Moderationsteam
+    duplikat_von INTEGER,
+    ergebnis     TEXT    NOT NULL,          -- tatsächlich angewendet: freigegeben, abgelehnt, moderation, fehler
+    fehler       TEXT,
+    erstellt_am  TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX idx_ki_pruefungen_ziel ON ki_pruefungen (bereich, ziel_id);
+
+  ALTER TABLE katalog ADD COLUMN automatisch_geprueft INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE katalog ADD COLUMN menschliche_pruefung INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE katalog ADD COLUMN ki_hinweis TEXT;
+  ALTER TABLE katalog_varianten ADD COLUMN eingereicht_am TEXT;
+  ALTER TABLE katalog_varianten ADD COLUMN automatisch_geprueft INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE katalog_varianten ADD COLUMN menschliche_pruefung INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE katalog_varianten ADD COLUMN ki_hinweis TEXT;
+  UPDATE katalog_varianten SET eingereicht_am = erstellt_am WHERE status = 'eingereicht';
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

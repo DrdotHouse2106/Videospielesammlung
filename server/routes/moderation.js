@@ -50,8 +50,8 @@ export function moderationRouter({ db, katalog, plattformen }) {
         const daten = pruefeKatalogEintrag({ ...e, ...req.body.aenderungen });
         katalog.aktualisiere(e.id, daten, { plattformenNeu: Array.isArray(req.body.aenderungen.plattformen) });
       }
-      db.prepare(`UPDATE katalog SET status = 'freigegeben', geprueft_von = ?, geprueft_am = datetime('now'), pruefung_notiz = ?
-                  WHERE id = ?`).run(req.benutzer.id, grund(req), e.id);
+      db.prepare(`UPDATE katalog SET status = 'freigegeben', geprueft_von = ?, geprueft_am = datetime('now'), pruefung_notiz = ?,
+                  automatisch_geprueft = 0, ki_hinweis = NULL WHERE id = ?`).run(req.benutzer.id, grund(req), e.id);
     })();
     res.json(katalog.holeEintrag(e.id));
   });
@@ -59,8 +59,8 @@ export function moderationRouter({ db, katalog, plattformen }) {
   router.post('/katalog/:id/ablehnen', (req, res) => {
     const e = eingereichterEintrag(req, res);
     if (!e) return;
-    db.prepare(`UPDATE katalog SET status = 'abgelehnt', geprueft_von = ?, geprueft_am = datetime('now'), pruefung_notiz = ?
-                WHERE id = ?`).run(req.benutzer.id, grund(req) ?? 'Ohne Begründung abgelehnt.', e.id);
+    db.prepare(`UPDATE katalog SET status = 'abgelehnt', geprueft_von = ?, geprueft_am = datetime('now'), pruefung_notiz = ?,
+                automatisch_geprueft = 0, ki_hinweis = NULL WHERE id = ?`).run(req.benutzer.id, grund(req) ?? 'Ohne Begründung abgelehnt.', e.id);
     res.json(katalog.holeEintrag(e.id));
   });
 
@@ -87,18 +87,39 @@ export function moderationRouter({ db, katalog, plattformen }) {
   // ── Varianten & Scans ───────────────────────────────────────
   for (const [pfad, tabelle, feld] of [['varianten', 'katalog_varianten', 'status'], ['medien', 'medien', 'sichtbarkeit']]) {
     router.post(`/${pfad}/:id/freigeben`, (req, res) => {
-      const r = db.prepare(`UPDATE ${tabelle} SET ${feld} = 'freigegeben', geprueft_von = ?, pruefung_notiz = ?${tabelle === 'medien' ? ", geprueft_am = datetime('now')" : ''}
+      const r = db.prepare(`UPDATE ${tabelle} SET ${feld} = 'freigegeben', geprueft_von = ?, pruefung_notiz = ?${tabelle === 'medien' ? ", geprueft_am = datetime('now')" : ', automatisch_geprueft = 0, ki_hinweis = NULL'}
                             WHERE id = ?`).run(req.benutzer.id, grund(req), Number(req.params.id));
       if (!r.changes) return res.status(404).json({ fehler: 'Nicht gefunden.' });
       res.json({ ok: true });
     });
     router.post(`/${pfad}/:id/ablehnen`, (req, res) => {
-      const r = db.prepare(`UPDATE ${tabelle} SET ${feld} = 'abgelehnt', geprueft_von = ?, pruefung_notiz = ? WHERE id = ?`)
+      const r = db.prepare(`UPDATE ${tabelle} SET ${feld} = 'abgelehnt', geprueft_von = ?, pruefung_notiz = ?${tabelle === 'medien' ? '' : ', automatisch_geprueft = 0, ki_hinweis = NULL'} WHERE id = ?`)
         .run(req.benutzer.id, grund(req) ?? 'Ohne Begründung abgelehnt.', Number(req.params.id));
       if (!r.changes) return res.status(404).json({ fehler: 'Nicht gefunden.' });
       res.json({ ok: true });
     });
   }
+
+  // ── KI-Protokoll: alle automatischen Prüfungen nachvollziehbar ─
+  router.get('/ki-protokoll', (_req, res) => {
+    res.json(db.prepare(`
+      SELECT p.*, CASE p.bereich
+          WHEN 'katalog' THEN (SELECT titel FROM katalog WHERE id = p.ziel_id)
+          ELSE (SELECT v.bezeichnung || ' – ' || k.titel FROM katalog_varianten v JOIN katalog k ON k.id = v.katalog_id WHERE v.id = p.ziel_id)
+        END AS ziel_titel,
+        CASE p.bereich WHEN 'katalog' THEN p.ziel_id ELSE (SELECT katalog_id FROM katalog_varianten WHERE id = p.ziel_id) END AS katalog_id
+      FROM ki_pruefungen p ORDER BY p.id DESC LIMIT 200`).all());
+  });
+
+  // Automatische Freigabe zurücknehmen → zurück in die menschliche Prüfung
+  router.post('/:bereich/:id/zuruecknehmen', (req, res) => {
+    const tabelle = { katalog: 'katalog', varianten: 'katalog_varianten' }[req.params.bereich];
+    if (!tabelle) return res.status(404).json({ fehler: 'Nicht gefunden.' });
+    const r = db.prepare(`UPDATE ${tabelle} SET status = 'eingereicht', menschliche_pruefung = 1, automatisch_geprueft = 0,
+      ki_hinweis = 'Automatische Entscheidung vom Moderationsteam zurückgenommen.' WHERE id = ? AND automatisch_geprueft = 1`).run(Number(req.params.id));
+    if (!r.changes) return res.status(409).json({ fehler: 'Nur automatisch entschiedene Einträge können zurückgenommen werden.' });
+    res.json({ ok: true });
+  });
 
   // ── Kauflinks (z. B. Affiliate-Direktlinks) ─────────────────
   function pruefeKauflink(eingabe = {}) {

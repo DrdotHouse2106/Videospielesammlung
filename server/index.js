@@ -23,6 +23,13 @@ const aufraeumen = setInterval(() => {
 }, 6 * 60 * 60 * 1000);
 aufraeumen.unref();
 
+// KI-Vorprüfung: liegengebliebene Einreichungen regelmäßig nachholen
+if (kontext.ki.aktiv) {
+  console.log(`   KI-Vorprüfung: ${kontext.ki.anbieter} (${kontext.ki.modell})`);
+  setInterval(() => kontext.ki.verarbeiteWarteschlange().catch((e) => console.warn('[ki]', e.message)), 5 * 60 * 1000).unref();
+  setTimeout(() => kontext.ki.anstossen(), 10_000).unref();
+}
+
 // Automatischer Preisimport (eBay-Angebote, Marktpreise) im Hintergrund
 if (konfiguration.preisimportStunden > 0 && kontext.preisimport.aktiv()) {
   const importieren = () => kontext.preisimport.lauf({ max: konfiguration.preisimportMax })

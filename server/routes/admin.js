@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { KontoFehler } from '../services/konten.js';
 
-export function adminRouter({ db, konten, dateien, preisimport, igdb, ebay, preise, affiliate, konfiguration }) {
+export function adminRouter({ db, konten, dateien, preisimport, igdb, ebay, preise, affiliate, ki, konfiguration }) {
   const router = Router();
   const anzahlAdmins = () => db.prepare("SELECT COUNT(*) AS n FROM benutzer WHERE rolle = 'admin' AND gesperrt = 0").get().n;
   const ziel = (req) => {
@@ -41,6 +41,10 @@ export function adminRouter({ db, konten, dateien, preisimport, igdb, ebay, prei
         medienTeilen: konfiguration.medienTeilenErlaubt,
       },
       preisimport: { ...preisimport.status(), intervallStunden: konfiguration.preisimportStunden },
+      ki: {
+        aktiv: ki.aktiv, anbieter: ki.anbieter, modell: ki.modell, ...ki.einstellungen,
+        letzte7Tage: db.prepare(`SELECT ergebnis, COUNT(*) AS anzahl FROM ki_pruefungen WHERE erstellt_am >= datetime('now', '-7 days') GROUP BY ergebnis`).all(),
+      },
     });
   });
 

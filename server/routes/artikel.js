@@ -28,7 +28,7 @@ export function artikelZuObjekt(zeile) {
   };
 }
 
-export function artikelRouter({ db, katalog, konfiguration, dateien, plattformen }) {
+export function artikelRouter({ db, katalog, konfiguration, dateien, plattformen, ki }) {
   const router = Router();
 
   const upload = multer({
@@ -146,6 +146,7 @@ export function artikelRouter({ db, katalog, konfiguration, dateien, plattformen
       if (daten.barcode) katalog.verknuepfeBarcode(daten.barcode, daten.katalog_id, req.benutzer.id);
       return neueId;
     })();
+    if (req.body?.katalog_einreichen) ki.anstossen();
     res.status(201).json(artikelZuObjekt(perId.get(id, req.benutzer.id)));
   });
 

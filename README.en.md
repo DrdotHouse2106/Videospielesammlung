@@ -4,7 +4,7 @@
 
 > 🇩🇪 The primary documentation is in German: [README.md](README.md). The app's user interface is German only.
 
-Videospielesammlung is an open-source Progressive Web App for managing **games, consoles/hardware and accessories**,
+Videospielesammlung is a source-available Progressive Web App for managing **games, consoles/hardware and accessories**,
 tailored to collectors in German-speaking countries (PAL/USK regions, CIB status, special colours, editions and
 model revisions).
 
@@ -77,4 +77,4 @@ Contributions are welcome – see [CONTRIBUTING.md](CONTRIBUTING.md) (German).
 
 ## License
 
-[MIT](LICENSE). Game data and cover art provided by [IGDB.com](https://www.igdb.com).
+[PolyForm Noncommercial License 1.0.0](LICENSE) – free for personal, hobby and non-profit use; commercial use requires permission. Game data and cover art provided by [IGDB.com](https://www.igdb.com).

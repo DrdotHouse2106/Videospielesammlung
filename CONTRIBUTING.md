@@ -75,4 +75,6 @@ test/              Tests
 3. Öffne einen Pull Request und beschreibe, was sich ändert und warum.
    Bei Änderungen an der Oberfläche helfen Screenshots.
 
-Mit deinem Beitrag erklärst du dich einverstanden, dass er unter der [MIT-Lizenz](LICENSE) veröffentlicht wird.
+Mit deinem Beitrag erklärst du dich einverstanden, dass er unter der [PolyForm Noncommercial License 1.0.0](LICENSE)
+veröffentlicht wird und dass der Projektinhaber ihn zusätzlich unter anderen Bedingungen lizenzieren darf
+(z. B. im Rahmen einer kommerziellen Lizenz). Dein Urheberrecht an deinem Beitrag bleibt davon unberührt.

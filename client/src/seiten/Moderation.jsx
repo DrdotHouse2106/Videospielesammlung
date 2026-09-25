@@ -8,7 +8,7 @@ import Layout from '../komponenten/Layout.jsx';
 import Symbol from '../komponenten/Symbole.jsx';
 import { useHinweis } from '../komponenten/Hinweise.jsx';
 
-const REITER = [['katalog', 'Katalog'], ['varianten', 'Varianten'], ['medien', 'Scans'], ['meldungen', 'Meldungen'], ['plattformen', 'Plattformen']];
+const REITER = [['katalog', 'Katalog'], ['varianten', 'Varianten'], ['medien', 'Scans'], ['meldungen', 'Meldungen'], ['ki', 'KI-Protokoll'], ['plattformen', 'Plattformen']];
 
 export default function Moderation({ route }) {
   const zeigeHinweis = useHinweis();
@@ -45,8 +45,9 @@ export default function Moderation({ route }) {
           ))}
         </div>
 
-        {!schlange && !['plattformen', 'meldungen'].includes(reiter) && <p className="text-leise">Wird geladen …</p>}
+        {!schlange && !['plattformen', 'meldungen', 'ki'].includes(reiter) && <p className="text-leise">Wird geladen …</p>}
         {reiter === 'meldungen' && <Meldungen onGeaendert={laden} />}
+        {reiter === 'ki' && <KiProtokoll />}
 
         {schlange && reiter === 'katalog' && (
           <Liste leer="Keine offenen Katalog-Einreichungen." eintraege={schlange.katalog} render={(k) => (
@@ -58,6 +59,7 @@ export default function Moderation({ route }) {
                 {k.erscheinungsjahr && <span className="abzeichen">{k.erscheinungsjahr}</span>}
               </div>
               <p className="text-xs text-leise">von {k.eingereicht_von} · {datumDe(k.eingereicht_am)} · in {k.artikel_anzahl} Sammlung(en)</p>
+              {k.ki_hinweis && <KiHinweis text={k.ki_hinweis} />}
               {k.beschreibung && <p className="text-sm">{k.beschreibung}</p>}
               <div className="flex flex-wrap gap-2">
                 <button type="button" className="knopf-primaer px-3 py-1.5" onClick={() => entscheide('katalog', k.id, 'freigeben')}>Freigeben</button>
@@ -77,6 +79,7 @@ export default function Moderation({ route }) {
                 {' · '}von {v.eingereicht_von}
               </p>
               {v.beschreibung && <p className="text-sm">{v.beschreibung}</p>}
+              {v.ki_hinweis && <KiHinweis text={v.ki_hinweis} />}
               <div className="flex gap-2">
                 <button type="button" className="knopf-primaer px-3 py-1.5" onClick={() => entscheide('varianten', v.id, 'freigeben')}>Freigeben</button>
                 <button type="button" className="knopf-gefahr px-3 py-1.5" onClick={() => ablehnen('varianten', v.id)}>Ablehnen</button>
@@ -163,6 +166,62 @@ function Meldungen({ onGeaendert }) {
             )}
           </>
         )} />
+      )}
+    </div>
+  );
+}
+
+function KiHinweis({ text }) {
+  return (
+    <p className="flex items-start gap-2 rounded-lg bg-akzent/10 p-2 text-xs">
+      <span className="abzeichen shrink-0 text-akzent-hell">KI</span><span>{text}</span>
+    </p>
+  );
+}
+
+const ERGEBNIS = {
+  freigegeben: ['Automatisch freigegeben', 'text-erfolg'],
+  abgelehnt: ['Automatisch abgelehnt', 'text-gefahr'],
+  moderation: ['An Moderation übergeben', 'text-warnung'],
+  fehler: ['Fehler – an Moderation', 'text-gefahr'],
+};
+
+function KiProtokoll() {
+  const zeigeHinweis = useHinweis();
+  const [liste, setListe] = useState(null);
+  const laden = () => api.kiProtokoll().then(setListe).catch((e) => zeigeHinweis(e.message, 'fehler'));
+  useEffect(() => { laden(); }, []);
+  return (
+    <div className="space-y-3">
+      <p className="karte p-3 text-sm text-leise">
+        Jede automatische Prüfung wird hier mit Vorschlag, Sicherheit und Begründung protokolliert. Automatische Entscheidungen lassen sich
+        zurücknehmen – der Eintrag geht dann an das Moderationsteam. Scans und Dokumente prüft die KI nie.
+      </p>
+      {liste && (
+        <Liste leer="Noch keine KI-Prüfungen." eintraege={liste} render={(p) => {
+          const [text, farbe] = ERGEBNIS[p.ergebnis] ?? [p.ergebnis, ''];
+          return (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`abzeichen ${farbe}`}>{text}</span>
+                <span className="abzeichen">{p.bereich === 'katalog' ? 'Katalogeintrag' : 'Variante'}</span>
+                {p.katalog_id ? <a href={`#/katalog/${p.katalog_id}`} className="font-semibold hover:underline">{p.ziel_titel ?? 'gelöscht'}</a> : <span className="text-leise">gelöscht</span>}
+              </div>
+              {p.fehler ? <p className="text-sm text-gefahr">{p.fehler}</p> : (
+                <p className="text-sm">
+                  Vorschlag: <strong>{p.entscheidung}</strong> ({Math.round((p.konfidenz ?? 0) * 100)} %) – {p.begruendung}
+                  {p.hinweise && <span className="block text-xs text-leise">{p.hinweise}</span>}
+                </p>
+              )}
+              <p className="text-xs text-leise">{new Date(`${p.erstellt_am}Z`).toLocaleString('de-DE')} · {p.anbieter}{p.modell ? ` (${p.modell})` : ''}</p>
+              {['freigegeben', 'abgelehnt'].includes(p.ergebnis) && (
+                <button type="button" className="knopf-sekundaer w-fit px-3 py-1.5" onClick={async () => {
+                  try { await api.kiZuruecknehmen(p.bereich, p.ziel_id); zeigeHinweis('Zurückgenommen – liegt jetzt beim Moderationsteam.'); laden(); } catch (e) { zeigeHinweis(e.message, 'fehler'); }
+                }}>Entscheidung zurücknehmen</button>
+              )}
+            </>
+          );
+        }} />
       )}
     </div>
   );

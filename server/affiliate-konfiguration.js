@@ -4,7 +4,8 @@
 // Diese Standardwerte gelten für JEDE Installation, solange der Betreiber sie nicht
 // über die .env-Datei überschreibt (AFFILIATE_AMAZON_TAG, AFFILIATE_EBAY_CAMPID)
 // oder abschaltet (AFFILIATE_LINKS=false). Die Einnahmen finanzieren die
-// Weiterentwicklung dieses Open-Source-Projekts.
+// Weiterentwicklung dieses Projekts. Hinweis: Laut Lizenz (PolyForm Noncommercial)
+// ist der Betrieb mit eigenen Affiliate-IDs eine kommerzielle Nutzung.
 //
 // Transparenz: Links werden in der Oberfläche immer als „Anzeige“ gekennzeichnet.
 // ─────────────────────────────────────────────────────────────────────────────

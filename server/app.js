@@ -18,6 +18,7 @@ import { erstellePlattformDienst } from './services/plattformen.js';
 import { erstelleAffiliateDienst } from './services/affiliate.js';
 import { erstelleEbayDienst } from './services/ebay.js';
 import { erstellePreisImport } from './services/preisimport.js';
+import { erstelleKiDienst } from './services/ki.js';
 import { seitenRouter, seitenAdminRouter } from './routes/seiten.js';
 import { meldenRouter, meldungenModerationRouter } from './routes/meldungen.js';
 import { istModerator } from '../shared/konstanten.js';
@@ -55,8 +56,9 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const dateien = erstelleDateiDienst(db, { uploadVerzeichnis: konfiguration.uploadVerzeichnis });
   const preise = erstellePreisDienst(db, konfiguration.preise, { cache, fetchFn });
   const preisimport = erstellePreisImport(db, { preise, ebay, cache });
+  const ki = erstelleKiDienst(db, konfiguration.ki ?? { anbieter: 'aus' }, { katalog, fetchFn, anbieterFn: konfiguration.kiAnbieterFn });
   const kontext = {
-    db, cache, igdb, barcode, katalog, konten, dateien, preise, plattformen, affiliate, ebay, preisimport, konfiguration, version,
+    db, cache, igdb, barcode, katalog, konten, dateien, preise, plattformen, affiliate, ebay, preisimport, ki, konfiguration, version,
   };
 
   const app = express();

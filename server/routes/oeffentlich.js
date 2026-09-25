@@ -2,7 +2,7 @@
 // Enthält nur freigegebene, nicht personenbezogene Daten (plus eigene Daten, wenn angemeldet).
 import { Router } from 'express';
 import { istModerator, HERSTELLER_REIHENFOLGE } from '../../shared/konstanten.js';
-import { katalogZeileZuObjekt, SICHTBAR_SQL, sichtbarParameter } from '../services/katalog.js';
+import { katalogZeileZuObjekt, SICHTBAR_SQL, sichtbarParameter, fuerBenutzer } from '../services/katalog.js';
 
 const SEITENGROESSE = 48;
 
@@ -58,7 +58,10 @@ export function oeffentlichRouter({ db, katalog, plattformen, preise, affiliate,
       SELECT k.*, (SELECT COUNT(DISTINCT a.benutzer_id) FROM artikel a WHERE a.katalog_id = k.id) AS besitzer
       FROM katalog k WHERE ${where}
       ORDER BY besitzer DESC, k.titel COLLATE NOCASE LIMIT ${SEITENGROESSE} OFFSET ${(seite - 1) * SEITENGROESSE}`).all(parameter);
-    res.json({ gesamt, seite, seiten: Math.max(1, Math.ceil(gesamt / SEITENGROESSE)), eintraege: zeilen.map(katalogZeileZuObjekt) });
+    res.json({
+      gesamt, seite, seiten: Math.max(1, Math.ceil(gesamt / SEITENGROESSE)),
+      eintraege: zeilen.map((z) => fuerBenutzer(katalogZeileZuObjekt(z), req.benutzer)),
+    });
   });
 
   // Alles für die Seite eines Spiels/Geräts
@@ -76,7 +79,7 @@ export function oeffentlichRouter({ db, katalog, plattformen, preise, affiliate,
         AND (v.status = 'freigegeben' OR v.erstellt_von = @benutzer OR @moderator = 1)
       ORDER BY v.erscheinungsjahr IS NULL, v.erscheinungsjahr, v.bezeichnung COLLATE NOCASE`)
       .all({ katalog: eintrag.id, ...sichtbarParameter(b) })
-      .map((v) => ({ ...v, eigene: v.erstellt_von === b?.id, erstellt_von: undefined, geprueft_von: undefined }));
+      .map((v) => ({ ...fuerBenutzer(v, b), eigene: v.erstellt_von === b?.id, erstellt_von: undefined, geprueft_von: undefined }));
 
     const verlauf = db.prepare(`SELECT id, herkunft, art, preis, datum, quelle, preisregion, zustand, vollstaendigkeit, region, url, notiz, anzahl, benutzer_id
       FROM preis_historie WHERE katalog_id = ? ORDER BY datum, id`).all(eintrag.id)
@@ -100,7 +103,7 @@ export function oeffentlichRouter({ db, katalog, plattformen, preise, affiliate,
 
     res.json({
       eintrag: {
-        ...eintrag,
+        ...fuerBenutzer(eintrag, b),
         eigener: Boolean(b && eintrag.erstellt_von === b.id),
         erstellt_von: undefined,
         geprueft_von: undefined,

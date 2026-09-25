@@ -78,6 +78,16 @@ export function ladeKonfiguration(env = process.env) {
       usdEurKurs: Number.parseFloat(env.USD_EUR_RATE || '') || null,
       cacheStunden: zahl(env.PRICE_CACHE_HOURS, 72),
     },
+    // KI-Vorprüfung von Einreichungen – Anbieter frei wählbar
+    ki: {
+      anbieter: (env.AI_PROVIDER || 'aus').trim().toLowerCase(), // anthropic, gemini, openai, aus
+      apiKey: (env.AI_API_KEY || '').trim(),
+      modell: (env.AI_MODEL || '').trim(),
+      basisUrl: (env.AI_BASE_URL || '').trim(), // nur für OpenAI-kompatible Anbieter (z. B. Mistral, Ollama)
+      automatischFreigeben: jaNein(env.AI_AUTO_APPROVE, true),
+      automatischAblehnen: jaNein(env.AI_AUTO_REJECT, true),
+      mindestKonfidenz: Math.min(1, Math.max(0.5, Number.parseFloat(env.AI_MIN_CONFIDENCE || '') || 0.85)),
+    },
     vertrauteProxies: env.TRUST_PROXY || '',
     affiliate: ladeAffiliateKonfiguration(env),
   };
