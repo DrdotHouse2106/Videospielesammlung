@@ -16,7 +16,7 @@ export function meldenRouter({ db, katalog }) {
     const { bereich, grund } = req.body ?? {};
     const zielId = Number(req.body?.ziel_id);
     const fehler = {};
-    if (!['medien', 'katalog', 'preis'].includes(bereich)) fehler.bereich = 'Ungültiger Bereich.';
+    if (!['medien', 'katalog', 'preis', 'link'].includes(bereich)) fehler.bereich = 'Ungültiger Bereich.';
     if (!MELDEGRUENDE.includes(grund)) fehler.grund = 'Bitte einen Grund wählen.';
     const text = String(req.body?.text ?? '').trim().slice(0, 3000);
     if (!text) fehler.text = 'Bitte beschreibe kurz das Problem.';
@@ -27,6 +27,7 @@ export function meldenRouter({ db, katalog }) {
     let sichtbar = false;
     if (bereich === 'katalog') sichtbar = Boolean(katalog.holeSichtbar(zielId, req.benutzer));
     if (bereich === 'preis') sichtbar = Boolean(db.prepare("SELECT 1 FROM preis_historie h JOIN katalog k ON k.id = h.katalog_id WHERE h.id = ? AND k.status = 'freigegeben'").get(zielId));
+    if (bereich === 'link') sichtbar = Boolean(db.prepare("SELECT 1 FROM externe_links WHERE id = ? AND status = 'freigegeben'").get(zielId));
     if (bereich === 'medien') {
       const m = db.prepare('SELECT benutzer_id, sichtbarkeit FROM medien WHERE id = ?').get(zielId);
       sichtbar = Boolean(m && req.benutzer && (m.sichtbarkeit === 'freigegeben' || m.benutzer_id === req.benutzer.id));
@@ -54,11 +55,13 @@ export function meldungenModerationRouter({ db }) {
           WHEN 'medien' THEN (SELECT COALESCE(md.titel, md.art) || ' – ' || k.titel FROM medien md JOIN katalog k ON k.id = md.katalog_id WHERE md.id = m.ziel_id)
           WHEN 'katalog' THEN (SELECT titel FROM katalog WHERE id = m.ziel_id)
           WHEN 'preis' THEN (SELECT printf('%.2f € (%s) – ', h.preis, h.quelle) || k.titel FROM preis_historie h JOIN katalog k ON k.id = h.katalog_id WHERE h.id = m.ziel_id)
+          WHEN 'link' THEN (SELECT 'Link zu ' || l.domain || ' – ' || k.titel FROM externe_links l JOIN katalog k ON k.id = l.katalog_id WHERE l.id = m.ziel_id)
         END AS ziel_titel,
         CASE m.bereich
           WHEN 'medien' THEN (SELECT katalog_id FROM medien WHERE id = m.ziel_id)
           WHEN 'katalog' THEN m.ziel_id
           WHEN 'preis' THEN (SELECT katalog_id FROM preis_historie WHERE id = m.ziel_id)
+          WHEN 'link' THEN (SELECT katalog_id FROM externe_links WHERE id = m.ziel_id)
         END AS katalog_id
       FROM inhalt_meldungen m LEFT JOIN benutzer b ON b.id = m.benutzer_id
       WHERE m.status = ? ORDER BY m.erstellt_am DESC LIMIT 200`).all(status);
@@ -76,6 +79,9 @@ export function meldungenModerationRouter({ db }) {
         if (m.bereich === 'medien') {
           // Nicht mehr öffentlich; der Uploader behält die Datei privat
           db.prepare(`UPDATE medien SET sichtbarkeit = 'abgelehnt', pruefung_notiz = ?, geprueft_von = ?, geprueft_am = datetime('now') WHERE id = ?`)
+            .run(`Nach Meldung entfernt: ${ergebnis}`, req.benutzer.id, m.ziel_id);
+        } else if (m.bereich === 'link') {
+          db.prepare(`UPDATE externe_links SET status = 'abgelehnt', pruefung_notiz = ?, geprueft_von = ? WHERE id = ?`)
             .run(`Nach Meldung entfernt: ${ergebnis}`, req.benutzer.id, m.ziel_id);
         } else if (m.bereich === 'preis') {
           db.prepare('DELETE FROM preis_historie WHERE id = ?').run(m.ziel_id);

@@ -13,6 +13,7 @@ import { useHinweis } from '../komponenten/Hinweise.jsx';
 import Scans from '../komponenten/Scans.jsx';
 import WertBox from '../komponenten/WertBox.jsx';
 import Kommentare from '../komponenten/Kommentare.jsx';
+import ExterneLinks from '../komponenten/ExterneLinks.jsx';
 import StatusAbzeichen from '../komponenten/StatusAbzeichen.jsx';
 
 /**
@@ -185,6 +186,8 @@ export default function ArtikelDetail({ route, id, sammlerName }) {
           <WertBox artikel={artikel} eigenerArtikel={eigener} />
 
           <Kommentare katalogId={artikel.katalog_id} />
+
+          <ExterneLinks katalogId={artikel.katalog_id} katalogFreigegeben={!eigener || artikel.katalog_status === 'freigegeben'} />
 
           <Scans
             katalogId={artikel.katalog_id}

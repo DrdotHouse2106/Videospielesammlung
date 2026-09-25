@@ -69,7 +69,7 @@ function Uebersicht({ d }) {
         <a href="#/moderation" className="karte flex items-center gap-3 border-warnung/50 p-4 text-sm hover:bg-karte-hover">
           <Symbol name="warnung" className="size-5 text-warnung" />
           <span className="flex-1">
-            Offen: {d.offen.katalog} Katalogeinträge, {d.offen.varianten} Varianten, {d.offen.medien} Scans, {d.offen.meldungen} Meldungen
+            Offen: {d.offen.katalog} Katalogeinträge, {d.offen.varianten} Varianten, {d.offen.medien} Scans, {d.offen.links} Links, {d.offen.meldungen} Meldungen
           </span>
           <Symbol name="weiter" className="size-5 text-leise" />
         </a>

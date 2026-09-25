@@ -17,7 +17,7 @@ export default function MeldenKnopf({ bereich, zielId, klein = false, className 
   const { benutzer } = useSitzung();
   const zeigeHinweis = useHinweis();
   const [offen, setOffen] = useState(false);
-  const [w, setW] = useState({ grund: bereich === 'medien' ? 'urheberrecht' : 'falsch', text: '', kontakt: '' });
+  const [w, setW] = useState({ grund: ['medien', 'link'].includes(bereich) ? 'urheberrecht' : 'falsch', text: '', kontakt: '' });
   const [fehler, setFehler] = useState(null);
 
   async function absenden(e) {

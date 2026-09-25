@@ -21,6 +21,7 @@ import { erstellePreisImport } from './services/preisimport.js';
 import { erstelleKiDienst } from './services/ki.js';
 import { seitenRouter, seitenAdminRouter } from './routes/seiten.js';
 import { meldenRouter, meldungenModerationRouter } from './routes/meldungen.js';
+import { linksRouter } from './routes/links.js';
 import { istModerator } from '../shared/konstanten.js';
 import { ladeSchluessel } from './services/sicherheit.js';
 import { ValidierungsFehler } from './services/validierung.js';
@@ -106,7 +107,7 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   app.use('/api/admin', angemeldet, erfordereAdmin, adminRouter(kontext), seitenAdminRouter(kontext));
   app.use('/api/moderation', angemeldet, (req, res, next) => (istModerator(req.benutzer)
     ? next() : res.status(403).json({ fehler: 'Nur für das Moderationsteam.' })), moderationRouter(kontext), meldungenModerationRouter(kontext));
-  app.use('/api', angemeldet, katalogUnterRouter(kontext));
+  app.use('/api', angemeldet, katalogUnterRouter(kontext), linksRouter(kontext));
   app.use('/api', angemeldet, medienRouter(kontext), werteRouter(kontext), communityRouter(kontext), exportRouter(kontext));
   app.use('/api', (_req, res) => res.status(404).json({ fehler: 'Unbekannter API-Endpunkt.' }));
 

@@ -165,6 +165,9 @@ export const api = {
   adminUebersicht: () => anfrage('/api/admin/uebersicht'),
   menschlichePruefung: (bereich, id) => anfrage(`/api/${bereich === 'katalog' ? 'katalog' : 'varianten'}/${id}/menschliche-pruefung`, { methode: 'POST', daten: {} }),
   kiProtokoll: () => anfrage('/api/moderation/ki-protokoll'),
+  externeLinks: (katalogId) => anfrage(`/api/katalog/${katalogId}/links`),
+  externenLinkAnlegen: (katalogId, daten) => anfrage(`/api/katalog/${katalogId}/links`, { methode: 'POST', daten }),
+  externenLinkLoeschen: (id) => anfrage(`/api/links/${id}`, { methode: 'DELETE' }),
   kiZuruecknehmen: (bereich, id) => anfrage(`/api/moderation/${bereich}/${id}/zuruecknehmen`, { methode: 'POST', daten: {} }),
   preisimportStarten: () => anfrage('/api/admin/preisimport', { methode: 'POST', daten: {} }),
 

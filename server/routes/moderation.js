@@ -28,7 +28,11 @@ export function moderationRouter({ db, katalog, plattformen }) {
         ...m, vorschau_url: v ? `/api/dateien/${v}` : null, url: `/api/dateien/${a ?? d}`,
       }));
     const meldungen = db.prepare("SELECT COUNT(*) AS n FROM inhalt_meldungen WHERE status = 'offen'").get().n;
-    res.json({ katalog: katalogEintraege, varianten, medien, offeneMeldungen: meldungen });
+    const links = db.prepare(`
+      SELECT l.*, k.titel AS katalog_titel, COALESCE(b.anzeigename, b.benutzername) AS eingereicht_von
+      FROM externe_links l JOIN katalog k ON k.id = l.katalog_id LEFT JOIN benutzer b ON b.id = l.benutzer_id
+      WHERE l.status = 'eingereicht' ORDER BY l.erstellt_am`).all();
+    res.json({ katalog: katalogEintraege, varianten, medien, links, offeneMeldungen: meldungen });
   });
 
   // ── Katalogeinträge ─────────────────────────────────────────
@@ -85,15 +89,21 @@ export function moderationRouter({ db, katalog, plattformen }) {
   });
 
   // ── Varianten & Scans ───────────────────────────────────────
-  for (const [pfad, tabelle, feld] of [['varianten', 'katalog_varianten', 'status'], ['medien', 'medien', 'sichtbarkeit']]) {
+  // Zusatzspalten je Tabelle (KI-Kennzeichnung bzw. Prüfdatum)
+  const ZUSATZ = {
+    katalog_varianten: { frei: ', automatisch_geprueft = 0, ki_hinweis = NULL', ab: ', automatisch_geprueft = 0, ki_hinweis = NULL' },
+    medien: { frei: ", geprueft_am = datetime('now')", ab: '' },
+    externe_links: { frei: '', ab: '' },
+  };
+  for (const [pfad, tabelle, feld] of [['varianten', 'katalog_varianten', 'status'], ['medien', 'medien', 'sichtbarkeit'], ['links', 'externe_links', 'status']]) {
     router.post(`/${pfad}/:id/freigeben`, (req, res) => {
-      const r = db.prepare(`UPDATE ${tabelle} SET ${feld} = 'freigegeben', geprueft_von = ?, pruefung_notiz = ?${tabelle === 'medien' ? ", geprueft_am = datetime('now')" : ', automatisch_geprueft = 0, ki_hinweis = NULL'}
+      const r = db.prepare(`UPDATE ${tabelle} SET ${feld} = 'freigegeben', geprueft_von = ?, pruefung_notiz = ?${ZUSATZ[tabelle].frei}
                             WHERE id = ?`).run(req.benutzer.id, grund(req), Number(req.params.id));
       if (!r.changes) return res.status(404).json({ fehler: 'Nicht gefunden.' });
       res.json({ ok: true });
     });
     router.post(`/${pfad}/:id/ablehnen`, (req, res) => {
-      const r = db.prepare(`UPDATE ${tabelle} SET ${feld} = 'abgelehnt', geprueft_von = ?, pruefung_notiz = ?${tabelle === 'medien' ? '' : ', automatisch_geprueft = 0, ki_hinweis = NULL'} WHERE id = ?`)
+      const r = db.prepare(`UPDATE ${tabelle} SET ${feld} = 'abgelehnt', geprueft_von = ?, pruefung_notiz = ?${ZUSATZ[tabelle].ab} WHERE id = ?`)
         .run(req.benutzer.id, grund(req) ?? 'Ohne Begründung abgelehnt.', Number(req.params.id));
       if (!r.changes) return res.status(404).json({ fehler: 'Nicht gefunden.' });
       res.json({ ok: true });

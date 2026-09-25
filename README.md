@@ -160,6 +160,7 @@ Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 | `PRICE_CACHE_HOURS`    | `72`                      | Gültigkeit abgerufener Marktpreise |
 | `TRUST_PROXY`          | –                         | Hinter einem Reverse-Proxy `1` setzen (für HTTPS-Cookies und IP-basierte Sperren) |
 | `PUBLIC_CATALOG`       | `true`                    | Katalogseiten ohne Anmeldung zeigen (Sammlungen bleiben privat) |
+| `LINK_DOMAINS`         | –                         | Links zu Cover-/Handbuch-Seiten nur zu diesen Domains erlauben (kommagetrennt) |
 | `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` | –        | Zugang zur offiziellen eBay Browse API für den automatischen Preisimport |
 | `EBAY_MARKETPLACE` / `EBAY_ITEM_LOCATION` | `EBAY_DE` / `DE` | Marktplatz und Artikelstandort der eBay-Suche |
 | `EBAY_CATEGORY_IDS`    | –                         | Optional: eBay-Kategorien eingrenzen (kommagetrennt) |
@@ -397,6 +398,21 @@ Auf der Detailseite eines Artikels kannst du unter **Scans & Dokumente** Dateien
 - **Seitenfüllend**, Papier A4/A3/Letter hoch oder quer, optionale **Schnittmarken**.
 - Die Ansicht zeigt die effektive Druckauflösung und warnt, wenn sie unter 200 dpi fällt.
 - Im Druckdialog **„Tatsächliche Größe“ bzw. 100 %** wählen, sonst skaliert der Browser.
+
+### Links statt Dateien: Cover & Handbücher im Netz
+
+Rechtlich deutlich risikoärmer als eigene Uploads: Auf jeder Spielseite gibt es den Bereich **„Cover & Handbücher im Netz“**.
+Nutzer hinterlegen dort Links **direkt zum Cover oder Handbuch** auf anderen Webseiten (z. B. beim Hersteller oder in einem offiziellen Archiv):
+
+- **Privat** als persönliches Lesezeichen oder **für alle vorschlagen** – vorgeschlagene Links erscheinen erst nach Freigabe
+  durch das Moderationsteam (*Moderation → Links*), dann auch öffentlich ohne Anmeldung.
+- Nur sichere `https://`-Adressen; optional nur freigegebene Domains (`LINK_DOMAINS`).
+- Links öffnen die fremde Seite in einem neuen Tab (kein Einbetten), jeder freigegebene Link kann gemeldet werden.
+
+> ⚖️ Nach der Rechtsprechung des EuGH ist das Verlinken frei zugänglicher Inhalte grundsätzlich zulässig – **nicht** aber,
+> wenn man weiß oder wissen muss, dass die verlinkte Seite Inhalte ohne Erlaubnis anbietet. Bei Seiten mit Gewinnerzielungsabsicht
+> (z. B. mit Affiliate-Links) wird diese Kenntnis sogar vermutet. Deshalb gibt es die Moderation und optional `LINK_DOMAINS`:
+> Nur Links zu Quellen freigeben, die die Inhalte rechtmäßig anbieten.
 
 **Tipp zum Scannen:** Mindestens 600 dpi, Farbmodus 24 Bit, als TIFF oder PNG speichern (verlustfrei).
 Für ein DVD-Inlay reicht ein A4-Scanner; größere Einleger in zwei Teilen scannen.

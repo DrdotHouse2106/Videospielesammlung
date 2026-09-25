@@ -3,6 +3,7 @@
 import { Router } from 'express';
 import { istModerator, HERSTELLER_REIHENFOLGE } from '../../shared/konstanten.js';
 import { katalogZeileZuObjekt, SICHTBAR_SQL, sichtbarParameter, fuerBenutzer } from '../services/katalog.js';
+import { linkZuObjekt } from './links.js';
 
 const SEITENGROESSE = 48;
 
@@ -117,6 +118,9 @@ export function oeffentlichRouter({ db, katalog, plattformen, preise, affiliate,
       meineExemplare,
       medienAnzahl,
       medienUebersicht,
+      // Freigegebene Links sind öffentlich; eigene (private/eingereichte) nur für den Ersteller
+      links: db.prepare(`SELECT * FROM externe_links WHERE katalog_id = @k AND (status = 'freigegeben' OR benutzer_id = @b)
+        ORDER BY art, erstellt_am`).all({ k: eintrag.id, b: b?.id ?? -1 }).map((l) => linkZuObjekt(l, b)),
       ebayAngebote,
       angemeldet: Boolean(b),
     });

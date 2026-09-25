@@ -124,6 +124,8 @@ Wenn du einen Scan oder ein Dokument **zur Freigabe für andere einreichst**, ve
 
 Nicht erlaubt sind rechtswidrige, beleidigende oder irreführende Inhalte sowie Spam.
 
+Du kannst Links zu anderen Webseiten vorschlagen, die Cover, Handbücher o. Ä. anbieten. Schlage nur Seiten vor, die diese Inhalte rechtmäßig anbieten (z. B. Hersteller oder offizielle Archive). Für die Inhalte verlinkter Seiten sind deren Betreiber verantwortlich.
+
 ## 4. Moderation und Meldungen
 
 Eingereichte Inhalte können vom Moderationsteam geprüft, bearbeitet, abgelehnt oder entfernt werden. Rechtswidrige Inhalte können jederzeit über „Melden“ gemeldet werden; wir prüfen Meldungen zeitnah und entfernen Inhalte, wenn sie rechtswidrig sind.

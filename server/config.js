@@ -39,6 +39,8 @@ export function ladeKonfiguration(env = process.env) {
     medienTeilenErlaubt: jaNein(env.MEDIA_SHARING, true),
     // Katalogseiten (Spiele, Varianten, Preisverlauf, Kauflinks) auch ohne Anmeldung zeigen
     oeffentlicherKatalog: jaNein(env.PUBLIC_CATALOG, true),
+    // Links zu externen Cover-/Handbuch-Seiten: optional nur bestimmte Domains erlauben (kommagetrennt)
+    linkDomains: (env.LINK_DOMAINS || '').split(',').map((d) => d.trim().toLowerCase().replace(/^www\./, '')).filter(Boolean),
     cacheTtlStunden: zahl(env.CACHE_TTL_HOURS, 24 * 7),
     igdb: {
       clientId: (env.TWITCH_CLIENT_ID || '').trim(),

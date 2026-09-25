@@ -337,6 +337,24 @@ const MIGRATIONEN = [
   ALTER TABLE katalog_varianten ADD COLUMN ki_hinweis TEXT;
   UPDATE katalog_varianten SET eingereicht_am = erstellt_am WHERE status = 'eingereicht';
   `,
+  // 8: Links zu externen Seiten, die Cover, Handbücher o. Ä. anbieten
+  `
+  CREATE TABLE externe_links (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    katalog_id     INTEGER NOT NULL REFERENCES katalog (id) ON DELETE CASCADE,
+    benutzer_id    INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    art            TEXT    NOT NULL,          -- wie MEDIENARTEN (cover_vorne, handbuch …)
+    titel          TEXT,
+    url            TEXT    NOT NULL,
+    domain         TEXT    NOT NULL,
+    status         TEXT    NOT NULL DEFAULT 'eingereicht',   -- privat, eingereicht, freigegeben, abgelehnt
+    geprueft_von   INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    pruefung_notiz TEXT,
+    erstellt_am    TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX idx_externe_links_katalog ON externe_links (katalog_id);
+  CREATE INDEX idx_externe_links_status ON externe_links (status);
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

@@ -26,6 +26,7 @@ export function adminRouter({ db, konten, dateien, preisimport, igdb, ebay, prei
         katalog: zahl("SELECT COUNT(*) AS n FROM katalog WHERE status = 'eingereicht'"),
         varianten: zahl("SELECT COUNT(*) AS n FROM katalog_varianten WHERE status = 'eingereicht'"),
         medien: zahl("SELECT COUNT(*) AS n FROM medien WHERE sichtbarkeit = 'eingereicht'"),
+        links: zahl("SELECT COUNT(*) AS n FROM externe_links WHERE status = 'eingereicht'"),
         meldungen: zahl("SELECT COUNT(*) AS n FROM inhalt_meldungen WHERE status = 'offen'"),
       },
       medienFreigegeben: zahl("SELECT COUNT(*) AS n FROM medien WHERE sichtbarkeit = 'freigegeben'"),

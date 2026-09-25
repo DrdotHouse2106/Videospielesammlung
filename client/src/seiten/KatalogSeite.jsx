@@ -5,6 +5,7 @@ import {
 } from '../../../shared/konstanten.js';
 import { nachHersteller, usePlattformen } from '../plattformen.js';
 import MeldenKnopf from '../komponenten/MeldenKnopf.jsx';
+import ExterneLinks from '../komponenten/ExterneLinks.jsx';
 import { api } from '../api.js';
 import { navigiere } from '../router.js';
 import { euro, anzahl } from '../format.js';
@@ -163,6 +164,8 @@ export default function KatalogSeite({ route, id }) {
           <VariantenListe katalogId={e.id} katalogTyp={e.typ} varianten={daten.varianten} onGeaendert={laden} />
 
           <PreisVerlauf katalogId={e.id} historie={daten.historie} darfMelden={Boolean(benutzer) && e.status === 'freigegeben'} onGeaendert={laden} />
+
+          <ExterneLinks katalogId={e.id} links={daten.links} katalogFreigegeben={e.status === 'freigegeben'} onGeaendert={laden} />
 
           {benutzer && <Scans katalogId={e.id} nurLesen />}
           {!benutzer && daten.medienAnzahl > 0 && (

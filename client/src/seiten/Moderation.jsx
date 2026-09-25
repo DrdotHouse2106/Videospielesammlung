@@ -8,7 +8,7 @@ import Layout from '../komponenten/Layout.jsx';
 import Symbol from '../komponenten/Symbole.jsx';
 import { useHinweis } from '../komponenten/Hinweise.jsx';
 
-const REITER = [['katalog', 'Katalog'], ['varianten', 'Varianten'], ['medien', 'Scans'], ['meldungen', 'Meldungen'], ['ki', 'KI-Protokoll'], ['plattformen', 'Plattformen']];
+const REITER = [['katalog', 'Katalog'], ['varianten', 'Varianten'], ['medien', 'Scans'], ['links', 'Links'], ['meldungen', 'Meldungen'], ['ki', 'KI-Protokoll'], ['plattformen', 'Plattformen']];
 
 export default function Moderation({ route }) {
   const zeigeHinweis = useHinweis();
@@ -39,7 +39,7 @@ export default function Moderation({ route }) {
           {REITER.map(([wert, label]) => (
             <a key={wert} href={`#/moderation?reiter=${wert}`} role="tab" aria-selected={reiter === wert} className={reiter === wert ? 'chip-aktiv' : 'chip'}>
               {label}
-              {schlange && ['katalog', 'varianten', 'medien'].includes(wert) && schlange[wert].length > 0 && <span className="ml-1 rounded-full bg-warnung px-1.5 text-[11px] text-black">{schlange[wert].length}</span>}
+              {schlange && ['katalog', 'varianten', 'medien', 'links'].includes(wert) && schlange[wert].length > 0 && <span className="ml-1 rounded-full bg-warnung px-1.5 text-[11px] text-black">{schlange[wert].length}</span>}
               {schlange && wert === 'meldungen' && schlange.offeneMeldungen > 0 && <span className="ml-1 rounded-full bg-gefahr px-1.5 text-[11px] text-white">{schlange.offeneMeldungen}</span>}
             </a>
           ))}
@@ -47,6 +47,23 @@ export default function Moderation({ route }) {
 
         {!schlange && !['plattformen', 'meldungen', 'ki'].includes(reiter) && <p className="text-leise">Wird geladen …</p>}
         {reiter === 'meldungen' && <Meldungen onGeaendert={laden} />}
+        {schlange && reiter === 'links' && (
+          <Liste leer="Keine offenen Link-Vorschläge." eintraege={schlange.links} render={(l) => (
+            <>
+              <p>
+                <strong>{beschriftung(MEDIENARTEN, l.art)}</strong>{l.titel ? ` – ${l.titel}` : ''} für{' '}
+                <a href={`#/katalog/${l.katalog_id}`} className="underline">{l.katalog_titel}</a>
+              </p>
+              <a href={l.url} target="_blank" rel="noopener noreferrer nofollow" className="block truncate font-mono text-sm text-akzent-hell underline">{l.url}</a>
+              <p className="text-xs text-leise">von {l.eingereicht_von} · {datumDe(l.erstellt_am)}</p>
+              <p className="text-xs text-warnung">Bitte prüfen: Bietet die Seite die Inhalte rechtmäßig an (z. B. Hersteller, offizielles Archiv)?</p>
+              <div className="flex gap-2">
+                <button type="button" className="knopf-primaer px-3 py-1.5" onClick={() => entscheide('links', l.id, 'freigeben')}>Freigeben</button>
+                <button type="button" className="knopf-gefahr px-3 py-1.5" onClick={() => ablehnen('links', l.id)}>Ablehnen</button>
+              </div>
+            </>
+          )} />
+        )}
         {reiter === 'ki' && <KiProtokoll />}
 
         {schlange && reiter === 'katalog' && (
@@ -116,7 +133,7 @@ export default function Moderation({ route }) {
 }
 
 const GRUND = { urheberrecht: 'Urheberrecht', rechtswidrig: 'Rechtswidrig', falsch: 'Falsche Angaben', spam: 'Spam', sonstiges: 'Sonstiges' };
-const BEREICH = { medien: 'Scan/Dokument', katalog: 'Katalogeintrag', preis: 'Preis-Meldung' };
+const BEREICH = { medien: 'Scan/Dokument', katalog: 'Katalogeintrag', preis: 'Preis-Meldung', link: 'Externer Link' };
 
 function Meldungen({ onGeaendert }) {
   const zeigeHinweis = useHinweis();
