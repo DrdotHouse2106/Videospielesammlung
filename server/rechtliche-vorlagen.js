@@ -28,7 +28,7 @@ E-Mail: [kontakt@example.de]
 
 ## Hinweis zu Nutzerinhalten
 
-Katalogeinträge, Preis-Meldungen und hochgeladene Dateien stammen teilweise von Nutzerinnen und Nutzern. Rechtswidrige Inhalte können über die Funktion „Melden“ oder per E-Mail gemeldet werden; wir prüfen Meldungen unverzüglich.
+Katalogeinträge, Preis-Meldungen und hochgeladene Dateien stammen teilweise von Nutzern. Rechtswidrige Inhalte können über die Funktion „Melden“ oder per E-Mail gemeldet werden; wir prüfen Meldungen unverzüglich.
 
 ## Affiliate-Links
 

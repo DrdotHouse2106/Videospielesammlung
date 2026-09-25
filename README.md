@@ -4,7 +4,7 @@
 
 Videospielesammlung ist eine quelloffene Progressive Web App (PWA) zur Verwaltung von
 **Spielen, Konsolen und Zubehör** – für dich allein oder als öffentlich gehostete Plattform
-mit vielen Benutzerkonten. Sie ist für Sammlerinnen und Sammler im deutschsprachigen
+mit vielen Benutzerkonten. Sie ist für Sammler im deutschsprachigen
 Raum gemacht: PAL-/USK-Regionen, CIB-Status, Sonderfarben, Editionen und Modellrevisionen
 lassen sich sauber erfassen – per Titelsuche, **Barcode-Scan mit der Handykamera** oder als
 eigener Eintrag für Raritäten, die in keiner Datenbank stehen.

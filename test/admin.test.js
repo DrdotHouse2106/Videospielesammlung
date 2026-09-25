@@ -101,7 +101,7 @@ test('Inhalte melden (auch ohne Konto) und durch das Moderationsteam entfernen',
 
   await post(moni, `/api/moderation/meldungen/${meldung.id}/erledigen`, { aktion: 'entfernen', ergebnis: 'Urheberrechtlich geschützt' });
   const nachher = (await nina.api(`/api/medien/${medium.id}`)).json;
-  assert.equal(nachher.sichtbarkeit, 'abgelehnt', 'Uploaderin behält die Datei privat');
+  assert.equal(nachher.sichtbarkeit, 'abgelehnt', 'Uploader behält die Datei privat');
   assert.match(nachher.pruefung_notiz, /Urheberrechtlich/);
   assert.equal((await admin.api(`/api/medien/${medium.id}`)).status, 404);
   assert.equal((await moni.api('/api/moderation/meldungen')).json.length, 1);

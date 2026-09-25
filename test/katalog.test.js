@@ -4,8 +4,8 @@ import { starteTestServer } from './hilfen.js';
 
 let server;
 let admin;
-let moni; // Moderatorin
-let nina; // normale Nutzerin
+let moni; // Moderator
+let nina; // normaler Nutzer
 let otto; // normaler Nutzer
 before(async () => {
   server = await starteTestServer({ env: { AFFILIATE_AMAZON_TAG: 'testtag-21', AFFILIATE_EBAY_CAMPID: '5338000000' } });
