@@ -12,6 +12,7 @@ export default function VariantenListe({ katalogId, katalogTyp, varianten, onGea
   const { benutzer } = useSitzung();
   const zeigeHinweis = useHinweis();
   const [formOffen, setFormOffen] = useState(false);
+  const [bearbeitet, setBearbeitet] = useState(null);
   const moderator = istModerator(benutzer);
   const vorhanden = varianten.filter((v) => v.meine > 0).length;
 
@@ -58,6 +59,17 @@ export default function VariantenListe({ katalogId, katalogTyp, varianten, onGea
                   <Symbol name="plus" className="size-3.5" />Hinzufügen
                 </button>
               )}
+              {moderator && (
+                <span className="flex shrink-0 gap-1">
+                  <button type="button" className="rounded p-1 text-leise hover:text-text" aria-label="Variante bearbeiten" onClick={() => setBearbeitet(v)}>
+                    <Symbol name="stift" className="size-4" />
+                  </button>
+                  <button type="button" className="rounded p-1 text-leise hover:text-gefahr" aria-label="Variante löschen"
+                    onClick={() => window.confirm(`Variante „${v.bezeichnung}“ löschen?`) && aktion(() => api.varianteLoeschen(v.id), 'Variante gelöscht.')}>
+                    <Symbol name="muell" className="size-4" />
+                  </button>
+                </span>
+              )}
               {v.eigene && ['privat', 'abgelehnt'].includes(v.status) && (
                 <button type="button" className="text-xs text-akzent-hell underline" onClick={() => aktion(() => api.varianteAendern(v.id, { einreichen: true }), 'Zur Prüfung eingereicht.')}>
                   Einreichen
@@ -67,6 +79,13 @@ export default function VariantenListe({ katalogId, katalogTyp, varianten, onGea
           ))}
         </ul>
       )}
+      {bearbeitet && <VarianteFormular moderator={moderator} vorlage={bearbeitet} onFertig={async (daten) => {
+        if (!daten) return setBearbeitet(null);
+        await api.varianteAendern(bearbeitet.id, daten);
+        zeigeHinweis('Variante gespeichert.');
+        setBearbeitet(null);
+        onGeaendert?.();
+      }} />}
       {formOffen && <VarianteFormular moderator={moderator} onFertig={async (daten) => {
         if (!daten) return setFormOffen(false);
         await api.varianteAnlegen(katalogId, daten);
@@ -78,8 +97,12 @@ export default function VariantenListe({ katalogId, katalogTyp, varianten, onGea
   );
 }
 
-function VarianteFormular({ moderator, onFertig }) {
-  const [w, setW] = useState({ bezeichnung: '', modellnummer: '', farbe: '', edition: '', region: '', erscheinungsjahr: '', beschreibung: '', freigabe: moderator ? 'veroeffentlichen' : 'einreichen' });
+function VarianteFormular({ moderator, onFertig, vorlage }) {
+  const [w, setW] = useState({
+    bezeichnung: vorlage?.bezeichnung ?? '', modellnummer: vorlage?.modellnummer ?? '', farbe: vorlage?.farbe ?? '', edition: vorlage?.edition ?? '',
+    region: vorlage?.region ?? '', erscheinungsjahr: vorlage?.erscheinungsjahr ?? '', beschreibung: vorlage?.beschreibung ?? '',
+    freigabe: moderator ? 'veroeffentlichen' : 'einreichen',
+  });
   const [fehler, setFehler] = useState(null);
   const setze = (f) => (e) => setW((x) => ({ ...x, [f]: e.target.value }));
   return (
@@ -103,13 +126,13 @@ function VarianteFormular({ moderator, onFertig }) {
         </label>
         <label><span className="beschriftung">Erscheinungsjahr</span><input className="eingabe" inputMode="numeric" value={w.erscheinungsjahr} onChange={setze('erscheinungsjahr')} /></label>
         <label className="sm:col-span-2"><span className="beschriftung">Beschreibung (optional)</span><input className="eingabe" value={w.beschreibung} onChange={setze('beschreibung')} placeholder="Erkennungsmerkmale, Unterschiede …" /></label>
-        <label className="sm:col-span-2"><span className="beschriftung">Sichtbarkeit</span>
+        {!vorlage && <label className="sm:col-span-2"><span className="beschriftung">Sichtbarkeit</span>
           <select className="eingabe" value={w.freigabe} onChange={setze('freigabe')}>
             <option value="privat">Nur für mich</option>
             <option value="einreichen">Zur Aufnahme in die globale Datenbank einreichen</option>
             {moderator && <option value="veroeffentlichen">Direkt veröffentlichen (Moderation)</option>}
           </select>
-        </label>
+        </label>}
       </div>
       {fehler && <p className="text-sm text-gefahr" role="alert">{fehler}</p>}
       <div className="flex gap-2">

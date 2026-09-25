@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { api, ApiFehler } from '../api.js';
 import { useSitzung } from '../sitzung.js';
 import Symbol from '../komponenten/Symbole.jsx';
+import Fusszeile from '../komponenten/Fusszeile.jsx';
 
 export default function Anmelden() {
   const { auth, aktualisiere } = useSitzung();
   const [modus, setModus] = useState(auth?.ersteinrichtung ? 'registrieren' : 'anmelden');
   const [werte, setWerte] = useState({ benutzername: '', passwort: '', passwort2: '', anzeigename: '' });
+  const [akzeptiert, setAkzeptiert] = useState(false);
   const [zweiFaktor, setZweiFaktor] = useState(null); // { token }
   const [code, setCode] = useState('');
   const [mitWiederherstellung, setMitWiederherstellung] = useState(false);
@@ -32,7 +34,9 @@ export default function Anmelden() {
           : { token: zweiFaktor.token, code });
         await aktualisiere();
       } else if (modus === 'registrieren') {
-        await api.registrieren({ benutzername: werte.benutzername, passwort: werte.passwort, anzeigename: werte.anzeigename });
+        await api.registrieren({
+          benutzername: werte.benutzername, passwort: werte.passwort, anzeigename: werte.anzeigename, bedingungen_akzeptiert: akzeptiert,
+        });
         await aktualisiere();
       } else {
         const antwort = await api.anmelden({ benutzername: werte.benutzername, passwort: werte.passwort });
@@ -130,6 +134,14 @@ export default function Anmelden() {
                     <input type="password" className="eingabe" value={werte.passwort2} onChange={setze('passwort2')} autoComplete="new-password" required />
                   </Feld>
                   <p className="text-xs text-leise">Mindestens 10 Zeichen. Nach der Registrierung kannst du unter „Konto“ die Zwei-Faktor-Anmeldung aktivieren.</p>
+                  <label className="flex items-start gap-2 text-sm">
+                    <input type="checkbox" className="mt-1 size-4 accent-akzent" checked={akzeptiert} onChange={(e) => setAkzeptiert(e.target.checked)} />
+                    <span>
+                      Ich akzeptiere die <a href="#/seite/nutzungsbedingungen" className="text-akzent-hell underline" target="_blank">Nutzungsbedingungen</a> und
+                      habe die <a href="#/seite/datenschutz" className="text-akzent-hell underline" target="_blank">Datenschutzerklärung</a> gelesen.
+                    </span>
+                  </label>
+                  {felder.bedingungen && <p className="text-sm text-gefahr">{felder.bedingungen}</p>}
                 </>
               )}
             </>
@@ -150,6 +162,7 @@ export default function Anmelden() {
         {auth?.oeffentlicherKatalog && !zweiFaktor && (
           <p className="text-center text-sm"><a href="#/katalog" className="text-akzent-hell underline">Katalog ohne Anmeldung durchstöbern</a></p>
         )}
+        <Fusszeile className="py-2" />
         {!registrierungMoeglich && !zweiFaktor && (
           <p className="text-center text-xs text-leise">Die Registrierung neuer Konten ist auf diesem Server geschlossen.</p>
         )}

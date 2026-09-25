@@ -8,7 +8,7 @@ import Layout from '../komponenten/Layout.jsx';
 import Symbol from '../komponenten/Symbole.jsx';
 import { useHinweis } from '../komponenten/Hinweise.jsx';
 
-const REITER = [['katalog', 'Katalog'], ['varianten', 'Varianten'], ['medien', 'Scans'], ['plattformen', 'Plattformen']];
+const REITER = [['katalog', 'Katalog'], ['varianten', 'Varianten'], ['medien', 'Scans'], ['meldungen', 'Meldungen'], ['plattformen', 'Plattformen']];
 
 export default function Moderation({ route }) {
   const zeigeHinweis = useHinweis();
@@ -38,12 +38,15 @@ export default function Moderation({ route }) {
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4" role="tablist">
           {REITER.map(([wert, label]) => (
             <a key={wert} href={`#/moderation?reiter=${wert}`} role="tab" aria-selected={reiter === wert} className={reiter === wert ? 'chip-aktiv' : 'chip'}>
-              {label}{schlange && wert !== 'plattformen' && schlange[wert].length > 0 && <span className="ml-1 rounded-full bg-warnung px-1.5 text-[11px] text-black">{schlange[wert].length}</span>}
+              {label}
+              {schlange && ['katalog', 'varianten', 'medien'].includes(wert) && schlange[wert].length > 0 && <span className="ml-1 rounded-full bg-warnung px-1.5 text-[11px] text-black">{schlange[wert].length}</span>}
+              {schlange && wert === 'meldungen' && schlange.offeneMeldungen > 0 && <span className="ml-1 rounded-full bg-gefahr px-1.5 text-[11px] text-white">{schlange.offeneMeldungen}</span>}
             </a>
           ))}
         </div>
 
-        {!schlange && reiter !== 'plattformen' && <p className="text-leise">Wird geladen …</p>}
+        {!schlange && !['plattformen', 'meldungen'].includes(reiter) && <p className="text-leise">Wird geladen …</p>}
+        {reiter === 'meldungen' && <Meldungen onGeaendert={laden} />}
 
         {schlange && reiter === 'katalog' && (
           <Liste leer="Keine offenen Katalog-Einreichungen." eintraege={schlange.katalog} render={(k) => (
@@ -106,6 +109,62 @@ export default function Moderation({ route }) {
         {reiter === 'plattformen' && <PlattformenPflegen />}
       </div>
     </Layout>
+  );
+}
+
+const GRUND = { urheberrecht: 'Urheberrecht', rechtswidrig: 'Rechtswidrig', falsch: 'Falsche Angaben', spam: 'Spam', sonstiges: 'Sonstiges' };
+const BEREICH = { medien: 'Scan/Dokument', katalog: 'Katalogeintrag', preis: 'Preis-Meldung' };
+
+function Meldungen({ onGeaendert }) {
+  const zeigeHinweis = useHinweis();
+  const [status, setStatus] = useState('offen');
+  const [liste, setListe] = useState(null);
+  const laden = () => api.meldungen(status).then(setListe).catch((e) => zeigeHinweis(e.message, 'fehler'));
+  useEffect(() => { laden(); }, [status]);
+  const erledigen = async (m, aktion) => {
+    const ergebnis = window.prompt(aktion === 'entfernen' ? 'Begründung (wird dem Uploader angezeigt):' : 'Notiz (optional):', aktion === 'entfernen' ? 'Nach Prüfung entfernt.' : '');
+    if (ergebnis === null) return;
+    try {
+      await api.meldungErledigen(m.id, { aktion, ergebnis });
+      zeigeHinweis('Meldung erledigt.');
+      laden();
+      onGeaendert();
+    } catch (e) { zeigeHinweis(e.message, 'fehler'); }
+  };
+  return (
+    <div className="space-y-3">
+      <p className="karte p-3 text-sm text-leise">
+        Meldungen – insbesondere zu Urheberrechtsverletzungen – bitte <strong className="text-text">zeitnah</strong> prüfen. Bei berechtigten
+        Hinweisen den Inhalt entfernen; Scans werden dabei für andere gesperrt, der Uploader behält sie privat.
+      </p>
+      <div className="flex gap-2">
+        {[['offen', 'Offen'], ['erledigt', 'Erledigt']].map(([w, l]) => (
+          <button key={w} type="button" className={status === w ? 'chip-aktiv' : 'chip'} onClick={() => setStatus(w)}>{l}</button>
+        ))}
+      </div>
+      {liste && (
+        <Liste leer={status === 'offen' ? 'Keine offenen Meldungen.' : 'Noch keine erledigten Meldungen.'} eintraege={liste} render={(m) => (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`abzeichen ${m.grund === 'urheberrecht' || m.grund === 'rechtswidrig' ? 'text-gefahr' : ''}`}>{GRUND[m.grund]}</span>
+              <span className="abzeichen">{BEREICH[m.bereich]}</span>
+              {m.katalog_id ? <a href={`#/katalog/${m.katalog_id}`} className="font-semibold hover:underline">{m.ziel_titel ?? 'Inhalt'}</a> : <span className="text-leise">(Inhalt gelöscht)</span>}
+            </div>
+            <p className="text-sm whitespace-pre-wrap">{m.text}</p>
+            <p className="text-xs text-leise">
+              {datumDe(m.erstellt_am)} · {m.gemeldet_von ? `von ${m.gemeldet_von}` : 'ohne Konto'}{m.kontakt ? ` · Kontakt: ${m.kontakt}` : ''}
+              {m.ergebnis && ` · Ergebnis: ${m.ergebnis}`}
+            </p>
+            {m.status === 'offen' && (
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className="knopf-gefahr px-3 py-1.5" onClick={() => erledigen(m, 'entfernen')}>Inhalt entfernen</button>
+                <button type="button" className="knopf-sekundaer px-3 py-1.5" onClick={() => erledigen(m, 'keine')}>Kein Verstoß</button>
+              </div>
+            )}
+          </>
+        )} />
+      )}
+    </div>
   );
 }
 

@@ -34,7 +34,9 @@ export function erstelleKatalogDienst(db, { igdb, barcode, cache, plattformen })
       titel = excluded.titel, plattformen = excluded.plattformen, erscheinungsjahr = excluded.erscheinungsjahr,
       hersteller = excluded.hersteller, cover_url = excluded.cover_url, beschreibung = excluded.beschreibung,
       aktualisiert_am = datetime('now')
+    WHERE katalog.manuell_bearbeitet = 0
     RETURNING *`);
+  const perQuelle = db.prepare('SELECT * FROM katalog WHERE quelle = ? AND externe_id = ?');
   const perId = db.prepare('SELECT * FROM katalog WHERE id = ?');
   const lokaleSuche = db.prepare(`
     SELECT k.* FROM katalog k
@@ -60,8 +62,23 @@ export function erstelleKatalogDienst(db, { igdb, barcode, cache, plattformen })
       erstellt_von: null, erscheinungsjahr: null, hersteller: null, cover_url: null, beschreibung: null,
       ...eintrag, status, plattformen: JSON.stringify(eintrag.plattformen ?? []),
     });
+    // Manuell bearbeitete Einträge werden von Importen (IGDB) nicht überschrieben
+    if (!zeile) return katalogZeileZuObjekt(perQuelle.get(eintrag.quelle, eintrag.externe_id));
     plattformen?.verknuepfeKatalog(zeile.id, eintrag.plattformen);
     return katalogZeileZuObjekt(zeile);
+  }
+
+  /** Bearbeitung eines Eintrags durch Ersteller oder Moderation (auch IGDB-Einträge). */
+  function aktualisiere(id, daten, { plattformenNeu = false } = {}) {
+    return db.transaction(() => {
+      const zeile = db.prepare(`UPDATE katalog SET typ = @typ, titel = @titel, plattformen = @plattformen,
+          erscheinungsjahr = @erscheinungsjahr, hersteller = @hersteller, cover_url = @cover_url, beschreibung = @beschreibung,
+          manuell_bearbeitet = CASE WHEN quelle = 'igdb' THEN 1 ELSE manuell_bearbeitet END, aktualisiert_am = datetime('now')
+        WHERE id = @id RETURNING *`).get({ ...daten, plattformen: JSON.stringify(daten.plattformen ?? []), id });
+      if (plattformenNeu) db.prepare('DELETE FROM katalog_plattformen WHERE katalog_id = ?').run(id);
+      plattformen?.verknuepfeKatalog(id, daten.plattformen);
+      return katalogZeileZuObjekt(zeile);
+    })();
   }
 
   /** Legt einen eigenen Katalogeintrag an (Status je nach Rolle und Wunsch). */
@@ -168,6 +185,6 @@ export function erstelleKatalogDienst(db, { igdb, barcode, cache, plattformen })
   }
 
   return {
-    speichere, legeEigenenAn, holeEintrag, holeSichtbar, sucheLokal, suche, sucheBarcode, verknuepfeBarcode, stelleSicherFuerArtikel,
+    speichere, aktualisiere, legeEigenenAn, holeEintrag, holeSichtbar, sucheLokal, suche, sucheBarcode, verknuepfeBarcode, stelleSicherFuerArtikel,
   };
 }

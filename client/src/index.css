@@ -19,6 +19,7 @@
   --color-serie-1: #3987e5;
   --color-serie-2: #d95926;
   --color-serie-3: #199e70;
+  --color-serie-4: #c98500;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -39,6 +40,7 @@
     --color-serie-1: #2a78d6;
     --color-serie-2: #eb6834;
     --color-serie-3: #1baf7a;
+    --color-serie-4: #eda100;
   }
 }
 

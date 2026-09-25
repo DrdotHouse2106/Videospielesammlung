@@ -52,8 +52,8 @@ export function erstelleKontenDienst(db, { schluessel, sitzungTage, appName = 'V
     anzahlBenutzer: db.prepare('SELECT COUNT(*) AS n FROM benutzer'),
     perId: db.prepare('SELECT * FROM benutzer WHERE id = ?'),
     perName: db.prepare('SELECT * FROM benutzer WHERE benutzername = ?'),
-    anlegen: db.prepare(`INSERT INTO benutzer (benutzername, anzeigename, passwort_hash, rolle)
-                         VALUES (?, ?, ?, ?) RETURNING *`),
+    anlegen: db.prepare(`INSERT INTO benutzer (benutzername, anzeigename, passwort_hash, rolle, bedingungen_akzeptiert_am)
+                         VALUES (?, ?, ?, ?, datetime('now')) RETURNING *`),
     sitzungAnlegen: db.prepare('INSERT INTO sitzungen (token_hash, benutzer_id, stufe, laeuft_ab, geraet) VALUES (?, ?, ?, ?, ?)'),
     sitzungLesen: db.prepare('SELECT * FROM sitzungen WHERE token_hash = ?'),
     sitzungVerlaengern: db.prepare('UPDATE sitzungen SET laeuft_ab = ? WHERE token_hash = ?'),
@@ -66,9 +66,12 @@ export function erstelleKontenDienst(db, { schluessel, sitzungTage, appName = 'V
 
   const istErsteinrichtung = () => q.anzahlBenutzer.get().n === 0;
 
-  async function registriere({ benutzername, passwort, anzeigename }) {
+  async function registriere({ benutzername, passwort, anzeigename, bedingungen_akzeptiert: akzeptiert }) {
     const name = pruefeBenutzername(benutzername);
     pruefeNeuesPasswort(passwort);
+    if (akzeptiert !== true) {
+      throw new ValidierungsFehler({ bedingungen: 'Bitte akzeptiere die Nutzungsbedingungen und bestätige, die Datenschutzerklärung gelesen zu haben.' });
+    }
     if (q.perName.get(name)) throw new ValidierungsFehler({ benutzername: 'Dieser Benutzername ist bereits vergeben.' });
     const hash = await hashePasswort(passwort);
     return db.transaction(() => {

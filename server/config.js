@@ -62,6 +62,17 @@ export function ladeKonfiguration(env = process.env) {
       registrierungenProStunde: zahl(env.REGISTRATIONS_PER_HOUR, 5),
       cookieSicher: (env.COOKIE_SECURE || 'auto').trim().toLowerCase(),
     },
+    ebay: {
+      // Kostenloser Zugang: https://developer.ebay.com → Application Keys (Production)
+      clientId: (env.EBAY_CLIENT_ID || '').trim(),
+      clientSecret: (env.EBAY_CLIENT_SECRET || '').trim(),
+      marktplatz: (env.EBAY_MARKETPLACE || 'EBAY_DE').trim(),
+      standort: (env.EBAY_ITEM_LOCATION || 'DE').trim(),
+      kategorien: (env.EBAY_CATEGORY_IDS || '').trim(),
+    },
+    // Automatischer Preisimport alle X Stunden (0 = aus) und max. Einträge pro Durchlauf
+    preisimportStunden: zahl(env.PRICE_IMPORT_HOURS, 24),
+    preisimportMax: zahl(env.PRICE_IMPORT_MAX, 150),
     preise: {
       priceChartingToken: (env.PRICECHARTING_TOKEN || '').trim(),
       usdEurKurs: Number.parseFloat(env.USD_EUR_RATE || '') || null,

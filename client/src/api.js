@@ -155,6 +155,16 @@ export const api = {
   plattformAnlegen: (daten) => anfrage('/api/moderation/plattformen', { methode: 'POST', daten }),
   plattformAendern: (id, daten) => anfrage(`/api/moderation/plattformen/${id}`, { methode: 'PUT', daten }),
 
+  // Rechtliches, Meldungen, Admin-Übersicht
+  seiten: () => anfrage('/api/seiten'),
+  seite: (slug) => anfrage(`/api/seiten/${encodeURIComponent(slug)}`),
+  seiteSpeichern: (slug, daten) => anfrage(`/api/admin/seiten/${encodeURIComponent(slug)}`, { methode: 'PUT', daten }),
+  melden: (daten) => anfrage('/api/melden', { methode: 'POST', daten }),
+  meldungen: (status) => anfrage(`/api/moderation/meldungen${abfrage({ status })}`),
+  meldungErledigen: (id, daten) => anfrage(`/api/moderation/meldungen/${id}/erledigen`, { methode: 'POST', daten }),
+  adminUebersicht: () => anfrage('/api/admin/uebersicht'),
+  preisimportStarten: () => anfrage('/api/admin/preisimport', { methode: 'POST', daten: {} }),
+
   // Administration
   adminBenutzer: () => anfrage('/api/admin/benutzer'),
   adminBenutzerAendern: (id, daten) => anfrage(`/api/admin/benutzer/${id}`, { methode: 'PUT', daten }),

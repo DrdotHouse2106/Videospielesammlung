@@ -8,6 +8,9 @@ Videospielesammlung is an open-source Progressive Web App for managing **games, 
 tailored to collectors in German-speaking countries (PAL/USK regions, CIB status, special colours, editions and
 model revisions).
 
+> 🔒 **Security is a top priority.** Found a vulnerability? Every report is appreciated – please report it privately via
+> [GitHub Security Advisories](https://github.com/DrdotHouse2106/Videospielesammlung/security/advisories/new). See [SECURITY.md](SECURITY.md).
+
 ## Features
 
 - Games, consoles and accessories with variants: colour, edition, model number, serial number
@@ -26,6 +29,8 @@ model revisions).
 - Fixed **platform taxonomy** (PS5, Switch, N64 …), **known variants/revisions** as a collecting checklist, multiple copies per item
 - Private comments per item, **price history** (automatic market prices + user-reported offers/sales)
 - Public catalogue pages with clearly marked **affiliate “buy here” links** (defaults in `server/affiliate-konfiguration.js`)
+- **Admin dashboard**: statistics, users & roles, editable legal pages (imprint, privacy policy, terms, security), price import
+- **Automatic price import** of current offers via the official eBay Browse API; content reporting (notice-and-takedown)
 
 **Stack:** Node.js 22 · Express 5 · SQLite (better-sqlite3) · sharp · React 19 · Vite · Tailwind CSS 4
 

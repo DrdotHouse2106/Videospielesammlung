@@ -3,7 +3,7 @@ import {
   ARTIKELTYPEN, ZUSTAENDE, VOLLSTAENDIGKEITEN, REGIONEN, MEDIENARTEN, PRUEFSTATUS, ROLLEN, PREISARTEN, PREISQUELLEN,
 } from '../../shared/konstanten.js';
 
-export function statusRouter({ igdb, barcode, preise, affiliate, plattformen, konfiguration, version }) {
+export function statusRouter({ igdb, barcode, preise, affiliate, plattformen, ebay, konfiguration, version }) {
   const router = Router();
 
   router.get('/status', (_req, res) => {
@@ -18,6 +18,7 @@ export function statusRouter({ igdb, barcode, preise, affiliate, plattformen, ko
       medienTeilenErlaubt: konfiguration.medienTeilenErlaubt,
       oeffentlicherKatalog: konfiguration.oeffentlicherKatalog,
       affiliateAktiv: affiliate.aktiv,
+      ebayAktiv: ebay.konfiguriert,
       maxUploadMb: konfiguration.maxUploadMb,
       maxMedienMb: konfiguration.maxMedienMb,
     });

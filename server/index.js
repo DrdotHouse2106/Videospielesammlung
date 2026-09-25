@@ -10,6 +10,7 @@ const server = app.listen(konfiguration.port, konfiguration.host, () => {
   console.log(`   IGDB: ${kontext.igdb.konfiguriert ? 'aktiv' : 'nicht konfiguriert (nur eigene Einträge)'}`);
   console.log(`   Barcode-Dienste: ${kontext.barcode.aktiveAnbieter.join(', ') || 'keine'}`);
   console.log(`   Marktpreise (PriceCharting): ${kontext.preise.aktiv ? 'aktiv' : 'nicht konfiguriert'}`);
+  console.log(`   eBay-Angebote: ${kontext.ebay.konfiguriert ? 'aktiv' : 'nicht konfiguriert'}`);
   console.log(`   Registrierung: ${konfiguration.konten.registrierungOffen ? 'offen' : 'geschlossen'}`
     + ` · 2FA-Pflicht: ${konfiguration.konten.zweiFaktorPflicht ? 'ja' : 'nein'}`);
   if (kontext.konten.istErsteinrichtung()) console.log('   ➜ Noch kein Konto vorhanden: Das erste registrierte Konto wird Administrator.');
@@ -21,6 +22,16 @@ const aufraeumen = setInterval(() => {
   kontext.konten.raeumeAuf();
 }, 6 * 60 * 60 * 1000);
 aufraeumen.unref();
+
+// Automatischer Preisimport (eBay-Angebote, Marktpreise) im Hintergrund
+if (konfiguration.preisimportStunden > 0 && kontext.preisimport.aktiv()) {
+  const importieren = () => kontext.preisimport.lauf({ max: konfiguration.preisimportMax })
+    .then((s) => console.log(`[preisimport] ${s.verarbeitet ?? 0} Einträge aktualisiert.`))
+    .catch((e) => console.warn('[preisimport]', e.message));
+  setTimeout(importieren, 5 * 60 * 1000).unref();
+  setInterval(importieren, konfiguration.preisimportStunden * 60 * 60 * 1000).unref();
+  console.log(`   Preisimport: alle ${konfiguration.preisimportStunden} Stunden`);
+}
 
 function beenden(signal) {
   console.log(`${signal} empfangen – Server wird beendet …`);

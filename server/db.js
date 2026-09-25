@@ -3,6 +3,7 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 import { PLATTFORM_STAMMDATEN } from '../shared/konstanten.js';
 import { ordnePlattformZu, ladePlattformIndex } from './services/plattformen.js';
+import { RECHTLICHE_VORLAGEN } from './rechtliche-vorlagen.js';
 
 // Migrationen werden der Reihe nach ausgeführt. Neue Änderungen am Schema
 // immer als neuen Eintrag unten anhängen – bestehende nie verändern.
@@ -271,6 +272,42 @@ const MIGRATIONEN = [
         if (p) verknuepfe.run(k.id, p.id);
       }
     }
+  },
+  // 5: Rechtliche Seiten, Meldungen von Inhalten, automatische Preisimporte
+  `
+  CREATE TABLE seiten (
+    slug            TEXT PRIMARY KEY,
+    titel           TEXT NOT NULL,
+    inhalt          TEXT NOT NULL DEFAULT '',
+    aktualisiert_am TEXT NOT NULL DEFAULT (datetime('now')),
+    aktualisiert_von INTEGER REFERENCES benutzer (id) ON DELETE SET NULL
+  );
+
+  -- Meldungen rechtswidriger/fehlerhafter Inhalte (Notice-and-Takedown, Art. 16 DSA)
+  CREATE TABLE inhalt_meldungen (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    bereich      TEXT    NOT NULL,          -- medien, katalog, preis
+    ziel_id      INTEGER NOT NULL,
+    grund        TEXT    NOT NULL,          -- urheberrecht, rechtswidrig, falsch, spam, sonstiges
+    text         TEXT,
+    kontakt      TEXT,                      -- optional bei Meldungen ohne Konto
+    benutzer_id  INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    status       TEXT    NOT NULL DEFAULT 'offen',   -- offen, erledigt
+    ergebnis     TEXT,
+    erledigt_von INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    erstellt_am  TEXT    NOT NULL DEFAULT (datetime('now')),
+    erledigt_am  TEXT
+  );
+  CREATE INDEX idx_meldungen_status ON inhalt_meldungen (status);
+
+  -- Von Moderatoren bearbeitete Einträge werden bei IGDB-Aktualisierungen nicht überschrieben
+  ALTER TABLE katalog ADD COLUMN manuell_bearbeitet INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE benutzer ADD COLUMN bedingungen_akzeptiert_am TEXT;
+  ALTER TABLE preis_historie ADD COLUMN anzahl INTEGER;
+  `,
+  (db) => {
+    const einfuegen = db.prepare('INSERT OR IGNORE INTO seiten (slug, titel, inhalt) VALUES (?, ?, ?)');
+    for (const v of RECHTLICHE_VORLAGEN) einfuegen.run(v.slug, v.titel, v.inhalt);
   },
 ];
 

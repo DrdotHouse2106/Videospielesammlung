@@ -3,6 +3,12 @@
 Schön, dass du helfen möchtest! Beiträge jeder Art sind willkommen: Fehlerberichte,
 Ideen, Übersetzungen, Dokumentation und Code.
 
+## Sicherheitslücken
+
+**Bitte nicht als öffentliches Issue melden!** Sicherheit ist mir sehr wichtig – nutze die vertrauliche Meldung über
+[GitHub Security Advisories](https://github.com/DrdotHouse2106/Videospielesammlung/security/advisories/new).
+Details stehen in der [SECURITY.md](SECURITY.md). Danke!
+
 ## Fehler melden & Wünsche äußern
 
 - Suche zuerst in den [Issues](../../issues), ob das Thema schon existiert.

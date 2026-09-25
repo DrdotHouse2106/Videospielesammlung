@@ -11,6 +11,10 @@ eigener Eintrag für Raritäten, die in keiner Datenbank stehen.
 
 > 🇬🇧 An English version of this document is available in [README.en.md](README.en.md).
 
+> 🔒 **Sicherheit hat höchste Priorität.** Du hast eine Sicherheitslücke gefunden? Ich freue mich über jeden Hinweis –
+> bitte **vertraulich** über [GitHub Security Advisories](https://github.com/DrdotHouse2106/Videospielesammlung/security/advisories/new)
+> melden. Details in der [Sicherheitsrichtlinie (SECURITY.md)](SECURITY.md).
+
 <p align="center">
   <img src="docs/bilder/sammlung-mobil.png" alt="Sammlungsansicht auf dem Smartphone" width="200" />
   &nbsp;
@@ -37,7 +41,10 @@ eigener Eintrag für Raritäten, die in keiner Datenbank stehen.
 - [Plattformen, Varianten & Exemplare](#plattformen-varianten--exemplare)
 - [Preis-Historie](#preis-historie)
 - [Affiliate-Links („Hier kaufen“)](#affiliate-links-hier-kaufen)
+- [Administration & rechtliche Seiten](#administration--rechtliche-seiten)
+- [Automatischer Preisimport (eBay)](#automatischer-preisimport-ebay)
 - [Öffentlich hosten – Checkliste](#öffentlich-hosten--checkliste)
+- [Sicherheit](#sicherheit)
 - [IGDB-Zugang einrichten](#igdb-zugang-einrichten)
 - [Barcode-Scanner & HTTPS](#barcode-scanner--https)
 - [Betrieb im Internet (Reverse-Proxy)](#betrieb-im-internet-reverse-proxy)
@@ -152,6 +159,11 @@ Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 | `PRICE_CACHE_HOURS`    | `72`                      | Gültigkeit abgerufener Marktpreise |
 | `TRUST_PROXY`          | –                         | Hinter einem Reverse-Proxy `1` setzen (für HTTPS-Cookies und IP-basierte Sperren) |
 | `PUBLIC_CATALOG`       | `true`                    | Katalogseiten ohne Anmeldung zeigen (Sammlungen bleiben privat) |
+| `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` | –        | Zugang zur offiziellen eBay Browse API für den automatischen Preisimport |
+| `EBAY_MARKETPLACE` / `EBAY_ITEM_LOCATION` | `EBAY_DE` / `DE` | Marktplatz und Artikelstandort der eBay-Suche |
+| `EBAY_CATEGORY_IDS`    | –                         | Optional: eBay-Kategorien eingrenzen (kommagetrennt) |
+| `PRICE_IMPORT_HOURS`   | `24`                      | Automatischer Preisimport alle X Stunden (`0` = aus) |
+| `PRICE_IMPORT_MAX`     | `150`                     | Max. Katalogeinträge pro Import-Durchlauf |
 | `AFFILIATE_LINKS`      | `true`                    | „Hier kaufen“-Links anzeigen |
 | `AFFILIATE_AMAZON_TAG` | aus dem Code              | Amazon-PartnerNet-ID (überschreibt `server/affiliate-konfiguration.js`) |
 | `AFFILIATE_EBAY_CAMPID`| aus dem Code              | eBay-Partner-Network-Kampagnen-ID |
@@ -222,11 +234,60 @@ Jeder Artikel in einer Sammlung gehört zu einem **Katalogeintrag** (das „Spie
 
 ---
 
+## Administration & rechtliche Seiten
+
+Administratoren finden unter **Mehr → Administration**:
+
+- **Übersicht:** Benutzer, Moderationsteam, 2FA-Quote, offene Prüfungen und Meldungen, Katalog- und Preisdaten, Status aller Dienste.
+- **Benutzer & Rollen:** Suchen, nach Rolle filtern, **„Zum Moderator machen“**, Rollen ändern, sperren, 2FA zurücksetzen, Passwort setzen, löschen.
+- **Rechtliches:** **Impressum, Datenschutzerklärung, Nutzungsbedingungen und Sicherheit** direkt in der App bearbeiten
+  (einfaches Markdown mit Vorschau). Die Seiten sind ohne Anmeldung erreichbar und auf jeder Seite in der Fußzeile verlinkt.
+  Mitgeliefert werden **Vorlagen** passend zu den Funktionen der App – bitte alle Angaben in [eckigen Klammern] ersetzen
+  (die Vorlagen sind keine Rechtsberatung).
+- **Preisimport:** Status und manueller Start des automatischen Preisimports.
+
+Bei der Registrierung bestätigen neue Benutzer die Nutzungsbedingungen und die Kenntnisnahme der Datenschutzerklärung.
+
+**Moderatoren** bearbeiten unter *Mehr → Moderation* bzw. direkt auf jeder Katalogseite (Stift-Symbol) alle Katalogeinträge –
+auch aus IGDB übernommene (diese werden dann bei späteren Importen nicht mehr überschrieben) – sowie Varianten, Plattformen und Kauflinks.
+
+### Meldungen (Notice-and-Takedown)
+
+Jeder – auch ohne Konto – kann öffentliche Inhalte über **„Melden“** melden (z. B. Urheberrechtsverletzung, falsche Angaben);
+angemeldete Benutzer können zusätzlich freigegebene Scans melden. Meldungen erscheinen im Moderationsbereich unter **„Meldungen“**
+und können mit „Inhalt entfernen“ oder „Kein Verstoß“ abgeschlossen werden. Entfernte Scans sind für andere sofort gesperrt;
+der Uploader behält sie privat.
+
+---
+
+## Automatischer Preisimport (eBay)
+
+Mit einem **kostenlosen eBay-Developer-Zugang** holt die App regelmäßig automatisch aktuelle Angebote:
+
+1. Unter <https://developer.ebay.com> registrieren → *Application Keys* → Keyset für **Production** erzeugen.
+2. `EBAY_CLIENT_ID` (App ID) und `EBAY_CLIENT_SECRET` (Cert ID) in die `.env` eintragen.
+3. Optional die eBay-Partner-Kampagnen-ID (`AFFILIATE_EBAY_CAMPID` bzw. im Code) setzen – dann liefert eBay die
+   Angebotslinks direkt als **Affiliate-Links**.
+
+Der Import läuft alle `PRICE_IMPORT_HOURS` Stunden (erstmals 5 Minuten nach dem Start) für alle freigegebenen Katalogeinträge,
+die jemand sammelt – zuerst die am längsten nicht aktualisierten. Pro Eintrag werden die aktuellen Festpreis-Angebote aus Deutschland
+gesucht, unpassende Treffer (anderer Titel, „nur Hülle“, Repros) und Preis-Ausreißer verworfen und der **Median** mit Datum in der
+Preis-Historie gespeichert. Die günstigsten Angebote erscheinen auf der öffentlichen Katalogseite unter „Hier zum Kauf verfügbar“.
+Ist `PRICECHARTING_TOKEN` gesetzt, werden im selben Durchlauf auch die Marktpreise aktualisiert.
+
+> **Warum nur eBay?** eBay bietet eine offizielle, kostenlose API. Kleinanzeigen, Vinted und die meisten Händler bieten keine
+> öffentliche Schnittstelle; automatisches Auslesen ihrer Seiten („Scraping“) verstößt in der Regel gegen deren Nutzungsbedingungen
+> und ist deshalb nicht eingebaut. Solche Angebote können Nutzer weiterhin manuell melden. Verkaufte (statt angebotene) Artikel liefert
+> eBay nur über die zugangsbeschränkte „Marketplace Insights API“.
+
+---
+
 ## Preis-Historie
 
 Die Katalogseite jedes Spiels zeigt einen **Preisverlauf**:
 
 - **Marktpreise** (lose/CIB/neu) werden bei jedem Abruf von PriceCharting automatisch mit Datum gespeichert – so entsteht mit der Zeit ein Verlauf.
+- **eBay-Angebote:** Der automatische Preisimport speichert täglich den Median der aktuellen Angebote.
 - **Meldungen:** Angemeldete Nutzer melden, **wo** (eBay, Kleinanzeigen, Vinted, Händler, Börse …), **wann** und **für wie viel** ein
   Artikel **angeboten** oder **verkauft** wurde – optional mit Link, Zustand, Vollständigkeit und Region.
 - Meldungen sind für andere **anonym**; eigene Meldungen kann man löschen, Moderatoren alle.
@@ -315,7 +376,9 @@ Für ein DVD-Inlay reicht ein A4-Scanner; größere Einleger in zwei Teilen scan
 6. `MEDIA_SHARING` bewusst wählen (siehe Urheberrecht oben).
 7. **Regelmäßige Backups** des Datenverzeichnisses einrichten.
 8. Affiliate-IDs in `server/affiliate-konfiguration.js` eintragen (oder per `.env`).
-9. Impressum/Datenschutzerklärung: Bei einem öffentlich erreichbaren Angebot in Deutschland in der Regel Pflicht –
+9. Unter *Administration → Rechtliches* **Impressum, Datenschutzerklärung, Nutzungsbedingungen und Sicherheit** ausfüllen.
+10. Meldungen im Moderationsbereich regelmäßig und zeitnah bearbeiten.
+11. Impressum/Datenschutzerklärung: Bei einem öffentlich erreichbaren Angebot in Deutschland in der Regel Pflicht –
    z. B. als eigene Seite über den Reverse-Proxy bereitstellen.
 
 ---
@@ -517,6 +580,19 @@ außer `/api/health` und `/api/auth/*` erfordern eine Anmeldung (Sitzungs-Cookie
 | POST    | `/api/import`                     | JSON-Import |
 
 Fehlermeldungen kommen immer auf Deutsch im Feld `fehler`, bei Validierungsfehlern zusätzlich je Feld in `felder`.
+
+---
+
+## Sicherheit
+
+**Sicherheit hat in diesem Projekt einen sehr hohen Stellenwert – ich freue mich über jede Meldung eines Sicherheitsproblems!**
+Bitte melde Schwachstellen vertraulich über
+[GitHub Security Advisories](https://github.com/DrdotHouse2106/Videospielesammlung/security/advisories/new) und nicht als öffentliches Issue.
+Alle Details stehen in der [Sicherheitsrichtlinie](SECURITY.md). Die App liefert außerdem eine `/.well-known/security.txt` aus.
+
+Eingebaute Schutzmaßnahmen (Auswahl): scrypt-Passwort-Hashes, TOTP-2FA mit verschlüsselt gespeicherten Geheimnissen,
+HttpOnly-/SameSite-Cookies, CSRF-Schutz über Origin-Prüfung, Content-Security-Policy, Begrenzung von Fehlversuchen,
+strikte Trennung der Benutzerdaten, Dateiauslieferung nur mit Berechtigungsprüfung, parametrisierte SQL-Abfragen.
 
 ---
 

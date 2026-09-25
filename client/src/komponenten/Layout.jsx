@@ -1,6 +1,7 @@
 import Symbol from './Symbole.jsx';
 import { navigiere } from '../router.js';
 import { useSitzung } from '../sitzung.js';
+import Fusszeile from './Fusszeile.jsx';
 
 const NAVIGATION = [
   { pfad: '/', label: 'Sammlung', symbol: 'sammlung' },
@@ -16,7 +17,7 @@ const NUR_DESKTOP = [
   { pfad: '/community', label: 'Community', symbol: 'community' },
 ];
 
-const MEHR_PFADE = ['/einstellungen', '/konto', '/statistik', '/admin', '/druck', '/moderation', '/katalog', '/community'];
+const MEHR_PFADE = ['/einstellungen', '/konto', '/statistik', '/admin', '/druck', '/moderation', '/katalog', '/community', '/seite'];
 
 function istAktiv(eintrag, route) {
   if (eintrag.pfad === '/') return route.pfad === '/' || route.pfad.startsWith('/artikel');
@@ -43,6 +44,7 @@ export default function Layout({ route, titel, zurueck, aktionen, children }) {
           </div>
         </header>
         <main className="mx-auto max-w-6xl px-4 pt-4">{children}</main>
+        <Fusszeile />
       </div>
     );
   }
@@ -85,6 +87,7 @@ export default function Layout({ route, titel, zurueck, aktionen, children }) {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pt-4">{children}</main>
+      <Fusszeile />
 
       <nav
         className="unten-sicher fixed inset-x-0 bottom-0 z-40 border-t border-rand/60 bg-flaeche/95 backdrop-blur-md md:hidden"

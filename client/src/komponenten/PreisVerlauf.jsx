@@ -8,8 +8,9 @@ import { api } from '../api.js';
 import { euro, datumDe } from '../format.js';
 import Symbol from './Symbole.jsx';
 import { useHinweis } from './Hinweise.jsx';
+import MeldenKnopf from './MeldenKnopf.jsx';
 
-const SERIEN = { lose: 'var(--color-serie-1)', cib: 'var(--color-serie-2)', neu: 'var(--color-serie-3)' };
+const SERIEN = { lose: 'var(--color-serie-1)', cib: 'var(--color-serie-2)', neu: 'var(--color-serie-3)', ebay: 'var(--color-serie-4)' };
 const TAG_MS = 86_400_000;
 const zeit = (datum) => Date.parse(`${datum}T00:00:00Z`);
 
@@ -25,7 +26,9 @@ export default function PreisVerlauf({ katalogId, historie, darfMelden, onGeaend
   const [tabelle, setTabelle] = useState(false);
   const zeigeHinweis = useHinweis();
 
-  const markt = historie.filter((h) => h.herkunft === 'marktpreis' && h.preisregion === region);
+  // eBay-Angebote (Median) werden als eigene Linie gezeigt
+  const markt = historie.filter((h) => (h.herkunft === 'marktpreis' && h.preisregion === region) || h.herkunft === 'ebay')
+    .map((h) => (h.herkunft === 'ebay' ? { ...h, art: 'ebay' } : h));
   const meldungen = historie.filter((h) => h.herkunft === 'meldung');
   const regionen = [...new Set(historie.filter((h) => h.herkunft === 'marktpreis').map((h) => h.preisregion))];
 
@@ -85,7 +88,7 @@ export default function PreisVerlauf({ katalogId, historie, darfMelden, onGeaend
         />
       )}
       <p className="text-xs text-leise">
-        Marktpreise werden bei jedem Abruf (PriceCharting) automatisch gespeichert. Meldungen stammen anonym von Nutzern und sind ohne Gewähr.
+        Marktpreise (PriceCharting) und aktuelle eBay-Angebote werden automatisch erfasst. Meldungen stammen anonym von Nutzern. Alle Angaben ohne Gewähr.
       </p>
     </section>
   );
@@ -113,12 +116,15 @@ function Diagramm({ markt, meldungen }) {
     const yMax = Math.ceil((Math.max(...alle.map((h) => h.preis)) * 1.05) / schritt) * schritt;
     const xf = (t) => rand.links + ((t - tMin) / (tMax - tMin)) * (breite - rand.links - rand.rechts);
     const yf = (p) => rand.oben + (1 - p / yMax) * (hoehe - rand.oben - rand.unten);
-    const ser = MARKTPREIS_STUFEN.map((s) => ({
+    const ser = [...MARKTPREIS_STUFEN, { value: 'ebay', label: 'eBay-Angebote (Median)' }].map((s) => ({
       ...s, farbe: SERIEN[s.value],
       werte: markt.filter((h) => h.art === s.value).sort((a, b) => a.datum.localeCompare(b.datum)),
     })).filter((s) => s.werte.length);
     const pk = [
-      ...ser.flatMap((s) => s.werte.map((h) => ({ h, px: xf(zeit(h.datum)), py: yf(h.preis), label: `Marktpreis ${s.label}`, farbe: s.farbe }))),
+      ...ser.flatMap((s) => s.werte.map((h) => ({
+        h, px: xf(zeit(h.datum)), py: yf(h.preis), farbe: s.farbe,
+        label: s.value === 'ebay' ? `eBay-Angebote: Median aus ${h.anzahl ?? '?'}` : `Marktpreis ${s.label}`,
+      }))),
       ...meldungen.map((h) => ({ h, px: xf(zeit(h.datum)), py: yf(h.preis), label: `${beschriftung(PREISARTEN, h.art)} · ${beschriftung(PREISQUELLEN, h.quelle)}`, meldung: true })),
     ];
     const anzahlX = Math.max(2, Math.floor((breite - rand.links) / 110));
@@ -151,7 +157,7 @@ function Diagramm({ markt, meldungen }) {
         {serien.map((s) => (
           <li key={s.value} className="flex items-center gap-1.5">
             <svg width="16" height="8" aria-hidden="true"><line x1="0" y1="4" x2="16" y2="4" stroke={s.farbe} strokeWidth="2" strokeLinecap="round" /></svg>
-            Marktpreis {s.label}
+            {s.value === 'ebay' ? s.label : `Marktpreis ${s.label}`}
           </li>
         ))}
         {hatAngebot && <li className="flex items-center gap-1.5"><svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="3.5" fill="none" stroke="currentColor" strokeWidth="2" /></svg>Angeboten</li>}
@@ -220,18 +226,20 @@ function Tabelle({ eintraege, onGeaendert }) {
           {eintraege.map((h) => {
             const details = [beschriftung(REGIONEN, h.region, 'kurz'), beschriftung(ZUSTAENDE, h.zustand), beschriftung(VOLLSTAENDIGKEITEN, h.vollstaendigkeit, 'kurz'), h.notiz]
               .filter(Boolean).join(' · ') || (h.herkunft === 'marktpreis' ? 'PriceCharting' : '');
+            const details2 = h.herkunft === 'ebay' ? h.notiz : details;
             return (
             <tr key={h.id}>
               <td className="py-1.5 pr-2 whitespace-nowrap tabular-nums">{datumDe(h.datum)}</td>
               <td className="py-1.5 pr-2">
-                {h.herkunft === 'marktpreis'
+                {h.herkunft === 'ebay' ? 'eBay-Angebote (Median)' : h.herkunft === 'marktpreis'
                   ? `Marktpreis ${beschriftung(MARKTPREIS_STUFEN, h.art)}`
                   : <>{beschriftung(PREISARTEN, h.art)} · {h.url ? <a href={h.url} target="_blank" rel="noopener noreferrer nofollow" className="underline">{beschriftung(PREISQUELLEN, h.quelle)}</a> : beschriftung(PREISQUELLEN, h.quelle)}</>}
-                {details && <span className="block text-xs text-leise sm:hidden">{details}</span>}
+                {details2 && <span className="block text-xs text-leise sm:hidden">{details2}</span>}
               </td>
-              <td className="hidden py-1.5 pr-2 text-xs text-leise sm:table-cell">{details}</td>
+              <td className="hidden py-1.5 pr-2 text-xs text-leise sm:table-cell">{details2}</td>
               <td className="py-1.5 text-right font-semibold whitespace-nowrap tabular-nums">{euro(h.preis)}</td>
               <td className="text-right">
+                {!h.eigene && h.herkunft === 'meldung' && <MeldenKnopf bereich="preis" zielId={h.id} klein />}
                 {h.darf_loeschen && h.herkunft === 'meldung' && (
                   <button type="button" aria-label="Meldung löschen" className="rounded p-1 text-leise hover:text-gefahr"
                     onClick={async () => {

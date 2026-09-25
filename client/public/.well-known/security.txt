@@ -1,0 +1,6 @@
+# Sicherheitslücken bitte vertraulich melden – wir freuen uns über jeden Hinweis!
+# Please report security vulnerabilities privately – every report is appreciated!
+Contact: https://github.com/DrdotHouse2106/Videospielesammlung/security/advisories/new
+Policy: https://github.com/DrdotHouse2106/Videospielesammlung/blob/main/SECURITY.md
+Preferred-Languages: de, en
+Expires: 2027-09-25T00:00:00.000Z

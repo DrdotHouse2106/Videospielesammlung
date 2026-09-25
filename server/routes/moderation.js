@@ -27,7 +27,8 @@ export function moderationRouter({ db, katalog, plattformen }) {
       .map(({ vorschau_datei: v, anzeige_datei: a, datei: d, ...m }) => ({
         ...m, vorschau_url: v ? `/api/dateien/${v}` : null, url: `/api/dateien/${a ?? d}`,
       }));
-    res.json({ katalog: katalogEintraege, varianten, medien });
+    const meldungen = db.prepare("SELECT COUNT(*) AS n FROM inhalt_meldungen WHERE status = 'offen'").get().n;
+    res.json({ katalog: katalogEintraege, varianten, medien, offeneMeldungen: meldungen });
   });
 
   // ── Katalogeinträge ─────────────────────────────────────────
@@ -47,8 +48,7 @@ export function moderationRouter({ db, katalog, plattformen }) {
       // Optional mit Korrekturen (Titel, Plattformen, Jahr …)
       if (req.body?.aenderungen) {
         const daten = pruefeKatalogEintrag({ ...e, ...req.body.aenderungen });
-        if (Array.isArray(req.body.aenderungen.plattformen)) db.prepare('DELETE FROM katalog_plattformen WHERE katalog_id = ?').run(e.id);
-        katalog.speichere({ ...daten, quelle: 'eigen', externe_id: e.externe_id, erstellt_von: e.erstellt_von });
+        katalog.aktualisiere(e.id, daten, { plattformenNeu: Array.isArray(req.body.aenderungen.plattformen) });
       }
       db.prepare(`UPDATE katalog SET status = 'freigegeben', geprueft_von = ?, geprueft_am = datetime('now'), pruefung_notiz = ?
                   WHERE id = ?`).run(req.benutzer.id, grund(req), e.id);

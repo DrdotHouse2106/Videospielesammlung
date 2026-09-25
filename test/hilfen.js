@@ -45,7 +45,7 @@ export async function starteTestServer({ env = {}, fetchFn } = {}) {
   /** Registriert ein Konto und liefert einen angemeldeten Client. */
   async function registriere(benutzername, passwort = 'sehr-geheimes-passwort') {
     const c = client();
-    const antwort = await c.api('/api/auth/registrieren', { methode: 'POST', daten: { benutzername, passwort } });
+    const antwort = await c.api('/api/auth/registrieren', { methode: 'POST', daten: { benutzername, passwort, bedingungen_akzeptiert: true } });
     if (antwort.status !== 201) throw new Error(`Registrierung fehlgeschlagen: ${antwort.text}`);
     return c;
   }

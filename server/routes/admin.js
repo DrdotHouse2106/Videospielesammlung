@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { KontoFehler } from '../services/konten.js';
 
-export function adminRouter({ db, konten, dateien }) {
+export function adminRouter({ db, konten, dateien, preisimport, igdb, ebay, preise, affiliate, konfiguration }) {
   const router = Router();
   const anzahlAdmins = () => db.prepare("SELECT COUNT(*) AS n FROM benutzer WHERE rolle = 'admin' AND gesperrt = 0").get().n;
   const ziel = (req) => {
@@ -9,6 +9,47 @@ export function adminRouter({ db, konten, dateien }) {
     if (!b) throw new KontoFehler('Benutzer nicht gefunden.', 404);
     return b;
   };
+
+  // Übersicht für das Admin-Dashboard
+  router.get('/uebersicht', (_req, res) => {
+    const zahl = (sql) => db.prepare(sql).get().n;
+    res.json({
+      benutzer: zahl('SELECT COUNT(*) AS n FROM benutzer'),
+      moderatoren: zahl("SELECT COUNT(*) AS n FROM benutzer WHERE rolle IN ('moderator', 'admin')"),
+      mitZweiFaktor: zahl('SELECT COUNT(*) AS n FROM benutzer WHERE totp_aktiv = 1'),
+      gesperrt: zahl('SELECT COUNT(*) AS n FROM benutzer WHERE gesperrt = 1'),
+      neueBenutzer7Tage: zahl("SELECT COUNT(*) AS n FROM benutzer WHERE erstellt_am >= datetime('now', '-7 days')"),
+      artikel: zahl('SELECT COALESCE(SUM(anzahl), 0) AS n FROM artikel'),
+      katalogFreigegeben: zahl("SELECT COUNT(*) AS n FROM katalog WHERE status = 'freigegeben'"),
+      katalogPrivat: zahl("SELECT COUNT(*) AS n FROM katalog WHERE status IN ('privat', 'abgelehnt')"),
+      offen: {
+        katalog: zahl("SELECT COUNT(*) AS n FROM katalog WHERE status = 'eingereicht'"),
+        varianten: zahl("SELECT COUNT(*) AS n FROM katalog_varianten WHERE status = 'eingereicht'"),
+        medien: zahl("SELECT COUNT(*) AS n FROM medien WHERE sichtbarkeit = 'eingereicht'"),
+        meldungen: zahl("SELECT COUNT(*) AS n FROM inhalt_meldungen WHERE status = 'offen'"),
+      },
+      medienFreigegeben: zahl("SELECT COUNT(*) AS n FROM medien WHERE sichtbarkeit = 'freigegeben'"),
+      preisdaten: zahl('SELECT COUNT(*) AS n FROM preis_historie'),
+      dienste: {
+        igdb: igdb.konfiguriert,
+        ebay: ebay.konfiguriert,
+        priceCharting: preise.aktiv,
+        affiliate: affiliate.aktiv,
+        registrierungOffen: konfiguration.konten.registrierungOffen,
+        zweiFaktorPflicht: konfiguration.konten.zweiFaktorPflicht,
+        oeffentlicherKatalog: konfiguration.oeffentlicherKatalog,
+        medienTeilen: konfiguration.medienTeilenErlaubt,
+      },
+      preisimport: { ...preisimport.status(), intervallStunden: konfiguration.preisimportStunden },
+    });
+  });
+
+  // Preisimport sofort starten (läuft im Hintergrund weiter)
+  router.post('/preisimport', (_req, res) => {
+    if (!preisimport.aktiv()) return res.status(400).json({ fehler: 'Keine Preisquelle eingerichtet (EBAY_CLIENT_ID/SECRET oder PRICECHARTING_TOKEN).' });
+    preisimport.lauf({ max: konfiguration.preisimportMax }).catch((e) => console.warn('[preisimport]', e.message));
+    res.status(202).json({ gestartet: true });
+  });
 
   router.get('/benutzer', (_req, res) => {
     res.json(db.prepare(`

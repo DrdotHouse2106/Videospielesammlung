@@ -6,7 +6,7 @@ import { katalogZeileZuObjekt, SICHTBAR_SQL, sichtbarParameter } from '../servic
 
 const SEITENGROESSE = 48;
 
-export function oeffentlichRouter({ db, katalog, plattformen, preise, affiliate, konfiguration }) {
+export function oeffentlichRouter({ db, katalog, plattformen, preise, affiliate, preisimport, konfiguration }) {
   const router = Router();
 
   // Ohne Anmeldung nur, wenn der öffentliche Katalog eingeschaltet ist.
@@ -19,7 +19,7 @@ export function oeffentlichRouter({ db, katalog, plattformen, preise, affiliate,
     const zaehler = db.prepare(`
       SELECT kp.plattform_id AS id, COUNT(DISTINCT k.id) AS eintraege
       FROM katalog_plattformen kp JOIN katalog k ON k.id = kp.katalog_id
-      WHERE k.status = 'freigegeben' AND (k.quelle = 'eigen' OR EXISTS (SELECT 1 FROM artikel a WHERE a.katalog_id = k.id))
+      WHERE k.status = 'freigegeben'
       GROUP BY kp.plattform_id`).all();
     const meine = req.benutzer
       ? db.prepare('SELECT plattform_id AS id, COALESCE(SUM(anzahl), 0) AS stueck FROM artikel WHERE benutzer_id = ? AND plattform_id IS NOT NULL GROUP BY plattform_id')
@@ -35,7 +35,8 @@ export function oeffentlichRouter({ db, katalog, plattformen, preise, affiliate,
 
   // Durchsuchbarer globaler Katalog (freigegebene Einträge, die gepflegt oder in Sammlungen sind)
   router.get('/katalog-liste', (req, res) => {
-    const bedingungen = ["k.status = 'freigegeben'", "(k.quelle = 'eigen' OR EXISTS (SELECT 1 FROM artikel a WHERE a.katalog_id = k.id))"];
+    // Alle freigegebenen Einträge der Datenbank (gepflegte und aus IGDB übernommene)
+    const bedingungen = ["k.status = 'freigegeben'"];
     const parameter = {};
     if (['spiel', 'konsole', 'zubehoer'].includes(req.query.typ)) {
       bedingungen.push('k.typ = @typ');
@@ -77,7 +78,7 @@ export function oeffentlichRouter({ db, katalog, plattformen, preise, affiliate,
       .all({ katalog: eintrag.id, ...sichtbarParameter(b) })
       .map((v) => ({ ...v, eigene: v.erstellt_von === b?.id, erstellt_von: undefined, geprueft_von: undefined }));
 
-    const verlauf = db.prepare(`SELECT id, herkunft, art, preis, datum, quelle, preisregion, zustand, vollstaendigkeit, region, url, notiz, benutzer_id
+    const verlauf = db.prepare(`SELECT id, herkunft, art, preis, datum, quelle, preisregion, zustand, vollstaendigkeit, region, url, notiz, anzahl, benutzer_id
       FROM preis_historie WHERE katalog_id = ? ORDER BY datum, id`).all(eintrag.id)
       .map(({ benutzer_id: autor, ...h }) => ({ ...h, eigene: Boolean(b && autor === b.id), darf_loeschen: Boolean(b && (autor === b.id || istModerator(b))) }));
 
@@ -91,7 +92,11 @@ export function oeffentlichRouter({ db, katalog, plattformen, preise, affiliate,
       ? db.prepare(`SELECT a.id, a.titel, a.plattform, a.region, a.zustand, a.vollstaendigkeit, a.farbe, a.edition, a.modellnummer, a.variante_id, a.anzahl
           FROM artikel a WHERE a.katalog_id = ? AND a.benutzer_id = ? ORDER BY a.id`).all(eintrag.id, b.id)
       : [];
-    const medienAnzahl = db.prepare("SELECT COUNT(*) AS n FROM medien WHERE katalog_id = ? AND sichtbarkeit = 'freigegeben'").get(eintrag.id).n;
+    // Nur Anzahl und Art der Dateien – die Dateien selbst sind erst nach Anmeldung sichtbar
+    const medienUebersicht = db.prepare(`SELECT art, COUNT(*) AS anzahl FROM medien WHERE katalog_id = ? AND sichtbarkeit = 'freigegeben'
+      GROUP BY art`).all(eintrag.id);
+    const medienAnzahl = medienUebersicht.reduce((s, m) => s + m.anzahl, 0);
+    const ebayAngebote = eintrag.status === 'freigegeben' && affiliate.aktiv ? preisimport.angeboteFuer(eintrag.id) : null;
 
     res.json({
       eintrag: {
@@ -108,6 +113,8 @@ export function oeffentlichRouter({ db, katalog, plattformen, preise, affiliate,
       kaufen: eintrag.status === 'freigegeben' ? affiliate.links(eintrag, plattformListe[0]?.name ?? eintrag.plattformen[0]) : [],
       meineExemplare,
       medienAnzahl,
+      medienUebersicht,
+      ebayAngebote,
       angemeldet: Boolean(b),
     });
   });

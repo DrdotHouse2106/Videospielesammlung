@@ -20,6 +20,7 @@ import Druck from './seiten/Druck.jsx';
 import Katalog from './seiten/Katalog.jsx';
 import KatalogSeite from './seiten/KatalogSeite.jsx';
 import Moderation from './seiten/Moderation.jsx';
+import RechtlicheSeite from './seiten/RechtlicheSeite.jsx';
 
 function Seite({ route }) {
   const { pfad } = route;
@@ -44,6 +45,8 @@ function Seite({ route }) {
   if (t) return <CommunitySammlung key={t.name} route={route} name={t.name} />;
   t = passt('/katalog/:id', pfad);
   if (t) return <KatalogSeite key={t.id} route={route} id={t.id} />;
+  t = passt('/seite/:slug', pfad);
+  if (t) return <RechtlicheSeite key={t.slug} route={route} slug={t.slug} />;
   t = passt('/druck/:id', pfad);
   if (t) return <Druck key={t.id} route={route} id={t.id} />;
   return (
@@ -106,6 +109,10 @@ export default function App() {
         {fehler ? <p role="alert">{fehler} <button type="button" className="underline" onClick={aktualisiere}>Erneut versuchen</button></p> : 'Wird geladen …'}
       </div>
     );
+  } else if (!auth.angemeldet && passt('/seite/:slug', route.pfad)) {
+    // Rechtliche Seiten sind immer ohne Anmeldung erreichbar
+    const t = passt('/seite/:slug', route.pfad);
+    inhalt = <RechtlicheSeite key={t.slug} route={route} slug={t.slug} />;
   } else if (!auth.angemeldet && auth.oeffentlicherKatalog && route.pfad.startsWith('/katalog')) {
     // Öffentlicher Katalog ohne Anmeldung
     const t = passt('/katalog/:id', route.pfad);

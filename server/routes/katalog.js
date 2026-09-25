@@ -11,9 +11,9 @@ const nichtGefunden = (res, was = 'Katalogeintrag') => res.status(404).json({ fe
 export function katalogRouter({ db, katalog, dateien }) {
   const router = Router();
 
-  // Eigene, noch nicht freigegebene Einträge darf der Ersteller ändern; Moderatoren alles Eigene.
-  const darfAendern = (req, eintrag) => eintrag.quelle === 'eigen'
-    && (istModerator(req.benutzer) || (eintrag.erstellt_von === req.benutzer.id && eintrag.status !== 'freigegeben'));
+  // Eigene, noch nicht freigegebene Einträge darf der Ersteller ändern; Moderatoren alle Einträge.
+  const darfAendern = (req, eintrag) => istModerator(req.benutzer)
+    || (eintrag.quelle === 'eigen' && eintrag.erstellt_von === req.benutzer.id && eintrag.status !== 'freigegeben');
 
   function sichtbarOder404(req, res) {
     const eintrag = katalog.holeSichtbar(req.params.id, req.benutzer);
@@ -57,17 +57,15 @@ export function katalogRouter({ db, katalog, dateien }) {
     if (!vorhanden) return;
     if (!darfAendern(req, vorhanden)) return res.status(403).json({ fehler: 'Freigegebene Einträge kann nur das Moderationsteam ändern.' });
     const daten = pruefeKatalogEintrag({ ...vorhanden, ...req.body });
-    const eintrag = db.transaction(() => {
-      if (Array.isArray(req.body?.plattformen)) db.prepare('DELETE FROM katalog_plattformen WHERE katalog_id = ?').run(vorhanden.id);
-      return katalog.speichere({ ...daten, quelle: 'eigen', externe_id: vorhanden.externe_id, erstellt_von: vorhanden.erstellt_von });
-    })();
-    res.json(eintrag);
+    res.json(katalog.aktualisiere(vorhanden.id, daten, { plattformenNeu: Array.isArray(req.body?.plattformen) }));
   });
 
   router.delete('/:id', (req, res) => {
     const vorhanden = sichtbarOder404(req, res);
     if (!vorhanden) return;
-    if (!darfAendern(req, vorhanden)) return res.status(403).json({ fehler: 'Freigegebene Einträge kann nur das Moderationsteam löschen.' });
+    if (!darfAendern(req, vorhanden) || vorhanden.quelle !== 'eigen') {
+      return res.status(403).json({ fehler: 'Diesen Eintrag kann nur das Moderationsteam löschen.' });
+    }
     const medien = db.prepare('SELECT datei, anzeige_datei, vorschau_datei FROM medien WHERE katalog_id = ?').all(vorhanden.id);
     db.prepare('DELETE FROM katalog WHERE id = ?').run(vorhanden.id);
     dateien.loesche(medien.flatMap((m) => [m.datei, m.anzeige_datei, m.vorschau_datei]));

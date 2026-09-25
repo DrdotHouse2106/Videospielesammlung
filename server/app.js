@@ -16,6 +16,10 @@ import { erstelleDateiDienst } from './services/dateien.js';
 import { erstellePreisDienst } from './services/preise.js';
 import { erstellePlattformDienst } from './services/plattformen.js';
 import { erstelleAffiliateDienst } from './services/affiliate.js';
+import { erstelleEbayDienst } from './services/ebay.js';
+import { erstellePreisImport } from './services/preisimport.js';
+import { seitenRouter, seitenAdminRouter } from './routes/seiten.js';
+import { meldenRouter, meldungenModerationRouter } from './routes/meldungen.js';
 import { istModerator } from '../shared/konstanten.js';
 import { ladeSchluessel } from './services/sicherheit.js';
 import { ValidierungsFehler } from './services/validierung.js';
@@ -46,10 +50,14 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const plattformen = erstellePlattformDienst(db);
   const katalog = erstelleKatalogDienst(db, { igdb, barcode, cache, plattformen });
   const affiliate = erstelleAffiliateDienst(db, konfiguration.affiliate);
+  const ebay = erstelleEbayDienst(konfiguration.ebay, konfiguration.affiliate, { fetchFn });
   const konten = erstelleKontenDienst(db, { schluessel, sitzungTage: konfiguration.konten.sitzungTage });
   const dateien = erstelleDateiDienst(db, { uploadVerzeichnis: konfiguration.uploadVerzeichnis });
   const preise = erstellePreisDienst(db, konfiguration.preise, { cache, fetchFn });
-  const kontext = { db, cache, igdb, barcode, katalog, konten, dateien, preise, plattformen, affiliate, konfiguration, version };
+  const preisimport = erstellePreisImport(db, { preise, ebay, cache });
+  const kontext = {
+    db, cache, igdb, barcode, katalog, konten, dateien, preise, plattformen, affiliate, ebay, preisimport, konfiguration, version,
+  };
 
   const app = express();
   app.disable('x-powered-by');
@@ -85,6 +93,7 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
 
   app.use('/api', pruefeHerkunft, express.json({ limit: '20mb' }), ladeSitzung(konten));
   app.use('/api', authRouter(kontext));
+  app.use('/api', seitenRouter(kontext), meldenRouter(kontext)); // ohne Anmeldung: Rechtliches, Meldungen
   app.use('/api', oeffentlichRouter(kontext)); // teils ohne Anmeldung (PUBLIC_CATALOG)
 
   const angemeldet = erfordereAnmeldung(konfiguration.konten);
@@ -92,9 +101,9 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   app.use('/api/artikel', angemeldet, artikelRouter(kontext));
   app.use('/api/katalog', angemeldet, katalogRouter(kontext));
   app.use('/api/statistik', angemeldet, statistikRouter(kontext));
-  app.use('/api/admin', angemeldet, erfordereAdmin, adminRouter(kontext));
+  app.use('/api/admin', angemeldet, erfordereAdmin, adminRouter(kontext), seitenAdminRouter(kontext));
   app.use('/api/moderation', angemeldet, (req, res, next) => (istModerator(req.benutzer)
-    ? next() : res.status(403).json({ fehler: 'Nur für das Moderationsteam.' })), moderationRouter(kontext));
+    ? next() : res.status(403).json({ fehler: 'Nur für das Moderationsteam.' })), moderationRouter(kontext), meldungenModerationRouter(kontext));
   app.use('/api', angemeldet, katalogUnterRouter(kontext));
   app.use('/api', angemeldet, medienRouter(kontext), werteRouter(kontext), communityRouter(kontext), exportRouter(kontext));
   app.use('/api', (_req, res) => res.status(404).json({ fehler: 'Unbekannter API-Endpunkt.' }));
@@ -108,6 +117,9 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
         else res.set('Cache-Control', 'no-cache');
       },
     }));
+    // security.txt (RFC 9116) – express.static liefert Punkt-Ordner sonst nicht aus
+    app.get('/.well-known/security.txt', (_req, res) => res.type('text/plain; charset=utf-8')
+      .sendFile(path.join(distVerzeichnis, '.well-known', 'security.txt'), { dotfiles: 'allow' }));
     app.get('/{*pfad}', (_req, res) => res.sendFile(path.join(distVerzeichnis, 'index.html')));
   }
 

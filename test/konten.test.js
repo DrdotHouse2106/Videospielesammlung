@@ -21,7 +21,7 @@ test('Ohne Anmeldung gibt es keinen Zugriff auf die Sammlung', async () => {
 
 test('Erstes Konto wird Admin, Passwortregeln greifen, Anmeldung funktioniert', async () => {
   const gast = server.client();
-  const zuKurz = await gast.api('/api/auth/registrieren', { methode: 'POST', daten: { benutzername: 'anna', passwort: 'kurz' } });
+  const zuKurz = await gast.api('/api/auth/registrieren', { methode: 'POST', daten: { benutzername: 'anna', passwort: 'kurz', bedingungen_akzeptiert: true } });
   assert.equal(zuKurz.status, 400);
   assert.match(zuKurz.json.felder.passwort, /mindestens 10 Zeichen/);
 
@@ -30,7 +30,7 @@ test('Erstes Konto wird Admin, Passwortregeln greifen, Anmeldung funktioniert', 
   const bernd = await server.registriere('bernd');
   assert.equal((await bernd.api('/api/konto')).json.rolle, 'nutzer');
 
-  const doppelt = await gast.api('/api/auth/registrieren', { methode: 'POST', daten: { benutzername: 'ANNA', passwort: 'sehr-geheimes-passwort' } });
+  const doppelt = await gast.api('/api/auth/registrieren', { methode: 'POST', daten: { benutzername: 'ANNA', passwort: 'sehr-geheimes-passwort', bedingungen_akzeptiert: true } });
   assert.match(doppelt.json.felder.benutzername, /vergeben/);
 
   const falsch = await gast.api('/api/auth/anmelden', { methode: 'POST', daten: { benutzername: 'anna', passwort: 'falsch-falsch' } });
@@ -140,7 +140,7 @@ test('Registrierung kann geschlossen und 2FA zur Pflicht gemacht werden', async 
   try {
     const erster = await s.registriere('chefin'); // erstes Konto ist immer erlaubt
     const zweiter = s.client();
-    const r = await zweiter.api('/api/auth/registrieren', { methode: 'POST', daten: { benutzername: 'gast', passwort: 'sehr-geheimes-passwort' } });
+    const r = await zweiter.api('/api/auth/registrieren', { methode: 'POST', daten: { benutzername: 'gast', passwort: 'sehr-geheimes-passwort', bedingungen_akzeptiert: true } });
     assert.equal(r.status, 403);
     const gesperrt = await erster.api('/api/artikel');
     assert.equal(gesperrt.status, 403);

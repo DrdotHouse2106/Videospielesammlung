@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { MEDIENARTEN, beschriftung, istModerator } from '../../../shared/konstanten.js';
 import StatusAbzeichen from './StatusAbzeichen.jsx';
+import MeldenKnopf from './MeldenKnopf.jsx';
 import { api } from '../api.js';
 import { dateigroesse } from '../format.js';
 import { useSitzung } from '../sitzung.js';
@@ -119,6 +120,7 @@ export default function Scans({ katalogId, artikelId, nurLesen = false, onKatalo
                         <Symbol name={['privat', 'abgelehnt'].includes(m.sichtbarkeit) ? 'hochladen' : 'schloss'} className="size-4" />
                       </button>
                     )}
+                    {!m.eigenes && <MeldenKnopf bereich="medien" zielId={m.id} klein />}
                     {m.darf_bearbeiten && !nurLesen && (
                       <button type="button" onClick={() => loeschen(m)} className="rounded-lg p-1.5 text-leise hover:bg-gefahr/10 hover:text-gefahr" title="Löschen" aria-label="Löschen">
                         <Symbol name="muell" className="size-4" />

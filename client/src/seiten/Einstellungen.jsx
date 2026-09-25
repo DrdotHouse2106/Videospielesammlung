@@ -51,7 +51,7 @@ export default function Einstellungen({ route }) {
             ['#/community', 'community', 'Community', 'Öffentliche Sammlungen anderer Benutzer'],
             ['#/statistik', 'statistik', 'Statistik', 'Verteilung nach Plattform, Region, Zustand'],
             ...(istModerator(benutzer) ? [['#/moderation', 'schild', 'Moderation', 'Einreichungen prüfen, Plattformen pflegen']] : []),
-            ...(benutzer?.rolle === 'admin' ? [['#/admin', 'benutzer', 'Benutzerverwaltung', 'Konten sperren, Rollen, 2FA zurücksetzen']] : []),
+            ...(benutzer?.rolle === 'admin' ? [['#/admin', 'benutzer', 'Administration', 'Übersicht, Benutzer & Moderatoren, Rechtliches, Preisimport']] : []),
           ].map(([href, symbol, titel, text]) => (
             <a key={href} href={href} className="flex items-center gap-3 p-4 hover:bg-karte-hover">
               <Symbol name={symbol} className="size-5 shrink-0 text-akzent-hell" />
@@ -136,6 +136,14 @@ export default function Einstellungen({ route }) {
             </ul>
           )}
         </section>
+
+        <a href="#/seite/sicherheit" className="karte flex items-start gap-3 border-akzent/40 p-4 text-sm hover:bg-karte-hover">
+          <Symbol name="schild" className="size-6 shrink-0 text-akzent-hell" />
+          <span>
+            <strong className="block">Sicherheit ist uns sehr wichtig</strong>
+            <span className="text-leise">Du hast eine Sicherheitslücke gefunden? Wir freuen uns über jeden Hinweis – hier erfährst du, wie du sie vertraulich meldest.</span>
+          </span>
+        </a>
 
         <section className="karte space-y-2 p-4 text-sm">
           <h2 className="font-semibold">Als App installieren</h2>
