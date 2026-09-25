@@ -1,0 +1,21 @@
+services:
+  sammlung:
+    build: .
+    image: videospielesammlung:latest
+    container_name: videospielesammlung
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Innerhalb des Containers immer Port 3000 und Daten im Volume /app/data.
+      PORT: 3000
+      DATABASE_PATH: /app/data/sammlung.db
+      UPLOAD_DIR: /app/data/uploads
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - sammlung-daten:/app/data
+
+volumes:
+  sammlung-daten:

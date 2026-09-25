@@ -1,0 +1,28 @@
+# Abhängigkeiten
+node_modules/
+
+# Build-Ausgabe
+dist/
+
+# Umgebungsvariablen / Geheimnisse
+.env
+.env.*
+!.env.example
+
+# Daten (Datenbank, Uploads)
+data/
+uploads/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Logs & Systemdateien
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+coverage/

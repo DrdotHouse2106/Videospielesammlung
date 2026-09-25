@@ -1,0 +1,24 @@
+{
+  "name": "Videospielesammlung",
+  "short_name": "Sammlung",
+  "description": "Retro- und Videospielsammlung verwalten: Spiele, Konsolen und Zubehör – mit Barcode-Scanner.",
+  "lang": "de-DE",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#16131f",
+  "theme_color": "#16131f",
+  "categories": ["entertainment", "games", "utilities"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Barcode scannen", "short_name": "Scannen", "url": "/#/neu?scan=1" },
+    { "name": "Artikel hinzufügen", "short_name": "Hinzufügen", "url": "/#/neu" }
+  ]
+}

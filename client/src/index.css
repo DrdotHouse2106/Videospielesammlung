@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+/* Semantische Farben – helles und dunkles Farbschema über CSS-Variablen. */
+@theme {
+  --color-flaeche: #16131f;
+  --color-karte: #211d2e;
+  --color-karte-hover: #2a2539;
+  --color-feld: #1b1826;
+  --color-rand: #37304a;
+  --color-text: #f1eef8;
+  --color-leise: #a9a2bd;
+  --color-akzent: #8b5cf6;
+  --color-akzent-hell: #a78bfa;
+  --color-akzent-text: #ffffff;
+  --color-gefahr: #f87171;
+  --color-erfolg: #4ade80;
+  --color-warnung: #facc15;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-flaeche: #f6f4fb;
+    --color-karte: #ffffff;
+    --color-karte-hover: #f0ecfa;
+    --color-feld: #ffffff;
+    --color-rand: #ddd6ee;
+    --color-text: #1c1726;
+    --color-leise: #635a78;
+    --color-akzent: #7c3aed;
+    --color-akzent-hell: #6d28d9;
+    --color-gefahr: #dc2626;
+    --color-erfolg: #15803d;
+    --color-warnung: #a16207;
+  }
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  color-scheme: light dark;
+}
+
+body {
+  @apply bg-flaeche text-text antialiased;
+  font-family: var(--font-sans);
+}
+
+@utility eingabe {
+  @apply w-full rounded-xl border border-rand bg-feld px-3 py-2.5 text-base text-text placeholder:text-leise/70
+    focus:border-akzent focus:ring-2 focus:ring-akzent/30 focus:outline-none;
+}
+
+@utility beschriftung {
+  @apply mb-1 block text-sm font-medium text-leise;
+}
+
+@utility knopf {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition
+    disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98];
+}
+
+@utility knopf-primaer {
+  @apply knopf bg-akzent text-akzent-text hover:brightness-110;
+}
+
+@utility knopf-sekundaer {
+  @apply knopf border border-rand bg-karte text-text hover:bg-karte-hover;
+}
+
+@utility knopf-gefahr {
+  @apply knopf border border-gefahr/40 bg-transparent text-gefahr hover:bg-gefahr/10;
+}
+
+@utility karte {
+  @apply rounded-2xl border border-rand bg-karte;
+}
+
+@utility chip-basis {
+  @apply inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition;
+}
+
+@utility chip {
+  @apply chip-basis border-rand bg-karte text-leise hover:text-text;
+}
+
+@utility chip-aktiv {
+  @apply chip-basis border-akzent bg-akzent text-akzent-text;
+}
+
+@utility abzeichen {
+  @apply inline-flex items-center rounded-md bg-karte-hover px-1.5 py-0.5 text-[11px] font-semibold tracking-wide
+    text-leise;
+}
+
+.unten-sicher {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* html5-qrcode bringt eigene Bedienelemente mit – wir nutzen nur die Kameraansicht. */
+#barcode-leser video {
+  border-radius: 1rem;
+  object-fit: cover;
+}
