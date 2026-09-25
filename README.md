@@ -144,6 +144,7 @@ Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 | `MAX_UPLOAD_MB`        | `8`                       | Maximale Dateigröße für Artikelfotos |
 | `MEDIA_MAX_MB`         | `200`                     | Maximale Dateigröße für Scans und PDF-Handbücher |
 | `MEDIA_SHARING`        | `true`                    | Dürfen Scans mit anderen Benutzern geteilt werden? |
+| `STORAGE_QUOTA_MB`     | `1024`                    | Speicherplatz je Benutzer für eigene Fotos und Scans in MB (`0` = unbegrenzt) |
 | `CACHE_TTL_HOURS`      | `168`                     | Gültigkeit zwischengespeicherter Online-Suchen (Stunden) |
 | `TWITCH_CLIENT_ID`     | –                         | Client-ID für IGDB (siehe unten) |
 | `TWITCH_CLIENT_SECRET` | –                         | Client-Secret für IGDB |
@@ -390,6 +391,13 @@ Auf der Detailseite eines Artikels kannst du unter **Scans & Dokumente** Dateien
 - **Sichtbarkeit:** *Nur für mich* (Standard) oder *zur Freigabe einreichen*. Nach Prüfung durch das Moderationsteam sehen alle
   angemeldeten Benutzer den Scan – **deutlich gekennzeichnet als „Nutzer-Upload von …“ mit Prüfdatum**.
   Mit `MEDIA_SHARING=false` ist das Einreichen serverweit abgeschaltet.
+- **Speicherplatz:** Jeder Benutzer hat ein Kontingent für eigene Uploads (Standard **1 GB**, `STORAGE_QUOTA_MB`).
+  Gezählt werden Artikelfotos sowie private, eingereichte und abgelehnte Scans – jeweils inklusive der automatisch
+  erzeugten Anzeige- und Vorschaubilder. **Freigegebene Scans** gehören zur gemeinsamen Datenbank und zählen nicht mehr mit.
+  Ist der Speicher voll, werden weitere Uploads mit einem Hinweis abgelehnt (bereits vor der Übertragung, wenn die
+  Datei erkennbar zu groß ist). Die Belegung steht unter *Konto & Sicherheit* und im Upload-Formular.
+  Administratoren sehen die Belegung aller Benutzer und können das Limit je Benutzer anpassen (`0` = unbegrenzt);
+  für Administratoren selbst gilt standardmäßig kein Limit.
 
 **Drucken:** Über das Drucker-Symbol öffnet sich die Druckansicht:
 

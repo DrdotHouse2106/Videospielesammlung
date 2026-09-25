@@ -28,7 +28,7 @@ export function artikelZuObjekt(zeile) {
   };
 }
 
-export function artikelRouter({ db, katalog, konfiguration, dateien, plattformen, ki }) {
+export function artikelRouter({ db, katalog, konfiguration, dateien, plattformen, ki, speicher }) {
   const router = Router();
 
   const upload = multer({
@@ -188,8 +188,15 @@ export function artikelRouter({ db, katalog, konfiguration, dateien, plattformen
     if (!req.file) {
       return res.status(400).json({ fehler: 'Bitte ein Bild im Format JPG, PNG, WebP oder GIF hochladen.' });
     }
-    db.prepare("UPDATE artikel SET bild_datei = ?, aktualisiert_am = datetime('now') WHERE id = ?")
-      .run(req.file.filename, vorhanden.id);
+    try {
+      // Das bisherige Foto wird ersetzt und zählt daher nicht mit
+      speicher.pruefe(req.benutzer.id, req.file.size, { abzueglich: vorhanden.bild_datei ? vorhanden.bild_groesse ?? 0 : 0 });
+    } catch (fehler) {
+      bildEntfernen(req.file.filename);
+      throw fehler;
+    }
+    db.prepare("UPDATE artikel SET bild_datei = ?, bild_groesse = ?, aktualisiert_am = datetime('now') WHERE id = ?")
+      .run(req.file.filename, req.file.size, vorhanden.id);
     bildEntfernen(vorhanden.bild_datei);
     res.json(artikelZuObjekt(perId.get(vorhanden.id, req.benutzer.id)));
   });
@@ -197,7 +204,7 @@ export function artikelRouter({ db, katalog, konfiguration, dateien, plattformen
   router.delete('/:id/bild', (req, res) => {
     const vorhanden = holeOder404(req, res);
     if (!vorhanden) return;
-    db.prepare("UPDATE artikel SET bild_datei = NULL, aktualisiert_am = datetime('now') WHERE id = ?").run(vorhanden.id);
+    db.prepare("UPDATE artikel SET bild_datei = NULL, bild_groesse = NULL, aktualisiert_am = datetime('now') WHERE id = ?").run(vorhanden.id);
     bildEntfernen(vorhanden.bild_datei);
     res.json(artikelZuObjekt(perId.get(vorhanden.id, req.benutzer.id)));
   });

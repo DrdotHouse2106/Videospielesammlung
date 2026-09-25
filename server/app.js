@@ -13,6 +13,7 @@ import { erstelleBarcodeDienst } from './services/barcode.js';
 import { erstelleKatalogDienst } from './services/katalog.js';
 import { erstelleKontenDienst, KontoFehler } from './services/konten.js';
 import { erstelleDateiDienst } from './services/dateien.js';
+import { erstelleSpeicherDienst } from './services/speicher.js';
 import { erstellePreisDienst } from './services/preise.js';
 import { erstellePlattformDienst } from './services/plattformen.js';
 import { erstelleAffiliateDienst } from './services/affiliate.js';
@@ -55,11 +56,12 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const ebay = erstelleEbayDienst(konfiguration.ebay, konfiguration.affiliate, { fetchFn });
   const konten = erstelleKontenDienst(db, { schluessel, sitzungTage: konfiguration.konten.sitzungTage });
   const dateien = erstelleDateiDienst(db, { uploadVerzeichnis: konfiguration.uploadVerzeichnis });
+  const speicher = erstelleSpeicherDienst(db, { standardMb: konfiguration.speicherKontingentMb ?? 1024, dateien });
   const preise = erstellePreisDienst(db, konfiguration.preise, { cache, fetchFn });
   const preisimport = erstellePreisImport(db, { preise, ebay, cache });
   const ki = erstelleKiDienst(db, konfiguration.ki ?? { anbieter: 'aus' }, { katalog, fetchFn, anbieterFn: konfiguration.kiAnbieterFn });
   const kontext = {
-    db, cache, igdb, barcode, katalog, konten, dateien, preise, plattformen, affiliate, ebay, preisimport, ki, konfiguration, version,
+    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, konfiguration, version,
   };
 
   const app = express();

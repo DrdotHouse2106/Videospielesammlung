@@ -8,7 +8,7 @@ import { ValidierungsFehler } from '../services/validierung.js';
 
 const ZU_VIELE = 'Zu viele Fehlversuche. Bitte warte 15 Minuten und versuche es dann erneut.';
 
-export function authRouter({ db, konten, konfiguration, dateien }) {
+export function authRouter({ db, konten, konfiguration, dateien, speicher }) {
   const router = Router();
   const { cookieSicher, registrierungOffen, zweiFaktorPflicht } = konfiguration.konten;
   const drossel = erstelleDrossel({ maxVersuche: 10 });
@@ -94,7 +94,12 @@ export function authRouter({ db, konten, konfiguration, dateien }) {
     res.json({
       ...oeffentlichesProfil(req.benutzer),
       wiederherstellungscodesUebrig: konten.anzahlWiederherstellungscodes(req.benutzer),
+      speicher: speicher.info(req.benutzer.id),
     });
+  });
+
+  router.get('/konto/speicher', angemeldet, (req, res) => {
+    res.json(speicher.info(req.benutzer.id));
   });
 
   router.put('/konto', angemeldet, (req, res) => {

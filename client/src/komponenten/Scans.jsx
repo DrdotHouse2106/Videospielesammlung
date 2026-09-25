@@ -7,6 +7,7 @@ import { api } from '../api.js';
 import { dateigroesse } from '../format.js';
 import { useSitzung } from '../sitzung.js';
 import Symbol from './Symbole.jsx';
+import SpeicherAnzeige from './SpeicherAnzeige.jsx';
 import { useHinweis } from './Hinweise.jsx';
 
 const mm = (px, dpi) => Math.round((px / dpi) * 25.4);
@@ -142,11 +143,17 @@ function HochladeFormular({ artikelId, teilenErlaubt, moderator, maxMb, onFertig
   const [werte, setWerte] = useState({ art: 'cover_vorne', sichtbarkeit: 'privat', titel: '', dpi: '' });
   const [fortschritt, setFortschritt] = useState(null);
   const [fehler, setFehler] = useState(null);
+  const [speicher, setSpeicher] = useState(null);
+  useEffect(() => { api.speicher().then(setSpeicher).catch(() => {}); }, []);
   const setze = (f) => (e) => setWerte((w) => ({ ...w, [f]: e.target.value }));
 
   async function absenden(e) {
     e.preventDefault();
     if (!datei) return setFehler('Bitte eine Datei auswählen.');
+    if (speicher?.frei != null && werte.sichtbarkeit !== 'freigegeben' && datei.size > speicher.frei) {
+      return setFehler(`Nicht genug Speicherplatz: Die Datei ist ${dateigroesse(datei.size)} groß, frei sind noch ${dateigroesse(speicher.frei)}. `
+        + 'Lösche nicht mehr benötigte Scans oder Fotos oder verlinke das Dokument auf eine externe Seite.');
+    }
     setFehler(null);
     setFortschritt(0);
     try {
@@ -159,6 +166,7 @@ function HochladeFormular({ artikelId, teilenErlaubt, moderator, maxMb, onFertig
 
   return (
     <form onSubmit={absenden} className="space-y-3 rounded-xl border border-rand p-3">
+      <SpeicherAnzeige info={speicher} kompakt />
       <label className="block">
         <span className="beschriftung">Datei (JPG, PNG, WebP, TIFF oder PDF{maxMb ? `, max. ${maxMb} MB` : ''})</span>
         <input type="file" accept="image/jpeg,image/png,image/webp,image/tiff,application/pdf,.tif,.tiff"

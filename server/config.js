@@ -37,6 +37,8 @@ export function ladeKonfiguration(env = process.env) {
     maxUploadMb: zahl(env.MAX_UPLOAD_MB, 8),
     maxMedienMb: zahl(env.MEDIA_MAX_MB, 200),
     medienTeilenErlaubt: jaNein(env.MEDIA_SHARING, true),
+    // Speicherplatz je Benutzer für eigene Fotos und Scans in MB (0 = unbegrenzt)
+    speicherKontingentMb: Math.max(0, zahl(env.STORAGE_QUOTA_MB, 1024)),
     // Katalogseiten (Spiele, Varianten, Preisverlauf, Kauflinks) auch ohne Anmeldung zeigen
     oeffentlicherKatalog: jaNein(env.PUBLIC_CATALOG, true),
     // Links zu externen Cover-/Handbuch-Seiten: optional nur bestimmte Domains erlauben (kommagetrennt)

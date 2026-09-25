@@ -37,7 +37,7 @@ export function exportRouter({ db, plattformen }) {
 
   router.get('/export.json', (req, res) => {
     const artikel = db.prepare('SELECT * FROM artikel WHERE benutzer_id = ? ORDER BY id').all(req.benutzer.id)
-      .map(({ benutzer_id: _b, bild_datei: _d, ...rest }) => rest);
+      .map(({ benutzer_id: _b, bild_datei: _d, bild_groesse: _g, ...rest }) => rest);
     const eigeneKatalogeintraege = db.prepare(`SELECT * FROM katalog WHERE quelle = 'eigen'
       AND id IN (SELECT katalog_id FROM artikel WHERE benutzer_id = @b UNION SELECT id FROM katalog WHERE erstellt_von = @b)
       ORDER BY id`).all({ b: req.benutzer.id }).map(({ erstellt_von: _e, ...rest }) => rest);

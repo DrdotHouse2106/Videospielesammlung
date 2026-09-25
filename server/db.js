@@ -355,6 +355,12 @@ const MIGRATIONEN = [
   CREATE INDEX idx_externe_links_katalog ON externe_links (katalog_id);
   CREATE INDEX idx_externe_links_status ON externe_links (status);
   `,
+  // 9: Speicherplatz-Kontingent je Benutzer (Größen inkl. abgeleiteter Dateien)
+  `
+  ALTER TABLE benutzer ADD COLUMN speicher_limit_mb INTEGER;   -- NULL = Standard (STORAGE_QUOTA_MB), 0 = unbegrenzt
+  ALTER TABLE medien ADD COLUMN groesse_gesamt INTEGER;        -- Original + Anzeige- und Vorschaudatei in Byte
+  ALTER TABLE artikel ADD COLUMN bild_groesse INTEGER;
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

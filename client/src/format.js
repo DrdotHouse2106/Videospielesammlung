@@ -19,6 +19,7 @@ export const preisFeld = (wert) => (wert == null ? '' : wert.toFixed(2).replace(
 export function dateigroesse(bytes) {
   if (bytes == null) return '';
   if (bytes < 1024 * 1024) return `${anzahl(Math.round(bytes / 1024))} KB`;
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024 / 1024).toLocaleString('de-DE', { maximumFractionDigits: 1 })} GB`;
   return `${(bytes / 1024 / 1024).toLocaleString('de-DE', { maximumFractionDigits: 1 })} MB`;
 }
 

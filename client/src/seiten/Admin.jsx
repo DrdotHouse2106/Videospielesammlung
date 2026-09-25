@@ -2,10 +2,11 @@
 import { useEffect, useState } from 'react';
 import { ROLLEN } from '../../../shared/konstanten.js';
 import { api } from '../api.js';
-import { anzahl, datumDe } from '../format.js';
+import { anzahl, datumDe, dateigroesse } from '../format.js';
 import { useSitzung } from '../sitzung.js';
 import Layout from '../komponenten/Layout.jsx';
 import Symbol from '../komponenten/Symbole.jsx';
+import SpeicherAnzeige from '../komponenten/SpeicherAnzeige.jsx';
 import { useHinweis } from '../komponenten/Hinweise.jsx';
 
 const REITER = [['uebersicht', 'Übersicht'], ['benutzer', 'Benutzer & Rollen'], ['rechtliches', 'Rechtliches'], ['preise', 'Preisimport']];
@@ -64,6 +65,7 @@ function Uebersicht({ d }) {
         <Kachel titel="Artikel in Sammlungen" wert={anzahl(d.artikel)} />
         <Kachel titel="Freigegebene Scans" wert={anzahl(d.medienFreigegeben)} />
         <Kachel titel="Preisdaten" wert={anzahl(d.preisdaten)} href="#/admin?reiter=preise" />
+        {d.speicher && <Kachel titel="Upload-Speicher gesamt" wert={dateigroesse(d.speicher.gesamt) || '0 KB'} />}
       </div>
       {offenGesamt > 0 && (
         <a href="#/moderation" className="karte flex items-center gap-3 border-warnung/50 p-4 text-sm hover:bg-karte-hover">
@@ -147,6 +149,18 @@ function Benutzer() {
           </div>
           <p className="text-xs text-leise">
             {b.eintraege} Einträge · registriert {datumDe(b.erstellt_am)} · zuletzt angemeldet {b.letzte_anmeldung ? datumDe(b.letzte_anmeldung) : 'nie'}
+          </p>
+          <SpeicherAnzeige info={b.speicher} kompakt />
+          <p className="text-xs text-leise">
+            Speicherlimit: {b.speicher.eigenesLimit === null ? `Standard (${b.rolle === 'admin' ? 'unbegrenzt für Admins' : `${anzahl(b.speicher.standardMb)} MB`})`
+              : b.speicher.eigenesLimit === 0 ? 'unbegrenzt' : `${anzahl(b.speicher.eigenesLimit)} MB (individuell)`}
+            {' · '}
+            <button type="button" className="text-akzent-hell underline" onClick={() => {
+              const eingabe = window.prompt(`Speicherlimit für ${b.benutzername} in MB (0 = unbegrenzt, leer = Standard):`, b.speicher.eigenesLimit ?? '');
+              if (eingabe === null) return;
+              const wert = eingabe.trim() === '' ? null : Number(eingabe.trim().replace(',', '.'));
+              aktion(() => api.adminBenutzerAendern(b.id, { speicher_limit_mb: wert }), 'Speicherlimit gespeichert.')();
+            }}>ändern</button>
           </p>
           {b.id !== benutzer?.id ? (
             <div className="flex flex-wrap items-center gap-2">

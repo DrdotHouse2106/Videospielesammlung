@@ -97,6 +97,7 @@ export const api = {
   registrieren: (daten) => anfrage('/api/auth/registrieren', { methode: 'POST', daten }),
   abmelden: () => anfrage('/api/auth/abmelden', { methode: 'POST', daten: {} }),
   konto: () => anfrage('/api/konto'),
+  speicher: () => anfrage('/api/konto/speicher'),
   kontoAendern: (daten) => anfrage('/api/konto', { methode: 'PUT', daten }),
   passwortAendern: (daten) => anfrage('/api/konto/passwort', { methode: 'POST', daten }),
   ueberallAbmelden: () => anfrage('/api/konto/abmelden-ueberall', { methode: 'POST', daten: {} }),

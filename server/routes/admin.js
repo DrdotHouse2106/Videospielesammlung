@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { KontoFehler } from '../services/konten.js';
 
-export function adminRouter({ db, konten, dateien, preisimport, igdb, ebay, preise, affiliate, ki, konfiguration }) {
+export function adminRouter({ db, konten, dateien, speicher, preisimport, igdb, ebay, preise, affiliate, ki, konfiguration }) {
   const router = Router();
   const anzahlAdmins = () => db.prepare("SELECT COUNT(*) AS n FROM benutzer WHERE rolle = 'admin' AND gesperrt = 0").get().n;
   const ziel = (req) => {
@@ -30,6 +30,12 @@ export function adminRouter({ db, konten, dateien, preisimport, igdb, ebay, prei
         meldungen: zahl("SELECT COUNT(*) AS n FROM inhalt_meldungen WHERE status = 'offen'"),
       },
       medienFreigegeben: zahl("SELECT COUNT(*) AS n FROM medien WHERE sichtbarkeit = 'freigegeben'"),
+      speicher: {
+        gesamt: zahl('SELECT COALESCE(SUM(groesse_gesamt), 0) AS n FROM medien')
+          + zahl('SELECT COALESCE(SUM(bild_groesse), 0) AS n FROM artikel WHERE bild_datei IS NOT NULL'),
+        gemeinschaft: zahl("SELECT COALESCE(SUM(groesse_gesamt), 0) AS n FROM medien WHERE sichtbarkeit = 'freigegeben'"),
+        standardMb: speicher.standardMb,
+      },
       preisdaten: zahl('SELECT COUNT(*) AS n FROM preis_historie'),
       dienste: {
         igdb: igdb.konfiguriert,
@@ -61,17 +67,25 @@ export function adminRouter({ db, konten, dateien, preisimport, igdb, ebay, prei
       SELECT b.id, b.benutzername, b.anzeigename, b.rolle, b.gesperrt, b.totp_aktiv, b.sammlung_oeffentlich,
              b.erstellt_am, b.letzte_anmeldung, COUNT(a.id) AS eintraege
       FROM benutzer b LEFT JOIN artikel a ON a.benutzer_id = b.id
-      GROUP BY b.id ORDER BY b.erstellt_am`).all());
+      GROUP BY b.id ORDER BY b.erstellt_am`).all().map((b) => ({ ...b, speicher: speicher.info(b.id) })));
   });
 
   router.put('/benutzer/:id', (req, res) => {
     const b = ziel(req);
-    const { rolle, gesperrt } = req.body ?? {};
+    const { rolle, gesperrt, speicher_limit_mb: limitMb } = req.body ?? {};
     const verliertAdmin = b.rolle === 'admin' && !b.gesperrt && ((rolle && rolle !== 'admin') || gesperrt);
     if (verliertAdmin && anzahlAdmins() <= 1) throw new KontoFehler('Es muss mindestens ein aktiver Administrator bleiben.', 409);
     if (rolle !== undefined) {
       if (!['admin', 'moderator', 'nutzer'].includes(rolle)) throw new KontoFehler('Ungültige Rolle.');
       db.prepare('UPDATE benutzer SET rolle = ? WHERE id = ?').run(rolle, b.id);
+    }
+    if (limitMb !== undefined) {
+      // null/leer = Standard, 0 = unbegrenzt, sonst MB
+      const wert = limitMb === null || limitMb === '' ? null : Number(limitMb);
+      if (wert !== null && (!Number.isInteger(wert) || wert < 0 || wert > 10_000_000)) {
+        throw new KontoFehler('Bitte ein Speicherlimit in ganzen MB angeben (0 = unbegrenzt, leer = Standard).');
+      }
+      db.prepare('UPDATE benutzer SET speicher_limit_mb = ? WHERE id = ?').run(wert, b.id);
     }
     if (gesperrt !== undefined) {
       db.prepare('UPDATE benutzer SET gesperrt = ? WHERE id = ?').run(gesperrt ? 1 : 0, b.id);

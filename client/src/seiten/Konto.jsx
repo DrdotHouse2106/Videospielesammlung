@@ -4,6 +4,7 @@ import { useSitzung } from '../sitzung.js';
 import { datumDe } from '../format.js';
 import Layout from '../komponenten/Layout.jsx';
 import Symbol from '../komponenten/Symbole.jsx';
+import SpeicherAnzeige from '../komponenten/SpeicherAnzeige.jsx';
 import { useHinweis } from '../komponenten/Hinweise.jsx';
 
 export default function Konto({ route }) {
@@ -41,6 +42,10 @@ export default function Konto({ route }) {
             {!pflicht && (
               <>
                 <Sichtbarkeit konto={konto} onSpeichern={speichereProfil} />
+                <section className="karte space-y-3 p-4">
+                  <h2 className="flex items-center gap-2 font-semibold"><Symbol name="dokument" className="size-5" />Speicherplatz</h2>
+                  <SpeicherAnzeige info={konto.speicher} />
+                </section>
                 <PasswortAendern />
                 <section className="karte space-y-3 p-4">
                   <h2 className="font-semibold">Sitzungen</h2>

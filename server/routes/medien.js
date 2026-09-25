@@ -3,6 +3,7 @@ import multer from 'multer';
 import { MEDIENARTEN, istModerator } from '../../shared/konstanten.js';
 import { MEDIEN_TYPEN, verarbeiteMedium, neuerDateiname } from '../services/medien.js';
 import { ValidierungsFehler } from '../services/validierung.js';
+import { KontoFehler } from '../services/konten.js';
 
 const ARTEN = MEDIENARTEN.map((a) => a.value);
 
@@ -65,7 +66,7 @@ function pruefeMetadaten(eingabe, { teilweise = false, teilenErlaubt, moderator 
   return daten;
 }
 
-export function medienRouter({ db, konfiguration, dateien, katalog }) {
+export function medienRouter({ db, konfiguration, dateien, katalog, speicher }) {
   const router = Router();
   const teilenErlaubt = konfiguration.medienTeilenErlaubt;
   const upload = multer({
@@ -102,7 +103,7 @@ export function medienRouter({ db, konfiguration, dateien, katalog }) {
       .map((m) => medienZuObjekt(m, req.benutzer)));
   });
 
-  router.post('/artikel/:id/medien', upload.single('datei'), async (req, res) => {
+  router.post('/artikel/:id/medien', speicher.vorabPruefung, upload.single('datei'), async (req, res) => {
     const artikel = eigenerArtikel.get(Number(req.params.id), req.benutzer.id);
     if (!artikel || !req.file) {
       if (req.file) dateien.loesche(req.file.filename);
@@ -114,13 +115,17 @@ export function medienRouter({ db, konfiguration, dateien, katalog }) {
     try {
       const meta = pruefeMetadaten(req.body ?? {}, { teilenErlaubt, moderator: istModerator(req.benutzer) });
       verarbeitet = await verarbeiteMedium({ verzeichnis: dateien.verzeichnis, datei: req.file.filename, mime: req.file.mimetype });
+      const groesseGesamt = speicher.summe(verarbeitet.datei, verarbeitet.anzeige_datei, verarbeitet.vorschau_datei);
+      // Freigegebene Scans zählen nicht zum Kontingent – Moderatoren können direkt freigeben
+      if (meta.sichtbarkeit !== 'freigegeben') speicher.pruefe(req.benutzer.id, groesseGesamt);
       const katalogId = katalog.stelleSicherFuerArtikel(artikel, req.benutzer);
       const { id } = db.prepare(`
         INSERT INTO medien (katalog_id, benutzer_id, art, titel, sichtbarkeit, datei, anzeige_datei, vorschau_datei,
-                            originalname, mime, groesse, breite, hoehe, dpi, seiten)
+                            originalname, mime, groesse, groesse_gesamt, breite, hoehe, dpi, seiten)
         VALUES (@katalog_id, @benutzer_id, @art, @titel, @sichtbarkeit, @datei, @anzeige_datei, @vorschau_datei,
-                @originalname, @mime, @groesse, @breite, @hoehe, @dpi, @seiten) RETURNING id`).get({
+                @originalname, @mime, @groesse, @groesse_gesamt, @breite, @hoehe, @dpi, @seiten) RETURNING id`).get({
         ...verarbeitet,
+        groesse_gesamt: groesseGesamt,
         ...meta,
         titel: meta.titel ?? null,
         dpi: meta.dpi ?? verarbeitet.dpi,
@@ -131,7 +136,7 @@ export function medienRouter({ db, konfiguration, dateien, katalog }) {
       res.status(201).json(medienZuObjekt(perId.get(id), req.benutzer));
     } catch (fehler) {
       dateien.loesche(req.file.filename, verarbeitet?.anzeige_datei, verarbeitet?.vorschau_datei);
-      if (fehler instanceof ValidierungsFehler) throw fehler;
+      if (fehler instanceof ValidierungsFehler || fehler instanceof KontoFehler) throw fehler;
       console.warn('[medien] Verarbeitung fehlgeschlagen:', fehler.message);
       res.status(400).json({ fehler: 'Die Datei konnte nicht verarbeitet werden. Ist sie beschädigt oder zu groß?' });
     }

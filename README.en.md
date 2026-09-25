@@ -59,6 +59,7 @@ The most important ones:
 | `APP_SECRET` | Key for encrypting 2FA secrets (auto-generated in `data/geheimnis.key` if empty) |
 | `PRICECHARTING_TOKEN` | Optional market prices |
 | `MEDIA_SHARING`, `MEDIA_MAX_MB` | Allow sharing scans, max. scan size |
+| `STORAGE_QUOTA_MB` | Per-user storage for own photos and scans in MB (default 1024, `0` = unlimited; approved scans don't count, admins can override per user) |
 | `TRUST_PROXY` | Set to `1` behind a reverse proxy |
 
 The camera (barcode scanner) only works over **HTTPS** or on `localhost` – use a reverse proxy such as Caddy.

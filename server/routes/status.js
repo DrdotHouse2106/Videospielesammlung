@@ -21,6 +21,7 @@ export function statusRouter({ igdb, barcode, preise, affiliate, plattformen, eb
       ebayAktiv: ebay.konfiguriert,
       maxUploadMb: konfiguration.maxUploadMb,
       maxMedienMb: konfiguration.maxMedienMb,
+      speicherKontingentMb: konfiguration.speicherKontingentMb,
     });
   });
 
