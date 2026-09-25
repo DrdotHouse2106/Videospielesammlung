@@ -128,6 +128,33 @@ export const api = {
   communitySammlung: (name, filter = {}) => anfrage(`/api/community/${encodeURIComponent(name)}${abfrage(filter)}`),
   communityArtikel: (name, id) => anfrage(`/api/community/${encodeURIComponent(name)}/artikel/${id}`),
 
+  // Katalog, Plattformen, Varianten, Kommentare, Preis-Historie
+  plattformenAlle: () => anfrage('/api/plattformen'),
+  katalogListe: (filter = {}) => anfrage(`/api/katalog-liste${abfrage(filter)}`),
+  katalogSeite: (id) => anfrage(`/api/katalog-seite/${id}`),
+  katalogAendern: (id, daten) => anfrage(`/api/katalog/${id}`, { methode: 'PUT', daten }),
+  katalogEinreichen: (id) => anfrage(`/api/katalog/${id}/einreichen`, { methode: 'POST', daten: {} }),
+  katalogZurueckziehen: (id) => anfrage(`/api/katalog/${id}/zurueckziehen`, { methode: 'POST', daten: {} }),
+  varianten: (katalogId) => anfrage(`/api/katalog/${katalogId}/varianten`),
+  varianteAnlegen: (katalogId, daten) => anfrage(`/api/katalog/${katalogId}/varianten`, { methode: 'POST', daten }),
+  varianteAendern: (id, daten) => anfrage(`/api/varianten/${id}`, { methode: 'PUT', daten }),
+  varianteLoeschen: (id) => anfrage(`/api/varianten/${id}`, { methode: 'DELETE' }),
+  kommentare: (katalogId) => anfrage(`/api/katalog/${katalogId}/kommentare`),
+  kommentarAnlegen: (katalogId, text) => anfrage(`/api/katalog/${katalogId}/kommentare`, { methode: 'POST', daten: { text } }),
+  kommentarAendern: (id, text) => anfrage(`/api/kommentare/${id}`, { methode: 'PUT', daten: { text } }),
+  kommentarLoeschen: (id) => anfrage(`/api/kommentare/${id}`, { methode: 'DELETE' }),
+  preisMelden: (katalogId, daten) => anfrage(`/api/katalog/${katalogId}/historie`, { methode: 'POST', daten }),
+  preisMeldungLoeschen: (id) => anfrage(`/api/historie/${id}`, { methode: 'DELETE' }),
+
+  // Moderation
+  warteschlange: () => anfrage('/api/moderation/warteschlange'),
+  moderiere: (bereich, id, aktion, daten = {}) => anfrage(`/api/moderation/${bereich}/${id}/${aktion}`, { methode: 'POST', daten }),
+  kauflinks: (katalogId) => anfrage(`/api/moderation/katalog/${katalogId}/kauflinks`),
+  kauflinkAnlegen: (katalogId, daten) => anfrage(`/api/moderation/katalog/${katalogId}/kauflinks`, { methode: 'POST', daten }),
+  kauflinkLoeschen: (id) => anfrage(`/api/moderation/kauflinks/${id}`, { methode: 'DELETE' }),
+  plattformAnlegen: (daten) => anfrage('/api/moderation/plattformen', { methode: 'POST', daten }),
+  plattformAendern: (id, daten) => anfrage(`/api/moderation/plattformen/${id}`, { methode: 'PUT', daten }),
+
   // Administration
   adminBenutzer: () => anfrage('/api/admin/benutzer'),
   adminBenutzerAendern: (id, daten) => anfrage(`/api/admin/benutzer/${id}`, { methode: 'PUT', daten }),

@@ -1,6 +1,7 @@
 // Verwaltung hochgeladener Dateien (Artikelfotos, Scans, Handbücher) inkl. Zugriffsprüfung.
 import fs from 'node:fs';
 import path from 'node:path';
+import { istModerator } from '../../shared/konstanten.js';
 
 export function erstelleDateiDienst(db, { uploadVerzeichnis }) {
   fs.mkdirSync(uploadVerzeichnis, { recursive: true });
@@ -21,7 +22,9 @@ export function erstelleDateiDienst(db, { uploadVerzeichnis }) {
     const bild = artikelBild.get(name);
     if (bild && (bild.benutzer_id === benutzer.id || bild.sammlung_oeffentlich)) return { pfad: pfadVon(name) };
     const m = medium.get({ d: name });
-    if (m && (m.benutzer_id === benutzer.id || m.sichtbarkeit === 'geteilt')) {
+    const darf = m && (m.benutzer_id === benutzer.id || m.sichtbarkeit === 'freigegeben'
+      || (istModerator(benutzer) && m.sichtbarkeit === 'eingereicht'));
+    if (darf) {
       return { pfad: pfadVon(name), medium: m };
     }
     return null;

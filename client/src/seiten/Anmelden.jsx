@@ -147,6 +147,9 @@ export default function Anmelden() {
           )}
         </form>
 
+        {auth?.oeffentlicherKatalog && !zweiFaktor && (
+          <p className="text-center text-sm"><a href="#/katalog" className="text-akzent-hell underline">Katalog ohne Anmeldung durchstöbern</a></p>
+        )}
         {!registrierungMoeglich && !zweiFaktor && (
           <p className="text-center text-xs text-leise">Die Registrierung neuer Konten ist auf diesem Server geschlossen.</p>
         )}

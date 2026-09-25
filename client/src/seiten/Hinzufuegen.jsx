@@ -7,6 +7,7 @@ import { useSitzung } from '../sitzung.js';
 import BarcodeScanner from '../komponenten/BarcodeScanner.jsx';
 import Cover from '../komponenten/Cover.jsx';
 import Symbol from '../komponenten/Symbole.jsx';
+import StatusAbzeichen from '../komponenten/StatusAbzeichen.jsx';
 
 export default function Hinzufuegen({ route }) {
   const p = route.parameter;
@@ -195,7 +196,9 @@ function Trefferliste({ titel, eintraege, onWaehle }) {
                 <p className="line-clamp-2 text-xs text-leise">
                   {[e.erscheinungsjahr, e.hersteller, e.plattformen.slice(0, 4).join(', ')].filter(Boolean).join(' · ')}
                 </p>
-                {e.quelle === 'eigen' && <span className="abzeichen mt-1">Eigener Eintrag</span>}
+                {e.status && e.status !== 'freigegeben'
+                  ? <StatusAbzeichen status={e.status} className="mt-1" />
+                  : e.quelle === 'eigen' && <span className="abzeichen mt-1">Community-Katalog</span>}
               </div>
               <Symbol name="weiter" className="size-5 shrink-0 text-leise" />
             </button>

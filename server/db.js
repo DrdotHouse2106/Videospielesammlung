@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
+import { PLATTFORM_STAMMDATEN } from '../shared/konstanten.js';
+import { ordnePlattformZu, ladePlattformIndex } from './services/plattformen.js';
 
 // Migrationen werden der Reihe nach ausgeführt. Neue Änderungen am Schema
 // immer als neuen Eintrag unten anhängen – bestehende nie verändern.
@@ -133,6 +135,143 @@ const MIGRATIONEN = [
     PRIMARY KEY (katalog_id, preisregion)
   );
   `,
+  // 3: Moderation, Plattform-Stammdaten, Varianten, Kommentare, Preis-Historie, Kauflinks
+  `
+  CREATE TABLE plattformen (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    name             TEXT    NOT NULL UNIQUE COLLATE NOCASE,
+    kurz             TEXT    NOT NULL,
+    hersteller       TEXT    NOT NULL DEFAULT 'Sonstige',
+    typ              TEXT    NOT NULL DEFAULT 'konsole',   -- konsole, handheld, computer, sonstige
+    erscheinungsjahr INTEGER,
+    aliase           TEXT    NOT NULL DEFAULT '[]'         -- JSON-Array alternativer Namen
+  );
+
+  CREATE TABLE katalog_plattformen (
+    katalog_id   INTEGER NOT NULL REFERENCES katalog (id) ON DELETE CASCADE,
+    plattform_id INTEGER NOT NULL REFERENCES plattformen (id) ON DELETE CASCADE,
+    PRIMARY KEY (katalog_id, plattform_id)
+  );
+  CREATE INDEX idx_katalog_plattformen_plattform ON katalog_plattformen (plattform_id);
+
+  ALTER TABLE artikel ADD COLUMN plattform_id INTEGER REFERENCES plattformen (id) ON DELETE SET NULL;
+  CREATE INDEX idx_artikel_plattform ON artikel (plattform_id);
+
+  -- Moderation des globalen Katalogs
+  ALTER TABLE katalog ADD COLUMN status TEXT NOT NULL DEFAULT 'freigegeben';
+  ALTER TABLE katalog ADD COLUMN eingereicht_am TEXT;
+  ALTER TABLE katalog ADD COLUMN geprueft_von INTEGER REFERENCES benutzer (id) ON DELETE SET NULL;
+  ALTER TABLE katalog ADD COLUMN geprueft_am TEXT;
+  ALTER TABLE katalog ADD COLUMN pruefung_notiz TEXT;
+  UPDATE katalog SET status = CASE
+    WHEN quelle = 'igdb' THEN 'freigegeben'
+    WHEN erstellt_von IN (SELECT id FROM benutzer WHERE rolle = 'admin') THEN 'freigegeben'
+    ELSE 'eingereicht' END,
+    eingereicht_am = CASE WHEN quelle = 'eigen' THEN erstellt_am END;
+  CREATE INDEX idx_katalog_status ON katalog (status);
+
+  -- Bekannte Varianten/Revisionen eines Katalogeintrags (z. B. SCPH-1002, SCPH-5502 …)
+  CREATE TABLE katalog_varianten (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    katalog_id       INTEGER NOT NULL REFERENCES katalog (id) ON DELETE CASCADE,
+    bezeichnung      TEXT    NOT NULL,
+    modellnummer     TEXT,
+    farbe            TEXT,
+    edition          TEXT,
+    region           TEXT,
+    erscheinungsjahr INTEGER,
+    beschreibung     TEXT,
+    status           TEXT    NOT NULL DEFAULT 'privat',
+    erstellt_von     INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    geprueft_von     INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    pruefung_notiz   TEXT,
+    erstellt_am      TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX idx_varianten_katalog ON katalog_varianten (katalog_id);
+  ALTER TABLE artikel ADD COLUMN variante_id INTEGER REFERENCES katalog_varianten (id) ON DELETE SET NULL;
+
+  -- Scans: „geteilt“ wird zu „eingereicht“ (muss jetzt freigegeben werden)
+  UPDATE medien SET sichtbarkeit = 'eingereicht' WHERE sichtbarkeit = 'geteilt';
+  ALTER TABLE medien ADD COLUMN geprueft_von INTEGER REFERENCES benutzer (id) ON DELETE SET NULL;
+  ALTER TABLE medien ADD COLUMN geprueft_am TEXT;
+  ALTER TABLE medien ADD COLUMN pruefung_notiz TEXT;
+
+  -- Barcode-Zuordnungen je Benutzer (private Einträge verraten so nichts an andere)
+  CREATE TABLE barcode_zuordnungen (
+    code        TEXT    NOT NULL,
+    katalog_id  INTEGER NOT NULL REFERENCES katalog (id) ON DELETE CASCADE,
+    benutzer_id INTEGER NOT NULL REFERENCES benutzer (id) ON DELETE CASCADE,
+    erstellt_am TEXT    NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (code, katalog_id, benutzer_id)
+  );
+  INSERT OR IGNORE INTO barcode_zuordnungen (code, katalog_id, benutzer_id)
+    SELECT DISTINCT a.barcode, a.katalog_id, a.benutzer_id FROM artikel a
+    WHERE a.barcode IS NOT NULL AND a.katalog_id IS NOT NULL AND a.benutzer_id IS NOT NULL;
+
+  -- Private Kommentare/Notizen zu einem Spiel oder Gerät
+  CREATE TABLE kommentare (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    benutzer_id     INTEGER NOT NULL REFERENCES benutzer (id) ON DELETE CASCADE,
+    katalog_id      INTEGER NOT NULL REFERENCES katalog (id) ON DELETE CASCADE,
+    text            TEXT    NOT NULL,
+    erstellt_am     TEXT    NOT NULL DEFAULT (datetime('now')),
+    aktualisiert_am TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX idx_kommentare ON kommentare (benutzer_id, katalog_id);
+
+  -- Preis-Historie: automatische Marktpreise und gemeldete Angebote/Verkäufe
+  CREATE TABLE preis_historie (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    katalog_id       INTEGER NOT NULL REFERENCES katalog (id) ON DELETE CASCADE,
+    herkunft         TEXT    NOT NULL,       -- 'marktpreis' (automatisch) oder 'meldung' (Nutzer)
+    art              TEXT    NOT NULL,       -- marktpreis: lose/cib/neu · meldung: angebot/verkauf
+    preis            REAL    NOT NULL,       -- Euro
+    datum            TEXT    NOT NULL,       -- YYYY-MM-DD
+    quelle           TEXT,                   -- pricecharting, ebay, kleinanzeigen …
+    preisregion      TEXT,
+    zustand          TEXT,
+    vollstaendigkeit TEXT,
+    region           TEXT,
+    url              TEXT,
+    notiz            TEXT,
+    benutzer_id      INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    erstellt_am      TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX idx_preis_historie ON preis_historie (katalog_id, datum);
+
+  -- Kauflinks (z. B. Affiliate-Links zu konkreten Angeboten), gepflegt vom Moderationsteam
+  CREATE TABLE kauflinks (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    katalog_id   INTEGER NOT NULL REFERENCES katalog (id) ON DELETE CASCADE,
+    anbieter     TEXT    NOT NULL,
+    titel        TEXT,
+    url          TEXT    NOT NULL,
+    preis        REAL,
+    aktiv        INTEGER NOT NULL DEFAULT 1,
+    erstellt_von INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    erstellt_am  TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX idx_kauflinks ON kauflinks (katalog_id);
+  `,
+  // 4: Plattform-Stammdaten übernehmen und bestehende Freitext-Plattformen zuordnen
+  (db) => {
+    const einfuegen = db.prepare(`INSERT OR IGNORE INTO plattformen (name, kurz, hersteller, typ, erscheinungsjahr, aliase)
+                                  VALUES (?, ?, ?, ?, ?, ?)`);
+    for (const p of PLATTFORM_STAMMDATEN) einfuegen.run(p.name, p.kurz, p.hersteller, p.typ, p.jahr, JSON.stringify(p.aliase));
+    const index = ladePlattformIndex(db);
+    const setzeArtikel = db.prepare('UPDATE artikel SET plattform_id = ?, plattform = ? WHERE id = ?');
+    for (const a of db.prepare('SELECT id, plattform FROM artikel WHERE plattform IS NOT NULL').all()) {
+      const p = ordnePlattformZu(index, a.plattform);
+      if (p) setzeArtikel.run(p.id, p.name, a.id);
+    }
+    const verknuepfe = db.prepare('INSERT OR IGNORE INTO katalog_plattformen (katalog_id, plattform_id) VALUES (?, ?)');
+    for (const k of db.prepare('SELECT id, plattformen FROM katalog').all()) {
+      for (const name of JSON.parse(k.plattformen || '[]')) {
+        const p = ordnePlattformZu(index, name);
+        if (p) verknuepfe.run(k.id, p.id);
+      }
+    }
+  },
 ];
 
 export function oeffneDatenbank(dateipfad) {
@@ -151,7 +290,8 @@ function migriere(db) {
   const aktuell = db.pragma('user_version', { simple: true });
   for (let i = aktuell; i < MIGRATIONEN.length; i++) {
     db.transaction(() => {
-      db.exec(MIGRATIONEN[i]);
+      if (typeof MIGRATIONEN[i] === 'function') MIGRATIONEN[i](db);
+      else db.exec(MIGRATIONEN[i]);
       db.pragma(`user_version = ${i + 1}`);
     })();
   }

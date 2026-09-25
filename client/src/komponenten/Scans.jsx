@@ -1,6 +1,7 @@
 // Scans & Dokumente zu einem Spiel/Gerät: Cover-Scans, Handbücher, Labels …
 import { useEffect, useState } from 'react';
-import { MEDIENARTEN, SICHTBARKEITEN, beschriftung } from '../../../shared/konstanten.js';
+import { MEDIENARTEN, beschriftung, istModerator } from '../../../shared/konstanten.js';
+import StatusAbzeichen from './StatusAbzeichen.jsx';
 import { api } from '../api.js';
 import { dateigroesse } from '../format.js';
 import { useSitzung } from '../sitzung.js';
@@ -11,7 +12,7 @@ const mm = (px, dpi) => Math.round((px / dpi) * 25.4);
 
 export default function Scans({ katalogId, artikelId, nurLesen = false, onKatalogVerknuepft }) {
   const zeigeHinweis = useHinweis();
-  const { status } = useSitzung();
+  const { status, benutzer } = useSitzung();
   const [medien, setMedien] = useState(katalogId ? null : []);
   const [formularOffen, setFormularOffen] = useState(false);
 
@@ -20,7 +21,9 @@ export default function Scans({ katalogId, artikelId, nurLesen = false, onKatalo
 
   async function sichtbarkeitUmschalten(m) {
     try {
-      await api.mediumAendern(m.id, { sichtbarkeit: m.sichtbarkeit === 'geteilt' ? 'privat' : 'geteilt' });
+      const neu = m.sichtbarkeit === 'privat' || m.sichtbarkeit === 'abgelehnt' ? 'eingereicht' : 'privat';
+      await api.mediumAendern(m.id, { sichtbarkeit: neu });
+      zeigeHinweis(neu === 'eingereicht' ? 'Zur Freigabe eingereicht – das Moderationsteam prüft den Scan.' : 'Scan ist wieder privat.');
       laden();
     } catch (e) {
       zeigeHinweis(e.message, 'fehler');
@@ -52,6 +55,7 @@ export default function Scans({ katalogId, artikelId, nurLesen = false, onKatalo
         <HochladeFormular
           artikelId={artikelId}
           teilenErlaubt={status?.medienTeilenErlaubt !== false}
+          moderator={istModerator(benutzer)}
           maxMb={status?.maxMedienMb}
           onFertig={(medium) => {
             setFormularOffen(false);
@@ -68,7 +72,7 @@ export default function Scans({ katalogId, artikelId, nurLesen = false, onKatalo
       {medien?.length === 0 && !formularOffen && (
         <p className="text-sm text-leise">
           {nurLesen
-            ? 'Keine geteilten Scans vorhanden.'
+            ? 'Keine freigegebenen Scans vorhanden.'
             : 'Noch keine Scans. Lade hochauflösende Cover-Scans (z. B. 600 dpi) hoch, um sie bei Bedarf in Originalgröße nachzudrucken – oder das Handbuch als PDF.'}
         </p>
       )}
@@ -92,12 +96,14 @@ export default function Scans({ katalogId, artikelId, nurLesen = false, onKatalo
                     {m.dpi && istBild ? ` · ${m.dpi} dpi ≈ ${mm(m.breite, m.dpi)}×${mm(m.hoehe, m.dpi)} mm` : ''}
                     {` · ${dateigroesse(m.groesse)}`}
                   </p>
-                  {!m.eigenes && <p className="text-leise">von {m.hochgeladen_von}</p>}
-                  {m.eigenes && (
-                    <p className={m.sichtbarkeit === 'geteilt' ? 'text-akzent-hell' : 'text-leise'}>
-                      {m.sichtbarkeit === 'geteilt' ? 'Geteilt' : 'Privat'}
+                  {!m.eigenes && (
+                    <p className="flex items-start gap-1 rounded-md bg-akzent/10 px-1.5 py-1 text-akzent-hell">
+                      <Symbol name="benutzer" className="mt-0.5 size-3 shrink-0" />
+                      <span>Nutzer-Upload von {m.hochgeladen_von}{m.geprueft_am ? ` · geprüft ${new Date(`${m.geprueft_am}Z`).toLocaleDateString('de-DE')}` : ''}</span>
                     </p>
                   )}
+                  {m.eigenes && <StatusAbzeichen status={m.sichtbarkeit} className="w-fit" />}
+                  {m.eigenes && m.sichtbarkeit === 'abgelehnt' && m.pruefung_notiz && <p className="text-gefahr">{m.pruefung_notiz}</p>}
                   <div className="mt-auto flex flex-wrap gap-1 pt-1">
                     {istBild && (
                       <a href={`#/druck/${m.id}`} className="rounded-lg p-1.5 text-leise hover:bg-karte-hover hover:text-text" title="Drucken" aria-label="Drucken">
@@ -109,8 +115,8 @@ export default function Scans({ katalogId, artikelId, nurLesen = false, onKatalo
                     </a>
                     {m.eigenes && !nurLesen && status?.medienTeilenErlaubt !== false && (
                       <button type="button" onClick={() => sichtbarkeitUmschalten(m)} className="rounded-lg p-1.5 text-leise hover:bg-karte-hover hover:text-text"
-                        title={m.sichtbarkeit === 'geteilt' ? 'Nicht mehr teilen' : 'Mit allen angemeldeten Benutzern teilen'} aria-label="Sichtbarkeit ändern">
-                        <Symbol name={m.sichtbarkeit === 'geteilt' ? 'community' : 'schloss'} className="size-4" />
+                        title={['privat', 'abgelehnt'].includes(m.sichtbarkeit) ? 'Zur Freigabe für alle einreichen' : 'Wieder privat machen'} aria-label="Sichtbarkeit ändern">
+                        <Symbol name={['privat', 'abgelehnt'].includes(m.sichtbarkeit) ? 'hochladen' : 'schloss'} className="size-4" />
                       </button>
                     )}
                     {m.darf_bearbeiten && !nurLesen && (
@@ -129,7 +135,7 @@ export default function Scans({ katalogId, artikelId, nurLesen = false, onKatalo
   );
 }
 
-function HochladeFormular({ artikelId, teilenErlaubt, maxMb, onFertig }) {
+function HochladeFormular({ artikelId, teilenErlaubt, moderator, maxMb, onFertig }) {
   const [datei, setDatei] = useState(null);
   const [werte, setWerte] = useState({ art: 'cover_vorne', sichtbarkeit: 'privat', titel: '', dpi: '' });
   const [fortschritt, setFortschritt] = useState(null);
@@ -167,7 +173,9 @@ function HochladeFormular({ artikelId, teilenErlaubt, maxMb, onFertig }) {
         <label>
           <span className="beschriftung">Sichtbarkeit</span>
           <select className="eingabe" value={werte.sichtbarkeit} onChange={setze('sichtbarkeit')} disabled={!teilenErlaubt}>
-            {SICHTBARKEITEN.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+            <option value="privat">Nur für mich</option>
+            <option value="eingereicht">Zur Freigabe für alle einreichen</option>
+            {moderator && <option value="freigegeben">Direkt freigeben (Moderation)</option>}
           </select>
         </label>
         <label>
@@ -179,10 +187,11 @@ function HochladeFormular({ artikelId, teilenErlaubt, maxMb, onFertig }) {
           <input className="eingabe" value={werte.dpi} onChange={setze('dpi')} inputMode="numeric" placeholder="wird sonst aus der Datei gelesen" />
         </label>
       </div>
-      {werte.sichtbarkeit === 'geteilt' && (
+      {werte.sichtbarkeit !== 'privat' && (
         <p className="text-xs text-leise">
-          Hinweis: Cover und Handbücher sind urheberrechtlich geschützt. Teile nur Scans, die du selbst erstellt hast,
-          und nur im Rahmen dessen, was rechtlich zulässig ist.
+          Nach der Freigabe durch das Moderationsteam sehen alle angemeldeten Benutzer den Scan – deutlich gekennzeichnet als
+          Nutzer-Upload mit deinem Namen. Cover und Handbücher sind urheberrechtlich geschützt: Reiche nur Scans ein,
+          die du selbst erstellt hast und deren Weitergabe zulässig ist.
         </p>
       )}
       {fortschritt !== null && (

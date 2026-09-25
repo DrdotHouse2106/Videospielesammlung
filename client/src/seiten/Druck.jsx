@@ -112,7 +112,7 @@ export default function Druck({ route, id }) {
       <style>{druckStil}</style>
       {/* Unskalierte Druckfassung direkt im <body>, damit beim Drucken nur sie erscheint */}
       {createPortal(<div id="druck-ausgabe">{seite('druck-seite')}</div>, document.body)}
-      <div className="grid gap-4 lg:grid-cols-[22rem_1fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
         <div className="space-y-4">
           <section className="karte space-y-3 p-4">
             <h2 className="font-semibold">{medium.titel || beschriftung(MEDIENARTEN, medium.art)}</h2>

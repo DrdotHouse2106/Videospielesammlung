@@ -63,6 +63,11 @@ export function erstellePreisDienst(db, { priceChartingToken, usdEurKurs, cacheS
     INSERT INTO preise (katalog_id, preisregion, daten, abgerufen_am) VALUES (?, ?, ?, ?)
     ON CONFLICT (katalog_id, preisregion) DO UPDATE SET daten = excluded.daten, abgerufen_am = excluded.abgerufen_am`);
   const katalogEintrag = db.prepare('SELECT id, titel, typ, plattformen FROM katalog WHERE id = ?');
+  // Marktpreise zusätzlich als Verlauf speichern (höchstens ein Wert pro Tag und Stufe)
+  const verlaufLoeschen = db.prepare(`DELETE FROM preis_historie WHERE katalog_id = ? AND herkunft = 'marktpreis'
+                                      AND preisregion = ? AND art = ? AND datum = ?`);
+  const verlaufSchreiben = db.prepare(`INSERT INTO preis_historie (katalog_id, herkunft, art, preis, datum, quelle, preisregion)
+                                       VALUES (?, 'marktpreis', ?, ?, ?, 'pricecharting', ?)`);
 
   async function wechselkurs() {
     if (usdEurKurs) return usdEurKurs;
@@ -119,6 +124,16 @@ export function erstellePreisDienst(db, { priceChartingToken, usdEurKurs, cacheS
       };
     }
     schreiben.run(katalogId, region, daten ? JSON.stringify(daten) : null, Date.now());
+    if (daten) {
+      const heute = new Date().toISOString().slice(0, 10);
+      db.transaction(() => {
+        for (const stufe of ['lose', 'cib', 'neu']) {
+          if (!daten[stufe]) continue;
+          verlaufLoeschen.run(katalogId, region, stufe, heute);
+          verlaufSchreiben.run(katalogId, stufe, daten[stufe], heute, region);
+        }
+      })();
+    }
     return daten;
   }
 

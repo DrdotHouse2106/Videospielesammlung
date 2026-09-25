@@ -12,6 +12,8 @@ import Symbol from '../komponenten/Symbole.jsx';
 import { useHinweis } from '../komponenten/Hinweise.jsx';
 import Scans from '../komponenten/Scans.jsx';
 import WertBox from '../komponenten/WertBox.jsx';
+import Kommentare from '../komponenten/Kommentare.jsx';
+import StatusAbzeichen from '../komponenten/StatusAbzeichen.jsx';
 
 /**
  * Detailansicht eines Artikels. Mit „sammlerName“ wird ein Artikel aus einer
@@ -25,8 +27,12 @@ export default function ArtikelDetail({ route, id, sammlerName }) {
   const [fehler, setFehler] = useState(null);
   const [laedtBild, setLaedtBild] = useState(false);
 
+  const [exemplare, setExemplare] = useState([]);
   const laden = () => (eigener
-    ? api.artikel(id).then(setArtikel)
+    ? api.artikel(id).then((a) => {
+      setArtikel(a);
+      if (a.katalog_id) api.katalogSeite(a.katalog_id).then((d) => setExemplare(d.meineExemplare)).catch(() => {});
+    })
     : api.communityArtikel(sammlerName, id).then((d) => { setArtikel(d.artikel); setSammler(d.sammler); })
   ).catch((e) => setFehler(e.message));
   useEffect(() => { laden(); }, [id, sammlerName]);
@@ -104,7 +110,7 @@ export default function ArtikelDetail({ route, id, sammlerName }) {
         </a>
       )}
     >
-      <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-[18rem_1fr]">
+      <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-[18rem_minmax(0,1fr)]">
         <div className="space-y-3">
           <Cover url={artikel.bild_url} typ={artikel.typ} alt={artikel.titel} className="mx-auto aspect-[3/4] w-2/3 rounded-2xl border border-rand md:w-full" />
           {eigener && <div className="flex justify-center gap-2">
@@ -119,7 +125,7 @@ export default function ArtikelDetail({ route, id, sammlerName }) {
           </div>}
         </div>
 
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <div>
             {sammler && (
               <p className="mb-1 text-sm text-leise">
@@ -127,9 +133,38 @@ export default function ArtikelDetail({ route, id, sammlerName }) {
               </p>
             )}
             <h2 className="text-2xl font-bold">{artikel.titel}</h2>
-            {artikel.plattform && <p className="text-leise">{artikel.plattform}</p>}
+            <p className="flex flex-wrap items-center gap-1.5 text-leise">
+              {artikel.plattform_kurz && <span className="abzeichen text-akzent-hell" title={artikel.plattform}>{artikel.plattform_kurz}</span>}
+              {artikel.plattform}
+              {artikel.variante_bezeichnung && <span className="abzeichen">Variante: {artikel.variante_bezeichnung}</span>}
+            </p>
             <div className="mt-2"><Abzeichen artikel={artikel} mitZustand /></div>
           </div>
+
+          {eigener && exemplare.length > 1 && (
+            <nav className="karte p-3" aria-label="Deine Exemplare">
+              <p className="mb-2 text-xs font-semibold tracking-wide text-leise uppercase">Deine Exemplare ({exemplare.length})</p>
+              <div className="flex flex-wrap gap-2">
+                {exemplare.map((x, i) => (
+                  <a key={x.id} href={`#/artikel/${x.id}`} className={String(x.id) === String(id) ? 'chip-aktiv' : 'chip'}>
+                    {[x.modellnummer, x.farbe, x.edition].filter(Boolean).join(' · ') || `Exemplar ${i + 1}`}
+                  </a>
+                ))}
+              </div>
+            </nav>
+          )}
+
+          {eigener && (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <button type="button" className="knopf-sekundaer px-3 py-1.5" onClick={() => navigiere('/neu/formular', { von: artikel.id })}>
+                <Symbol name="plus" className="size-4" />Weiteres Exemplar / Variante
+              </button>
+              {artikel.katalog_id && (
+                <a href={`#/katalog/${artikel.katalog_id}`} className="knopf-sekundaer px-3 py-1.5">Katalogseite & Preisverlauf</a>
+              )}
+              {artikel.katalog_status && artikel.katalog_status !== 'freigegeben' && <StatusAbzeichen status={artikel.katalog_status} />}
+            </div>
+          )}
 
           <dl className="karte divide-y divide-rand">
             {angaben.map(([label, wert]) => (
@@ -148,6 +183,8 @@ export default function ArtikelDetail({ route, id, sammlerName }) {
           )}
 
           <WertBox artikel={artikel} eigenerArtikel={eigener} />
+
+          <Kommentare katalogId={artikel.katalog_id} />
 
           <Scans
             katalogId={artikel.katalog_id}

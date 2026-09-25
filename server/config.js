@@ -1,6 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { ladeAffiliateKonfiguration } from './services/affiliate.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const PROJEKT_WURZEL = path.resolve(__dirname, '..');
@@ -36,6 +37,8 @@ export function ladeKonfiguration(env = process.env) {
     maxUploadMb: zahl(env.MAX_UPLOAD_MB, 8),
     maxMedienMb: zahl(env.MEDIA_MAX_MB, 200),
     medienTeilenErlaubt: jaNein(env.MEDIA_SHARING, true),
+    // Katalogseiten (Spiele, Varianten, Preisverlauf, Kauflinks) auch ohne Anmeldung zeigen
+    oeffentlicherKatalog: jaNein(env.PUBLIC_CATALOG, true),
     cacheTtlStunden: zahl(env.CACHE_TTL_HOURS, 24 * 7),
     igdb: {
       clientId: (env.TWITCH_CLIENT_ID || '').trim(),
@@ -65,5 +68,6 @@ export function ladeKonfiguration(env = process.env) {
       cacheStunden: zahl(env.PRICE_CACHE_HOURS, 72),
     },
     vertrauteProxies: env.TRUST_PROXY || '',
+    affiliate: ladeAffiliateKonfiguration(env),
   };
 }

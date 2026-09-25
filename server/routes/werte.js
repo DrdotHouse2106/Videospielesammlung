@@ -3,7 +3,7 @@ import { preisregion } from '../services/preise.js';
 
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export function werteRouter({ db, preise }) {
+export function werteRouter({ db, preise, katalog }) {
   const router = Router();
   const meineArtikel = db.prepare(`
     SELECT a.id, a.typ, a.titel, a.plattform, a.region, a.zustand, a.vollstaendigkeit, a.anzahl, a.kaufpreis,
@@ -84,7 +84,7 @@ export function werteRouter({ db, preise }) {
   // Wert & Verbreitung eines einzelnen Spiels/Geräts (Katalogeintrag)
   router.get('/katalog/:id/wert', async (req, res) => {
     const katalogId = Number(req.params.id);
-    if (!db.prepare('SELECT 1 FROM katalog WHERE id = ?').get(katalogId)) {
+    if (!katalog.holeSichtbar(katalogId, req.benutzer)) {
       return res.status(404).json({ fehler: 'Katalogeintrag nicht gefunden.' });
     }
     const region = ['pal', 'ntsc', 'jp'].includes(req.query.region) ? req.query.region : 'pal';

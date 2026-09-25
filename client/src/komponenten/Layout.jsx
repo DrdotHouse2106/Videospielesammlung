@@ -1,5 +1,6 @@
 import Symbol from './Symbole.jsx';
 import { navigiere } from '../router.js';
+import { useSitzung } from '../sitzung.js';
 
 const NAVIGATION = [
   { pfad: '/', label: 'Sammlung', symbol: 'sammlung' },
@@ -10,9 +11,12 @@ const NAVIGATION = [
 ];
 
 // Zusätzliche Einträge nur in der Desktop-Navigation
-const NUR_DESKTOP = [{ pfad: '/community', label: 'Community', symbol: 'community' }];
+const NUR_DESKTOP = [
+  { pfad: '/katalog', label: 'Katalog', symbol: 'suche' },
+  { pfad: '/community', label: 'Community', symbol: 'community' },
+];
 
-const MEHR_PFADE = ['/einstellungen', '/konto', '/statistik', '/admin', '/druck'];
+const MEHR_PFADE = ['/einstellungen', '/konto', '/statistik', '/admin', '/druck', '/moderation', '/katalog', '/community'];
 
 function istAktiv(eintrag, route) {
   if (eintrag.pfad === '/') return route.pfad === '/' || route.pfad.startsWith('/artikel');
@@ -23,6 +27,25 @@ function istAktiv(eintrag, route) {
 }
 
 export default function Layout({ route, titel, zurueck, aktionen, children }) {
+  const { benutzer } = useSitzung();
+  // Öffentliche Katalogseiten ohne Anmeldung: schlanker Rahmen ohne Navigation
+  if (!benutzer) {
+    return (
+      <div className="min-h-dvh pb-10">
+        <header className="sticky top-0 z-30 border-b border-rand/60 bg-flaeche/85 backdrop-blur-md" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
+            <a href="#/katalog" className="flex items-center gap-2 font-bold" aria-label="Zum Katalog">
+              <img src="/icons/icon.svg" alt="" className="size-8" />
+              <span className="hidden sm:inline">Videospielesammlung</span>
+            </a>
+            <h1 className="min-w-0 flex-1 truncate text-lg font-bold">{titel}</h1>
+            <a href="#/" className="knopf-primaer px-3 py-1.5">Anmelden</a>
+          </div>
+        </header>
+        <main className="mx-auto max-w-6xl px-4 pt-4">{children}</main>
+      </div>
+    );
+  }
   return (
     <div className="min-h-dvh pb-24 md:pb-10">
       <header className="sticky top-0 z-30 border-b border-rand/60 bg-flaeche/85 backdrop-blur-md" style={{ paddingTop: 'env(safe-area-inset-top)' }}>

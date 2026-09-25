@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import {
-  ARTIKELTYPEN, ZUSTAENDE, VOLLSTAENDIGKEITEN, REGIONEN, PLATTFORMEN, MEDIENARTEN, SICHTBARKEITEN,
+  ARTIKELTYPEN, ZUSTAENDE, VOLLSTAENDIGKEITEN, REGIONEN, MEDIENARTEN, PRUEFSTATUS, ROLLEN, PREISARTEN, PREISQUELLEN,
 } from '../../shared/konstanten.js';
 
-export function statusRouter({ igdb, barcode, preise, konfiguration, version }) {
+export function statusRouter({ igdb, barcode, preise, affiliate, plattformen, konfiguration, version }) {
   const router = Router();
 
   router.get('/status', (_req, res) => {
@@ -16,13 +16,18 @@ export function statusRouter({ igdb, barcode, preise, konfiguration, version }) 
       registrierungOffen: konfiguration.konten.registrierungOffen,
       zweiFaktorPflicht: konfiguration.konten.zweiFaktorPflicht,
       medienTeilenErlaubt: konfiguration.medienTeilenErlaubt,
+      oeffentlicherKatalog: konfiguration.oeffentlicherKatalog,
+      affiliateAktiv: affiliate.aktiv,
       maxUploadMb: konfiguration.maxUploadMb,
       maxMedienMb: konfiguration.maxMedienMb,
     });
   });
 
   router.get('/meta', (_req, res) => {
-    res.json({ ARTIKELTYPEN, ZUSTAENDE, VOLLSTAENDIGKEITEN, REGIONEN, PLATTFORMEN, MEDIENARTEN, SICHTBARKEITEN });
+    res.json({
+      ARTIKELTYPEN, ZUSTAENDE, VOLLSTAENDIGKEITEN, REGIONEN, MEDIENARTEN, PRUEFSTATUS, ROLLEN, PREISARTEN, PREISQUELLEN,
+      PLATTFORMEN: plattformen.alle(),
+    });
   });
 
   return router;

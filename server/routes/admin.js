@@ -24,7 +24,7 @@ export function adminRouter({ db, konten, dateien }) {
     const verliertAdmin = b.rolle === 'admin' && !b.gesperrt && ((rolle && rolle !== 'admin') || gesperrt);
     if (verliertAdmin && anzahlAdmins() <= 1) throw new KontoFehler('Es muss mindestens ein aktiver Administrator bleiben.', 409);
     if (rolle !== undefined) {
-      if (!['admin', 'nutzer'].includes(rolle)) throw new KontoFehler('Ungültige Rolle.');
+      if (!['admin', 'moderator', 'nutzer'].includes(rolle)) throw new KontoFehler('Ungültige Rolle.');
       db.prepare('UPDATE benutzer SET rolle = ? WHERE id = ?').run(rolle, b.id);
     }
     if (gesperrt !== undefined) {

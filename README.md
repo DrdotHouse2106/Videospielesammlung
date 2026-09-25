@@ -33,6 +33,10 @@ eigener Eintrag für Raritäten, die in keiner Datenbank stehen.
 - [Benutzerkonten & Zwei-Faktor-Anmeldung](#benutzerkonten--zwei-faktor-anmeldung)
 - [Wert & Marktpreise](#wert--marktpreise)
 - [Scans, Handbücher & Cover nachdrucken](#scans-handbücher--cover-nachdrucken)
+- [Globaler Katalog, Moderation & Rollen](#globaler-katalog-moderation--rollen)
+- [Plattformen, Varianten & Exemplare](#plattformen-varianten--exemplare)
+- [Preis-Historie](#preis-historie)
+- [Affiliate-Links („Hier kaufen“)](#affiliate-links-hier-kaufen)
 - [Öffentlich hosten – Checkliste](#öffentlich-hosten--checkliste)
 - [IGDB-Zugang einrichten](#igdb-zugang-einrichten)
 - [Barcode-Scanner & HTTPS](#barcode-scanner--https)
@@ -58,6 +62,14 @@ eigener Eintrag für Raritäten, die in keiner Datenbank stehen.
   privat oder mit anderen Benutzern geteilt
 - **Cover nachdrucken:** Druckansicht in Originalgröße (anhand der Scan-Auflösung) oder in fester Größe
   (z. B. DVD-Einleger), mit Schnittmarken
+- **Globaler Katalog mit Moderation:** Nur Admins/Moderatoren nehmen Einträge direkt auf; Nutzer reichen ein
+  oder behalten ihre Einträge privat. Duplikate lassen sich zusammenführen
+- **Plattformen als feste Kategorien** (PS5, Switch, N64 …) nach Hersteller gruppiert – mit Filter-Chips
+- **Varianten & Exemplare:** bekannte Modellnummern/Revisionen je Gerät als Sammel-Checkliste,
+  mehrere Exemplare pro Spiel/Konsole, gruppierte Ansicht
+- **Private Kommentare** zu jedem Spiel/Gerät
+- **Preis-Historie:** automatischer Marktpreis-Verlauf und gemeldete Angebote/Verkäufe (wo, wann, wie viel)
+- **Öffentliche Katalogseiten** mit „Hier kaufen“-Affiliate-Links (auch ohne Anmeldung)
 - **Drei Artikeltypen:** Spiele, Konsolen/Systeme und Zubehör (Controller, Kabel, Memory Cards …)
 - **Varianten:** Farbe/Sonderfarbe (z. B. „Clear Red“, „Atomic Purple“), Edition (z. B. „Zelda 25th Anniversary“),
   Modellnummer/Revision (z. B. „SCPH-1002“, „OLED“) und Seriennummer
@@ -139,6 +151,10 @@ Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 | `USD_EUR_RATE`         | EZB-Tageskurs             | Fester Umrechnungskurs USD → EUR |
 | `PRICE_CACHE_HOURS`    | `72`                      | Gültigkeit abgerufener Marktpreise |
 | `TRUST_PROXY`          | –                         | Hinter einem Reverse-Proxy `1` setzen (für HTTPS-Cookies und IP-basierte Sperren) |
+| `PUBLIC_CATALOG`       | `true`                    | Katalogseiten ohne Anmeldung zeigen (Sammlungen bleiben privat) |
+| `AFFILIATE_LINKS`      | `true`                    | „Hier kaufen“-Links anzeigen |
+| `AFFILIATE_AMAZON_TAG` | aus dem Code              | Amazon-PartnerNet-ID (überschreibt `server/affiliate-konfiguration.js`) |
+| `AFFILIATE_EBAY_CAMPID`| aus dem Code              | eBay-Partner-Network-Kampagnen-ID |
 
 Ohne IGDB-Zugangsdaten funktioniert die App vollständig – die Online-Suche entfällt dann,
 und du legst Artikel als eigene Einträge an.
@@ -163,6 +179,74 @@ und du legst Artikel als eigene Einträge an.
 
 > **Upgrade von Version 1:** Bestehende Artikel werden beim ersten Registrieren automatisch dem ersten
 > (Administrator-)Konto zugeordnet. Die alten Variablen `AUTH_USER`/`AUTH_PASSWORD` entfallen.
+
+---
+
+## Globaler Katalog, Moderation & Rollen
+
+Jeder Artikel in einer Sammlung gehört zu einem **Katalogeintrag** (das „Spiel“ bzw. „Gerät“ an sich).
+
+| Status | Wer sieht ihn? |
+| --- | --- |
+| **Privat** | Nur der Ersteller – Standard für eigene Einträge |
+| **Eingereicht** | Ersteller + Moderationsteam (wartet auf Prüfung) |
+| **Freigegeben** | Alle – Teil der globalen Datenbank |
+| **Abgelehnt** | Nur der Ersteller, mit Begründung; kann überarbeitet und erneut eingereicht werden |
+
+- **Rollen:** *Nutzer*, *Moderator*, *Administrator* (Rollen vergibt der Admin unter *Mehr → Benutzerverwaltung*).
+- **Nur Moderatoren und Admins** können Einträge direkt im globalen Katalog veröffentlichen, freigegebene Einträge
+  bearbeiten, Plattformen pflegen und Kauflinks hinterlegen.
+- **Nutzer** legen Einträge privat an oder reichen sie ein (beim Hinzufügen oder später über „Einreichen“).
+- **Moderation** (*Mehr → Moderation*): Einreichungen von Katalogeinträgen, Varianten und Scans freigeben oder mit Begründung
+  ablehnen. **Duplikate zusammenführen** übernimmt alle Artikel, Scans, Kommentare und Preisdaten in den bestehenden Eintrag.
+- IGDB-Treffer gelten als geprüfte Quelle und sind automatisch freigegeben.
+- **Barcodes** werden je Benutzer gelernt – ein Barcode verrät nie einen privaten Eintrag eines anderen.
+
+> **Upgrade:** Bestehende eigene Katalogeinträge von Nicht-Admins landen einmalig in der Moderations-Warteschlange,
+> bisher „geteilte“ Scans ebenfalls.
+
+---
+
+## Plattformen, Varianten & Exemplare
+
+- **Plattformen** sind feste Kategorien mit Kürzel und Hersteller (z. B. *PS5 – PlayStation 5 – Sony*). Rund 40 Systeme
+  sind vorinstalliert; Moderatoren ergänzen weitere unter *Moderation → Plattformen* (inkl. alternativer Namen, damit
+  z. B. „Genesis“ automatisch dem Mega Drive zugeordnet wird). In der Sammlung filterst du per Plattform-Chip,
+  der **Katalog** ist nach Hersteller und Plattform gegliedert.
+- **Varianten/Revisionen:** Zu jedem Katalogeintrag gibt es eine Liste bekannter Varianten (Modellnummer, Farbe, Edition,
+  Region, Jahr) – z. B. *SCPH-1002, SCPH-5552, SCPH-9002, PSone*. Die Liste dient als **Sammel-Checkliste**: Du siehst,
+  welche Revisionen dir noch fehlen. Nutzer schlagen Varianten vor, Moderatoren geben sie frei.
+- **Mehrere Exemplare:** Über *Weiteres Exemplar / Variante* legst du ein zweites Exemplar mit übernommenen Grunddaten an
+  und wählst nur noch die Variante. In der Sammlung werden Exemplare desselben Eintrags zu einer Karte gruppiert
+  (abschaltbar im Filter).
+
+---
+
+## Preis-Historie
+
+Die Katalogseite jedes Spiels zeigt einen **Preisverlauf**:
+
+- **Marktpreise** (lose/CIB/neu) werden bei jedem Abruf von PriceCharting automatisch mit Datum gespeichert – so entsteht mit der Zeit ein Verlauf.
+- **Meldungen:** Angemeldete Nutzer melden, **wo** (eBay, Kleinanzeigen, Vinted, Händler, Börse …), **wann** und **für wie viel** ein
+  Artikel **angeboten** oder **verkauft** wurde – optional mit Link, Zustand, Vollständigkeit und Region.
+- Meldungen sind für andere **anonym**; eigene Meldungen kann man löschen, Moderatoren alle.
+
+---
+
+## Affiliate-Links („Hier kaufen“)
+
+Auf Katalogseiten erscheint – deutlich als **Anzeige** gekennzeichnet – ein Bereich „Hier zum Kauf verfügbar“:
+
+1. **Suchlinks** zu Amazon und eBay mit Partner-ID, automatisch für jedes Spiel.
+2. **Direktlinks**, die Moderatoren je Spiel hinterlegen (beliebiger Shop, z. B. mit eigenem Partnerlink).
+
+Die **Standard-Partner-IDs stehen im Code** in [`server/affiliate-konfiguration.js`](server/affiliate-konfiguration.js)
+und gelten damit für jede Installation, die sie nicht ändert. Betreiber können sie per `.env` überschreiben
+(`AFFILIATE_AMAZON_TAG`, `AFFILIATE_EBAY_CAMPID`) oder abschalten (`AFFILIATE_LINKS=false`).
+
+> **Wichtig für Betreiber:** Affiliate-Links sind Werbung und werden in der Oberfläche als „Anzeige“ markiert
+> (Kennzeichnungspflicht nach UWG). Prüfe außerdem die Teilnahmebedingungen deines Partnerprogramms –
+> manche Programme erlauben Links nur auf Websites, die im Partnerkonto angemeldet sind.
 
 ---
 
@@ -198,9 +282,10 @@ Auf der Detailseite eines Artikels kannst du unter **Scans & Dokumente** Dateien
 - Das **Original bleibt unverändert** gespeichert und kann jederzeit heruntergeladen werden.
   TIFF-Scans werden zusätzlich in eine browsertaugliche JPG-Version in voller Auflösung umgewandelt.
 - Die **Scan-Auflösung (dpi)** wird aus der Datei gelesen (oder beim Hochladen angegeben).
-- Scans hängen am **Spiel** (Katalogeintrag), nicht an deinem Exemplar: Hast du sie geteilt, sehen alle Besitzer
-  dieses Spiels sie ebenfalls.
-- **Sichtbarkeit:** *Nur für mich* (Standard) oder *für alle angemeldeten Benutzer* (abschaltbar mit `MEDIA_SHARING=false`).
+- Scans hängen am **Spiel** (Katalogeintrag), nicht an deinem Exemplar.
+- **Sichtbarkeit:** *Nur für mich* (Standard) oder *zur Freigabe einreichen*. Nach Prüfung durch das Moderationsteam sehen alle
+  angemeldeten Benutzer den Scan – **deutlich gekennzeichnet als „Nutzer-Upload von …“ mit Prüfdatum**.
+  Mit `MEDIA_SHARING=false` ist das Einreichen serverweit abgeschaltet.
 
 **Drucken:** Über das Drucker-Symbol öffnet sich die Druckansicht:
 
@@ -225,10 +310,12 @@ Für ein DVD-Inlay reicht ein A4-Scanner; größere Einleger in zwei Teilen scan
 1. Reverse-Proxy mit **HTTPS** einrichten (siehe unten) und `TRUST_PROXY=1` setzen.
 2. Zuerst selbst registrieren → du wirst Administrator.
 3. Entscheiden: `REGISTRATION_OPEN` (offen für alle) und `REQUIRE_2FA` (2FA-Pflicht, empfohlen).
-4. Optional `APP_SECRET` setzen (`openssl rand -base64 32`) – sonst unbedingt `data/geheimnis.key` mitsichern.
-5. `MEDIA_SHARING` bewusst wählen (siehe Urheberrecht oben).
-6. **Regelmäßige Backups** des Datenverzeichnisses einrichten.
-7. Impressum/Datenschutzerklärung: Bei einem öffentlich erreichbaren Angebot in Deutschland in der Regel Pflicht –
+4. Rollen vergeben: vertrauenswürdige Nutzer zu **Moderatoren** machen.
+5. Optional `APP_SECRET` setzen (`openssl rand -base64 32`) – sonst unbedingt `data/geheimnis.key` mitsichern.
+6. `MEDIA_SHARING` bewusst wählen (siehe Urheberrecht oben).
+7. **Regelmäßige Backups** des Datenverzeichnisses einrichten.
+8. Affiliate-IDs in `server/affiliate-konfiguration.js` eintragen (oder per `.env`).
+9. Impressum/Datenschutzerklärung: Bei einem öffentlich erreichbaren Angebot in Deutschland in der Regel Pflicht –
    z. B. als eigene Seite über den Reverse-Proxy bereitstellen.
 
 ---
@@ -418,6 +505,14 @@ außer `/api/health` und `/api/auth/*` erfordern eine Anmeldung (Sitzungs-Cookie
 | GET     | `/api/community`                  | Öffentliche Sammlungen |
 | GET     | `/api/community/:name`            | Eine öffentliche Sammlung |
 | GET/PUT/DELETE | `/api/admin/benutzer/…`    | Benutzerverwaltung (nur Admins) |
+| GET     | `/api/plattformen`                | Plattformen (öffentlich, falls `PUBLIC_CATALOG`) |
+| GET     | `/api/katalog-liste?plattform=&typ=&q=&seite=` | Globaler Katalog (öffentlich) |
+| GET     | `/api/katalog-seite/:id`          | Katalogseite inkl. Varianten, Preisverlauf, Kauflinks (öffentlich) |
+| POST    | `/api/katalog/:id/einreichen` · `zurueckziehen` | Eigenen Eintrag zur Prüfung einreichen |
+| GET/POST | `/api/katalog/:id/varianten`     | Varianten; `PUT/DELETE /api/varianten/:id` |
+| GET/POST | `/api/katalog/:id/kommentare`    | Private Kommentare; `PUT/DELETE /api/kommentare/:id` |
+| POST    | `/api/katalog/:id/historie`       | Preis melden; `DELETE /api/historie/:id` |
+| GET/POST | `/api/moderation/…`              | Warteschlange, Freigeben/Ablehnen/Zusammenführen, Kauflinks, Plattformen |
 | GET     | `/api/export.json` / `export.csv` | Export |
 | POST    | `/api/import`                     | JSON-Import |
 

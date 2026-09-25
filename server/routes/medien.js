@@ -1,11 +1,10 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { MEDIENARTEN, SICHTBARKEITEN } from '../../shared/konstanten.js';
+import { MEDIENARTEN, istModerator } from '../../shared/konstanten.js';
 import { MEDIEN_TYPEN, verarbeiteMedium, neuerDateiname } from '../services/medien.js';
 import { ValidierungsFehler } from '../services/validierung.js';
 
 const ARTEN = MEDIENARTEN.map((a) => a.value);
-const SICHTBAR = SICHTBARKEITEN.map((s) => s.value);
 
 export function medienZuObjekt(m, benutzer) {
   const url = (datei) => (datei ? `/api/dateien/${datei}` : null);
@@ -24,15 +23,17 @@ export function medienZuObjekt(m, benutzer) {
     originalname: m.originalname,
     erstellt_am: m.erstellt_am,
     hochgeladen_von: m.hochgeladen_von ?? null,
+    geprueft_am: m.geprueft_am ?? null,
+    pruefung_notiz: m.benutzer_id === benutzer.id || istModerator(benutzer) ? m.pruefung_notiz ?? null : null,
     eigenes: m.benutzer_id === benutzer.id,
-    darf_bearbeiten: m.benutzer_id === benutzer.id || benutzer.rolle === 'admin',
+    darf_bearbeiten: m.benutzer_id === benutzer.id || istModerator(benutzer),
     url: url(m.anzeige_datei ?? m.datei),
     original_url: url(m.datei),
     vorschau_url: url(m.vorschau_datei),
   };
 }
 
-function pruefeMetadaten(eingabe, { teilweise = false, teilenErlaubt }) {
+function pruefeMetadaten(eingabe, { teilweise = false, teilenErlaubt, moderator = false, bisher = null }) {
   const fehler = {};
   const daten = {};
   const hat = (f) => Object.hasOwn(eingabe, f);
@@ -41,10 +42,14 @@ function pruefeMetadaten(eingabe, { teilweise = false, teilenErlaubt }) {
     else daten.art = eingabe.art;
   }
   if (!teilweise || hat('sichtbarkeit')) {
-    const s = eingabe.sichtbarkeit || 'privat';
-    if (!SICHTBAR.includes(s)) fehler.sichtbarkeit = 'Ungültige Auswahl.';
-    else if (s === 'geteilt' && !teilenErlaubt) fehler.sichtbarkeit = 'Das Teilen von Scans ist auf diesem Server deaktiviert.';
-    else daten.sichtbarkeit = s;
+    // Nutzer: privat oder zur Freigabe einreichen · Moderatoren dürfen direkt freigeben
+    let s = eingabe.sichtbarkeit || 'privat';
+    if (s === 'geteilt') s = 'eingereicht';
+    const erlaubt = moderator ? ['privat', 'eingereicht', 'freigegeben'] : ['privat', 'eingereicht'];
+    if (bisher === 'freigegeben' && s === 'eingereicht') s = 'freigegeben'; // bleibt freigegeben
+    else if (!erlaubt.includes(s)) fehler.sichtbarkeit = 'Ungültige Auswahl.';
+    if (s !== 'privat' && !teilenErlaubt) fehler.sichtbarkeit = 'Das Teilen von Scans ist auf diesem Server deaktiviert.';
+    if (!fehler.sichtbarkeit) daten.sichtbarkeit = s;
   }
   if (hat('titel')) daten.titel = String(eingabe.titel ?? '').trim().slice(0, 200) || null;
   if (hat('dpi')) {
@@ -75,7 +80,8 @@ export function medienRouter({ db, konfiguration, dateien, katalog }) {
   const sichtbareMedien = db.prepare(`
     SELECT m.*, COALESCE(b.anzeigename, b.benutzername) AS hochgeladen_von
     FROM medien m LEFT JOIN benutzer b ON b.id = m.benutzer_id
-    WHERE m.katalog_id = @katalog AND (m.benutzer_id = @benutzer OR m.sichtbarkeit = 'geteilt')
+    WHERE m.katalog_id = @katalog
+      AND (m.benutzer_id = @benutzer OR m.sichtbarkeit = 'freigegeben' OR (@moderator = 1 AND m.sichtbarkeit = 'eingereicht'))
     ORDER BY CASE m.art WHEN 'cover_vorne' THEN 0 WHEN 'cover_hinten' THEN 1 WHEN 'cover_komplett' THEN 2
              WHEN 'handbuch' THEN 3 WHEN 'label' THEN 4 ELSE 5 END, m.erstellt_am`);
   const perId = db.prepare(`
@@ -85,24 +91,15 @@ export function medienRouter({ db, konfiguration, dateien, katalog }) {
 
   function sichtbar(req, id) {
     const m = perId.get(Number(id));
-    if (!m || (m.benutzer_id !== req.benutzer.id && m.sichtbarkeit !== 'geteilt')) return null;
-    return m;
-  }
-
-  /** Stellt sicher, dass ein Artikel einen Katalogeintrag hat (Scans hängen am Katalog). */
-  function katalogFuerArtikel(artikel) {
-    if (artikel.katalog_id) return artikel.katalog_id;
-    const eintrag = katalog.speichere({
-      quelle: 'eigen', externe_id: crypto.randomUUID(), typ: artikel.typ, titel: artikel.titel,
-      plattformen: artikel.plattform ? [artikel.plattform] : [], erscheinungsjahr: null, hersteller: null,
-      cover_url: artikel.cover_url, beschreibung: null, erstellt_von: artikel.benutzer_id,
-    });
-    db.prepare('UPDATE artikel SET katalog_id = ? WHERE id = ?').run(eintrag.id, artikel.id);
-    return eintrag.id;
+    const darf = m && (m.benutzer_id === req.benutzer.id || m.sichtbarkeit === 'freigegeben'
+      || (istModerator(req.benutzer) && m.sichtbarkeit === 'eingereicht'));
+    return darf ? m : null;
   }
 
   router.get('/katalog/:id/medien', (req, res) => {
-    res.json(sichtbareMedien.all({ katalog: Number(req.params.id), benutzer: req.benutzer.id }).map((m) => medienZuObjekt(m, req.benutzer)));
+    if (!katalog.holeSichtbar(req.params.id, req.benutzer)) return res.status(404).json({ fehler: 'Katalogeintrag nicht gefunden.' });
+    res.json(sichtbareMedien.all({ katalog: Number(req.params.id), benutzer: req.benutzer.id, moderator: istModerator(req.benutzer) ? 1 : 0 })
+      .map((m) => medienZuObjekt(m, req.benutzer)));
   });
 
   router.post('/artikel/:id/medien', upload.single('datei'), async (req, res) => {
@@ -115,9 +112,9 @@ export function medienRouter({ db, konfiguration, dateien, katalog }) {
     }
     let verarbeitet;
     try {
-      const meta = pruefeMetadaten(req.body ?? {}, { teilenErlaubt });
+      const meta = pruefeMetadaten(req.body ?? {}, { teilenErlaubt, moderator: istModerator(req.benutzer) });
       verarbeitet = await verarbeiteMedium({ verzeichnis: dateien.verzeichnis, datei: req.file.filename, mime: req.file.mimetype });
-      const katalogId = katalogFuerArtikel(artikel);
+      const katalogId = katalog.stelleSicherFuerArtikel(artikel, req.benutzer);
       const { id } = db.prepare(`
         INSERT INTO medien (katalog_id, benutzer_id, art, titel, sichtbarkeit, datei, anzeige_datei, vorschau_datei,
                             originalname, mime, groesse, breite, hoehe, dpi, seiten)
@@ -148,10 +145,12 @@ export function medienRouter({ db, konfiguration, dateien, katalog }) {
 
   router.put('/medien/:id', (req, res) => {
     const m = perId.get(Number(req.params.id));
-    if (!m || (m.benutzer_id !== req.benutzer.id && req.benutzer.rolle !== 'admin')) {
+    if (!m || (m.benutzer_id !== req.benutzer.id && !istModerator(req.benutzer))) {
       return res.status(404).json({ fehler: 'Scan nicht gefunden.' });
     }
-    const daten = pruefeMetadaten(req.body ?? {}, { teilweise: true, teilenErlaubt });
+    const daten = pruefeMetadaten(req.body ?? {}, {
+      teilweise: true, teilenErlaubt, moderator: istModerator(req.benutzer), bisher: m.sichtbarkeit,
+    });
     const felder = Object.keys(daten);
     if (felder.length) db.prepare(`UPDATE medien SET ${felder.map((f) => `${f} = @${f}`).join(', ')} WHERE id = @id`).run({ ...daten, id: m.id });
     res.json(medienZuObjekt(perId.get(m.id), req.benutzer));
@@ -159,7 +158,7 @@ export function medienRouter({ db, konfiguration, dateien, katalog }) {
 
   router.delete('/medien/:id', (req, res) => {
     const m = perId.get(Number(req.params.id));
-    if (!m || (m.benutzer_id !== req.benutzer.id && req.benutzer.rolle !== 'admin')) {
+    if (!m || (m.benutzer_id !== req.benutzer.id && !istModerator(req.benutzer))) {
       return res.status(404).json({ fehler: 'Scan nicht gefunden.' });
     }
     db.prepare('DELETE FROM medien WHERE id = ?').run(m.id);

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
+import { ROLLEN } from '../../../shared/konstanten.js';
 import { datumDe } from '../format.js';
 import { useSitzung } from '../sitzung.js';
 import Layout from '../komponenten/Layout.jsx';
@@ -33,7 +34,7 @@ export default function Admin({ route }) {
             <div className="flex flex-wrap items-center gap-2">
               <strong>{b.anzeigename || b.benutzername}</strong>
               <span className="text-sm text-leise">@{b.benutzername}</span>
-              {b.rolle === 'admin' && <span className="abzeichen text-akzent-hell">Admin</span>}
+              {b.rolle !== 'nutzer' && <span className="abzeichen text-akzent-hell">{ROLLEN.find((r) => r.value === b.rolle)?.label}</span>}
               {b.totp_aktiv ? <span className="abzeichen text-erfolg">2FA</span> : <span className="abzeichen">ohne 2FA</span>}
               {b.sammlung_oeffentlich ? <span className="abzeichen">öffentlich</span> : null}
               {b.gesperrt ? <span className="abzeichen text-gefahr">gesperrt</span> : null}
@@ -46,9 +47,12 @@ export default function Admin({ route }) {
                 <button type="button" className="knopf-sekundaer px-3 py-1.5" onClick={aktion(
                   () => api.adminBenutzerAendern(b.id, { gesperrt: !b.gesperrt }), b.gesperrt ? 'Entsperrt.' : 'Gesperrt und abgemeldet.',
                 )}>{b.gesperrt ? 'Entsperren' : 'Sperren'}</button>
-                <button type="button" className="knopf-sekundaer px-3 py-1.5" onClick={aktion(
-                  () => api.adminBenutzerAendern(b.id, { rolle: b.rolle === 'admin' ? 'nutzer' : 'admin' }), 'Rolle geändert.',
-                )}>{b.rolle === 'admin' ? 'Admin-Rechte entziehen' : 'Zum Admin machen'}</button>
+                <label className="flex items-center gap-2 text-sm">
+                  <span className="sr-only">Rolle</span>
+                  <select className="eingabe py-1.5" value={b.rolle} onChange={(e) => aktion(() => api.adminBenutzerAendern(b.id, { rolle: e.target.value }), 'Rolle geändert.')()}>
+                    {ROLLEN.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                  </select>
+                </label>
                 {b.totp_aktiv ? (
                   <button type="button" className="knopf-sekundaer px-3 py-1.5" onClick={() => window.confirm(`2FA für ${b.benutzername} zurücksetzen? Nur tun, wenn die Identität geprüft wurde.`)
                     && aktion(() => api.admin2faZuruecksetzen(b.id), '2FA zurückgesetzt.')()}>2FA zurücksetzen</button>

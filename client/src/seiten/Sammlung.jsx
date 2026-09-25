@@ -20,7 +20,8 @@ export default function Sammlung({ route }) {
   const [fehler, setFehler] = useState(null);
   const [plattformen, setPlattformen] = useState([]);
   const [suchtext, setSuchtext] = useState(filter.q ?? '');
-  const [filterOffen, setFilterOffen] = useState(Boolean(filter.plattform || filter.region || filter.zustand || filter.vollstaendigkeit));
+  const [filterOffen, setFilterOffen] = useState(Boolean(filter.region || filter.zustand || filter.vollstaendigkeit));
+  const gruppiert = filter.einzeln !== '1';
 
   const setzeFilter = (aenderung) => navigiere('/', { ...filter, ...aenderung });
 
@@ -43,8 +44,22 @@ export default function Sammlung({ route }) {
     api.plattformen().then(setPlattformen).catch(() => {});
   }, []);
 
-  const aktiveFilter = ['plattform', 'region', 'zustand', 'vollstaendigkeit'].filter((f) => filter[f]).length;
-  const hatFilter = Boolean(filter.typ || filter.q || aktiveFilter);
+  const aktiveFilter = ['region', 'zustand', 'vollstaendigkeit'].filter((f) => filter[f]).length;
+
+  // Mehrere Exemplare/Varianten desselben Katalogeintrags zu einer Karte zusammenfassen
+  const karten = [];
+  if (artikel) {
+    const gruppen = new Map();
+    for (const a of artikel) {
+      const schluessel = gruppiert && a.katalog_id ? `k${a.katalog_id}` : `a${a.id}`;
+      if (!gruppen.has(schluessel)) {
+        gruppen.set(schluessel, { artikel: a, exemplare: 0 });
+        karten.push(gruppen.get(schluessel));
+      }
+      gruppen.get(schluessel).exemplare += 1;
+    }
+  }
+  const hatFilter = Boolean(filter.typ || filter.q || filter.plattform_id || aktiveFilter);
 
   return (
     <Layout route={route} titel="Meine Sammlung">
@@ -95,10 +110,27 @@ export default function Sammlung({ route }) {
           ))}
         </div>
 
+        {plattformen.length > 1 && (
+          <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1" role="group" aria-label="Nach Plattform filtern">
+            {plattformen.map((p) => {
+              const aktiv = String(p.id) === filter.plattform_id;
+              return (
+                <button key={p.id ?? p.plattform} type="button" title={p.plattform} disabled={!p.id}
+                  className={`${aktiv ? 'chip-aktiv' : 'chip'} px-2.5 py-1 text-xs`}
+                  onClick={() => setzeFilter({ plattform_id: aktiv ? undefined : String(p.id) })}>
+                  {p.kurz ?? p.plattform}<span className="opacity-70">{p.anzahl}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {filterOffen && (
           <div className="karte grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-5">
-            <Auswahl label="Plattform" wert={filter.plattform} onChange={(v) => setzeFilter({ plattform: v })}
-              optionen={plattformen.map((p) => ({ value: p.plattform, label: `${p.plattform} (${p.anzahl})` }))} />
+            <label className="flex items-center gap-2 self-end pb-2.5 text-sm">
+              <input type="checkbox" className="size-4 accent-akzent" checked={gruppiert} onChange={(e) => setzeFilter({ einzeln: e.target.checked ? undefined : '1' })} />
+              Exemplare gruppieren
+            </label>
             <Auswahl label="Region" wert={filter.region} onChange={(v) => setzeFilter({ region: v })} optionen={REGIONEN} />
             <Auswahl label="Zustand" wert={filter.zustand} onChange={(v) => setzeFilter({ zustand: v })} optionen={ZUSTAENDE} />
             <Auswahl label="Vollständigkeit" wert={filter.vollstaendigkeit} onChange={(v) => setzeFilter({ vollstaendigkeit: v })} optionen={VOLLSTAENDIGKEITEN} />
@@ -147,9 +179,10 @@ export default function Sammlung({ route }) {
           <>
             <p className="text-sm text-leise">
               {artikel.length === 1 ? '1 Eintrag' : `${artikel.length} Einträge`}
+              {karten.length !== artikel.length && ` · ${karten.length} verschiedene`}
             </p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-              {artikel.map((a) => <ArtikelKarte key={a.id} artikel={a} />)}
+              {karten.map((k) => <ArtikelKarte key={k.artikel.id} artikel={k.artikel} exemplare={k.exemplare} />)}
             </div>
           </>
         )}

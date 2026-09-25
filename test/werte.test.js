@@ -65,7 +65,9 @@ test('Community-Werte erscheinen erst ab drei Angaben', async () => {
   const s = await starteTestServer();
   try {
     const erste = await s.registriere('eins');
-    const eintrag = (await erste.api('/api/katalog', { methode: 'POST', daten: { typ: 'konsole', titel: 'Sega Saturn' } })).json;
+    // erstes Konto = Admin → darf direkt im globalen Katalog veröffentlichen
+    const eintrag = (await erste.api('/api/katalog', { methode: 'POST', daten: { typ: 'konsole', titel: 'Sega Saturn', veroeffentlichen: true } })).json;
+    assert.equal(eintrag.status, 'freigegeben');
     const nutzer = [erste, await s.registriere('zwei'), await s.registriere('drei')];
     const preise = ['100', '150', '400'];
     for (let i = 0; i < 2; i++) {

@@ -2,11 +2,14 @@ import { Router } from 'express';
 import { artikelZuObjekt } from './artikel.js';
 
 // Private Angaben werden bei fremden Sammlungen nie ausgeliefert.
-const PRIVATE_FELDER = ['kaufpreis', 'kaufdatum', 'seriennummer', 'notizen', 'barcode', 'marktwert'];
+const PRIVATE_FELDER = ['kaufpreis', 'kaufdatum', 'seriennummer', 'notizen', 'barcode', 'marktwert', 'katalog_id', 'variante_id'];
 
 function oeffentlich(zeile) {
   const artikel = artikelZuObjekt(zeile);
   for (const feld of PRIVATE_FELDER) delete artikel[feld];
+  // Nur freigegebene Katalogeinträge werden verlinkt
+  artikel.katalog_id = zeile.oeffentliche_katalog_id ?? null;
+  delete artikel.oeffentliche_katalog_id;
   return artikel;
 }
 
@@ -21,8 +24,13 @@ export function communityRouter({ db }) {
     GROUP BY b.id ORDER BY stueck DESC, b.benutzername COLLATE NOCASE`);
   const perName = db.prepare(`SELECT id, benutzername, COALESCE(anzeigename, benutzername) AS anzeigename
                               FROM benutzer WHERE benutzername = ? AND sammlung_oeffentlich = 1 AND gesperrt = 0`);
-  const basis = `SELECT a.*, k.cover_url AS katalog_cover_url, k.erscheinungsjahr, k.quelle AS katalog_quelle
-                 FROM artikel a LEFT JOIN katalog k ON k.id = a.katalog_id`;
+  // Katalogdaten nur, wenn der Eintrag freigegeben ist (private Einträge bleiben verborgen)
+  const basis = `SELECT a.*, CASE WHEN k.status = 'freigegeben' THEN k.cover_url END AS katalog_cover_url,
+                        CASE WHEN k.status = 'freigegeben' THEN k.erscheinungsjahr END AS erscheinungsjahr,
+                        CASE WHEN k.status = 'freigegeben' THEN k.id END AS oeffentliche_katalog_id,
+                        p.kurz AS plattform_kurz, v.bezeichnung AS variante_bezeichnung
+                 FROM artikel a LEFT JOIN katalog k ON k.id = a.katalog_id LEFT JOIN plattformen p ON p.id = a.plattform_id
+                 LEFT JOIN katalog_varianten v ON v.id = a.variante_id AND v.status = 'freigegeben'`;
 
   router.get('/community', (_req, res) => res.json(sammler.all()));
 

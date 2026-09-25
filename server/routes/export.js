@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { Router } from 'express';
 import {
   ARTIKELTYPEN, ZUSTAENDE, VOLLSTAENDIGKEITEN, REGIONEN, beschriftung,
@@ -30,7 +31,7 @@ function csvFeld(wert) {
   return /[";\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
-export function exportRouter({ db }) {
+export function exportRouter({ db, plattformen }) {
   const router = Router();
   const datumHeute = () => new Date().toISOString().slice(0, 10);
 
@@ -63,13 +64,14 @@ export function exportRouter({ db }) {
 
     const katalogIds = new Map();
     const katalogEinfuegen = db.prepare(`
-      INSERT INTO katalog (quelle, externe_id, typ, titel, plattformen, erscheinungsjahr, hersteller, cover_url, beschreibung, erstellt_von)
-      VALUES ('eigen', @externe_id, @typ, @titel, @plattformen, @erscheinungsjahr, @hersteller, @cover_url, @beschreibung, @erstellt_von)
-      ON CONFLICT (quelle, externe_id) DO UPDATE SET titel = titel
+      INSERT INTO katalog (quelle, externe_id, typ, titel, plattformen, erscheinungsjahr, hersteller, cover_url, beschreibung, erstellt_von, status)
+      VALUES ('eigen', @externe_id, @typ, @titel, @plattformen, @erscheinungsjahr, @hersteller, @cover_url, @beschreibung, @erstellt_von, 'privat')
       RETURNING id`);
-    const katalogVorhanden = db.prepare('SELECT id FROM katalog WHERE id = ?');
+    const eigenerMitExternerId = db.prepare("SELECT id, erstellt_von FROM katalog WHERE quelle = 'eigen' AND externe_id = ?");
+    // Nur freigegebene oder eigene Katalogeinträge dürfen verknüpft werden
+    const katalogVorhanden = db.prepare("SELECT id FROM katalog WHERE id = ? AND (status = 'freigegeben' OR erstellt_von = ?)");
     const felder = ['benutzer_id', 'typ', 'titel', 'plattform', 'katalog_id', 'barcode', 'cover_url', 'zustand', 'vollstaendigkeit', 'region',
-      'farbe', 'edition', 'modellnummer', 'seriennummer', 'notizen', 'kaufpreis', 'kaufdatum', 'anzahl', 'marktwert'];
+      'farbe', 'edition', 'modellnummer', 'seriennummer', 'notizen', 'kaufpreis', 'kaufdatum', 'anzahl', 'marktwert', 'plattform_id'];
     const einfuegen = db.prepare(`INSERT INTO artikel (${felder.join(', ')}) VALUES (${felder.map((f) => `@${f}`).join(', ')})`);
 
     const fehlerhaft = [];
@@ -77,8 +79,13 @@ export function exportRouter({ db }) {
     db.transaction(() => {
       for (const eintrag of daten?.eigeneKatalogeintraege ?? []) {
         if (!eintrag?.titel || !eintrag?.externe_id) continue;
+        const vorhanden = eigenerMitExternerId.get(String(eintrag.externe_id));
+        if (vorhanden?.erstellt_von === req.benutzer.id) {
+          katalogIds.set(eintrag.id, vorhanden.id);
+          continue;
+        }
         const { id } = katalogEinfuegen.get({
-          externe_id: String(eintrag.externe_id), typ: eintrag.typ ?? 'spiel', titel: String(eintrag.titel),
+          externe_id: vorhanden ? crypto.randomUUID() : String(eintrag.externe_id), typ: eintrag.typ ?? 'spiel', titel: String(eintrag.titel),
           plattformen: typeof eintrag.plattformen === 'string' ? eintrag.plattformen : JSON.stringify(eintrag.plattformen ?? []),
           erscheinungsjahr: eintrag.erscheinungsjahr ?? null, hersteller: eintrag.hersteller ?? null,
           cover_url: eintrag.cover_url ?? null, beschreibung: eintrag.beschreibung ?? null, erstellt_von: req.benutzer.id,
@@ -89,9 +96,10 @@ export function exportRouter({ db }) {
         try {
           const artikel = pruefeArtikel({ ...roh, katalog_id: null });
           const alteKatalogId = roh?.katalog_id;
-          artikel.katalog_id = katalogIds.get(alteKatalogId) ?? (katalogVorhanden.get(alteKatalogId ?? -1)?.id ?? null);
+          artikel.katalog_id = katalogIds.get(alteKatalogId) ?? (katalogVorhanden.get(alteKatalogId ?? -1, req.benutzer.id)?.id ?? null);
           if (artikel.cover_url?.startsWith('/')) artikel.cover_url = null; // Fotos werden nicht mit exportiert
-          einfuegen.run({ ...artikel, benutzer_id: req.benutzer.id });
+          const plattform = plattformen.zuordnen(artikel.plattform);
+          einfuegen.run({ ...artikel, benutzer_id: req.benutzer.id, plattform_id: plattform?.id ?? null, plattform: plattform?.name ?? artikel.plattform });
           importiert++;
         } catch (fehler) {
           if (!(fehler instanceof ValidierungsFehler)) throw fehler;

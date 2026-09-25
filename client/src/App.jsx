@@ -17,6 +17,9 @@ import Community from './seiten/Community.jsx';
 import CommunitySammlung from './seiten/CommunitySammlung.jsx';
 import Admin from './seiten/Admin.jsx';
 import Druck from './seiten/Druck.jsx';
+import Katalog from './seiten/Katalog.jsx';
+import KatalogSeite from './seiten/KatalogSeite.jsx';
+import Moderation from './seiten/Moderation.jsx';
 
 function Seite({ route }) {
   const { pfad } = route;
@@ -29,6 +32,8 @@ function Seite({ route }) {
   if (pfad === '/konto') return <Konto route={route} />;
   if (pfad === '/community') return <Community route={route} />;
   if (pfad === '/admin') return <Admin route={route} />;
+  if (pfad === '/moderation') return <Moderation route={route} />;
+  if (pfad === '/katalog') return <Katalog route={route} />;
   let t = passt('/artikel/:id/bearbeiten', pfad);
   if (t) return <ArtikelFormular key={`b${t.id}`} route={route} artikelId={t.id} />;
   t = passt('/artikel/:id', pfad);
@@ -37,6 +42,8 @@ function Seite({ route }) {
   if (t) return <ArtikelDetail key={`${t.name}/${t.id}`} route={route} id={t.id} sammlerName={t.name} />;
   t = passt('/community/:name', pfad);
   if (t) return <CommunitySammlung key={t.name} route={route} name={t.name} />;
+  t = passt('/katalog/:id', pfad);
+  if (t) return <KatalogSeite key={t.id} route={route} id={t.id} />;
   t = passt('/druck/:id', pfad);
   if (t) return <Druck key={t.id} route={route} id={t.id} />;
   return (
@@ -99,6 +106,10 @@ export default function App() {
         {fehler ? <p role="alert">{fehler} <button type="button" className="underline" onClick={aktualisiere}>Erneut versuchen</button></p> : 'Wird geladen …'}
       </div>
     );
+  } else if (!auth.angemeldet && auth.oeffentlicherKatalog && route.pfad.startsWith('/katalog')) {
+    // Öffentlicher Katalog ohne Anmeldung
+    const t = passt('/katalog/:id', route.pfad);
+    inhalt = t ? <KatalogSeite key={t.id} route={route} id={t.id} /> : <Katalog route={route} />;
   } else if (!auth.angemeldet) {
     inhalt = <Anmelden />;
   } else if (auth.zweiFaktorPflicht && !auth.benutzer.totp_aktiv) {

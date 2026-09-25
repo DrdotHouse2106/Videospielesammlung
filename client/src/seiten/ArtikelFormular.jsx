@@ -1,7 +1,11 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import {
-  ARTIKELTYPEN, ZUSTAENDE, VOLLSTAENDIGKEITEN, REGIONEN, PLATTFORMEN,
+  ARTIKELTYPEN, ZUSTAENDE, VOLLSTAENDIGKEITEN, REGIONEN, istModerator,
 } from '../../../shared/konstanten.js';
+import { usePlattformen } from '../plattformen.js';
+import { useSitzung } from '../sitzung.js';
+import PlattformAuswahl from '../komponenten/PlattformAuswahl.jsx';
+import StatusAbzeichen from '../komponenten/StatusAbzeichen.jsx';
 import { api, ApiFehler } from '../api.js';
 import { navigiere } from '../router.js';
 import { preisFeld } from '../format.js';
@@ -17,7 +21,7 @@ const FARBVORSCHLAEGE = [
 ];
 
 const LEER = {
-  typ: 'spiel', titel: '', plattform: '', katalog_id: null, barcode: '', cover_url: '', zustand: '', vollstaendigkeit: '',
+  typ: 'spiel', titel: '', plattform: '', plattform_id: null, variante_id: null, katalog_id: null, barcode: '', cover_url: '', zustand: '', vollstaendigkeit: '',
   region: 'pal_de', farbe: '', edition: '', modellnummer: '', seriennummer: '', notizen: '', kaufpreis: '', kaufdatum: '', anzahl: 1,
   marktwert: '',
 };
@@ -28,7 +32,10 @@ export default function ArtikelFormular({ route, artikelId }) {
   const bearbeiten = Boolean(artikelId);
   const [werte, setWerte] = useState(null);
   const [katalogEintrag, setKatalogEintrag] = useState(null);
-  const [inKatalogSpeichern, setInKatalogSpeichern] = useState(true);
+  const [katalogFreigabe, setKatalogFreigabe] = useState('privat'); // privat | einreichen | veroeffentlichen
+  const [varianten, setVarianten] = useState([]);
+  const plattformen = usePlattformen();
+  const { benutzer } = useSitzung();
   const [fehler, setFehler] = useState({});
   const [allgemeinerFehler, setAllgemeinerFehler] = useState(null);
   const [speichert, setSpeichert] = useState(false);
@@ -40,11 +47,30 @@ export default function ArtikelFormular({ route, artikelId }) {
       try {
         if (bearbeiten) {
           const a = await api.artikel(artikelId);
-          setWerte({ ...LEER, ...Object.fromEntries(Object.entries(a).map(([k, v]) => [k, v ?? ''])), kaufpreis: preisFeld(a.kaufpreis), marktwert: preisFeld(a.marktwert), katalog_id: a.katalog_id });
-          if (a.katalog_id) setKatalogEintrag(await api.katalogEintrag(a.katalog_id).catch(() => null));
+          setWerte({
+            ...LEER, ...Object.fromEntries(Object.entries(a).map(([k, v]) => [k, v ?? ''])),
+            kaufpreis: preisFeld(a.kaufpreis), marktwert: preisFeld(a.marktwert),
+            katalog_id: a.katalog_id, plattform_id: a.plattform_id, variante_id: a.variante_id,
+          });
+          if (a.katalog_id) {
+            setKatalogEintrag(await api.katalogEintrag(a.katalog_id).catch(() => null));
+            setVarianten(await api.varianten(a.katalog_id).catch(() => []));
+          }
           return;
         }
         const basis = { ...LEER, typ: p.typ ?? 'spiel', titel: p.titel ?? '', barcode: p.barcode ?? '' };
+        // „Weiteres Exemplar“: Grunddaten eines vorhandenen Artikels übernehmen
+        if (p.von) {
+          const vorlage = await api.artikel(p.von);
+          Object.assign(basis, {
+            typ: vorlage.typ, titel: vorlage.titel, katalog_id: vorlage.katalog_id, plattform: vorlage.plattform ?? '',
+            plattform_id: vorlage.plattform_id, region: vorlage.region ?? '', cover_url: vorlage.cover_url ?? '',
+          });
+          if (vorlage.katalog_id) {
+            setKatalogEintrag(await api.katalogEintrag(vorlage.katalog_id).catch(() => null));
+            setVarianten(await api.varianten(vorlage.katalog_id).catch(() => []));
+          }
+        }
         if (p.katalog) {
           const eintrag = await api.katalogEintrag(p.katalog);
           setKatalogEintrag(eintrag);
@@ -53,15 +79,32 @@ export default function ArtikelFormular({ route, artikelId }) {
             titel: eintrag.titel,
             katalog_id: eintrag.id,
             cover_url: eintrag.cover_url ?? '',
-            plattform: eintrag.typ === 'konsole' ? eintrag.titel : eintrag.plattformen.length === 1 ? eintrag.plattformen[0] : '',
+            plattform: eintrag.plattformen.length === 1 ? eintrag.plattformen[0] : eintrag.typ === 'konsole' ? eintrag.titel : '',
           });
+          const liste = await api.varianten(eintrag.id).catch(() => []);
+          setVarianten(liste);
+          const gewaehlt = liste.find((v) => String(v.id) === p.variante);
+          if (gewaehlt) {
+            Object.assign(basis, {
+              variante_id: gewaehlt.id, modellnummer: gewaehlt.modellnummer ?? '', farbe: gewaehlt.farbe ?? '',
+              edition: gewaehlt.edition ?? '', region: gewaehlt.region ?? basis.region,
+            });
+          }
         }
         setWerte(basis);
       } catch (e) {
         setAllgemeinerFehler(e.message);
       }
     })();
-  }, [artikelId, p.katalog]); // Formular nur beim Wechsel des Artikels neu laden
+  }, [artikelId, p.katalog, p.von]); // Formular nur beim Wechsel des Artikels neu laden
+
+  // Freitext-Plattform (z. B. aus IGDB) der festen Plattformliste zuordnen
+  useEffect(() => {
+    if (!werte || werte.plattform_id || !werte.plattform || !plattformen.length) return;
+    const n = werte.plattform.toLowerCase();
+    const treffer = plattformen.find((x) => x.name.toLowerCase() === n || x.kurz.toLowerCase() === n || x.aliase.some((a) => a.toLowerCase() === n));
+    if (treffer) setWerte((w) => ({ ...w, plattform_id: treffer.id }));
+  }, [werte?.plattform, plattformen.length]);
 
   const bildVorschau = useMemo(() => (bildDatei ? URL.createObjectURL(bildDatei) : null), [bildDatei]);
   useEffect(() => () => bildVorschau && URL.revokeObjectURL(bildVorschau), [bildVorschau]);
@@ -80,7 +123,18 @@ export default function ArtikelFormular({ route, artikelId }) {
     if (fehler[feld]) setFehler((f) => ({ ...f, [feld]: undefined }));
   };
 
-  const plattformVorschlaege = [...new Set([...(katalogEintrag?.plattformen ?? []), ...PLATTFORMEN])];
+  function waehleVariante(id) {
+    const v = varianten.find((x) => x.id === Number(id));
+    setWerte((w) => ({
+      ...w,
+      variante_id: v?.id ?? null,
+      // Felder der Variante übernehmen, eigene Eingaben aber nicht überschreiben
+      ...(v ? {
+        modellnummer: w.modellnummer || v.modellnummer || '', farbe: w.farbe || v.farbe || '',
+        edition: w.edition || v.edition || '', region: v.region || w.region,
+      } : {}),
+    }));
+  }
 
   async function speichern(e) {
     e.preventDefault();
@@ -92,17 +146,13 @@ export default function ArtikelFormular({ route, artikelId }) {
     setAllgemeinerFehler(null);
     try {
       const daten = { ...werte };
-      delete daten.bild_url;
-      // Eigener Eintrag → zusätzlich im lokalen Katalog ablegen, damit er später
-      // per Suche und Barcode-Scan wiedergefunden wird.
-      if (!bearbeiten && !daten.katalog_id && inKatalogSpeichern) {
-        const eintrag = await api.katalogAnlegen({
-          typ: daten.typ, titel: daten.titel, plattformen: daten.plattform ? [daten.plattform] : [], cover_url: daten.cover_url,
-        });
-        daten.katalog_id = eintrag.id;
-      }
       const felder = Object.keys(LEER);
       const nutzdaten = Object.fromEntries(felder.map((f) => [f, daten[f]]));
+      // Ohne Katalogeintrag legt der Server einen eigenen an: privat, eingereicht oder (Moderation) veröffentlicht
+      if (!bearbeiten && !daten.katalog_id) {
+        nutzdaten.katalog_einreichen = katalogFreigabe === 'einreichen';
+        nutzdaten.katalog_veroeffentlichen = katalogFreigabe === 'veroeffentlichen';
+      }
       let artikel = bearbeiten ? await api.artikelAendern(artikelId, nutzdaten) : await api.artikelAnlegen(nutzdaten);
       if (bildDatei) {
         try {
@@ -130,8 +180,9 @@ export default function ArtikelFormular({ route, artikelId }) {
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             {katalogEintrag ? (
               <>
-                <p className="text-xs font-semibold tracking-wide text-leise uppercase">
-                  {katalogEintrag.quelle === 'igdb' ? 'Aus IGDB übernommen' : 'Aus deinem Katalog'}
+                <p className="flex flex-wrap items-center gap-1.5 text-xs font-semibold tracking-wide text-leise uppercase">
+                  {katalogEintrag.quelle === 'igdb' ? 'Aus IGDB übernommen' : 'Aus dem Katalog'}
+                  {katalogEintrag.status !== 'freigegeben' && <StatusAbzeichen status={katalogEintrag.status} />}
                 </p>
                 <p className="line-clamp-2 font-semibold">{katalogEintrag.titel}</p>
                 <p className="text-xs text-leise">{[katalogEintrag.erscheinungsjahr, katalogEintrag.hersteller].filter(Boolean).join(' · ')}</p>
@@ -164,14 +215,27 @@ export default function ArtikelFormular({ route, artikelId }) {
             {(id) => <input id={id} className="eingabe" value={werte.titel} onChange={setze('titel')} required maxLength={200}
               placeholder={werte.typ === 'spiel' ? 'z. B. The Legend of Zelda: Ocarina of Time' : werte.typ === 'konsole' ? 'z. B. Nintendo 64' : 'z. B. Controller Pak'} />}
           </Feld>
-          <Feld label="Plattform / System" fehler={fehler.plattform}>
+          <Feld label="Plattform / System" fehler={fehler.plattform_id ?? fehler.plattform}>
             {(id) => (
-              <>
-                <input id={id} className="eingabe" value={werte.plattform} onChange={setze('plattform')} list="plattformen" placeholder="z. B. Nintendo 64" />
-                <datalist id="plattformen">{plattformVorschlaege.map((pl) => <option key={pl} value={pl} />)}</datalist>
-              </>
+              <PlattformAuswahl id={id} wert={werte.plattform_id}
+                onChange={(pid) => setWerte((w) => ({ ...w, plattform_id: pid, plattform: plattformen.find((x) => x.id === pid)?.name ?? '' }))} />
             )}
           </Feld>
+          {varianten.length > 0 && (
+            <Feld label="Variante / Revision" fehler={fehler.variante_id} breit>
+              {(id) => (
+                <select id={id} className="eingabe" value={werte.variante_id ?? ''} onChange={(e) => waehleVariante(e.target.value)}>
+                  <option value="">– keine bestimmte Variante –</option>
+                  {varianten.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {[v.bezeichnung, v.modellnummer !== v.bezeichnung && v.modellnummer, v.farbe].filter(Boolean).join(' · ')}
+                      {v.status !== 'freigegeben' ? ' (privat)' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Feld>
+          )}
           <Feld label="Region" fehler={fehler.region}>
             {(id) => <Auswahl id={id} wert={werte.region} onChange={setze('region')} optionen={REGIONEN} />}
           </Feld>
@@ -241,13 +305,20 @@ export default function ArtikelFormular({ route, artikelId }) {
         </Abschnitt>
 
         {!bearbeiten && !werte.katalog_id && (
-          <label className="flex items-start gap-3 rounded-xl border border-rand p-3 text-sm">
-            <input type="checkbox" className="mt-0.5 size-4 accent-akzent" checked={inKatalogSpeichern} onChange={(e) => setInKatalogSpeichern(e.target.checked)} />
-            <span>
-              <strong>Im eigenen Katalog speichern</strong>
-              <span className="block text-leise">Der Eintrag erscheint künftig in der Suche und wird beim erneuten Scannen des Barcodes sofort erkannt.</span>
-            </span>
-          </label>
+          <fieldset className="space-y-2 rounded-xl border border-rand p-3 text-sm">
+            <legend className="px-1 font-semibold">Katalogeintrag</legend>
+            <p className="text-leise">Für eigene Einträge wird ein Katalogeintrag angelegt – so findest du ihn per Suche und Barcode wieder.</p>
+            {[
+              ['privat', 'Nur für mich (privat)', 'Niemand sonst sieht diesen Eintrag.'],
+              ['einreichen', 'Zur Aufnahme in die globale Datenbank einreichen', 'Das Moderationsteam prüft den Eintrag; danach können ihn alle finden.'],
+              ...(istModerator(benutzer) ? [['veroeffentlichen', 'Direkt veröffentlichen (Moderation)', 'Sofort für alle sichtbar.']] : []),
+            ].map(([wert, titel, text]) => (
+              <label key={wert} className="flex items-start gap-3">
+                <input type="radio" name="katalogFreigabe" className="mt-1 accent-akzent" checked={katalogFreigabe === wert} onChange={() => setKatalogFreigabe(wert)} />
+                <span><strong>{titel}</strong><span className="block text-leise">{text}</span></span>
+              </label>
+            ))}
+          </fieldset>
         )}
 
         {allgemeinerFehler && <p className="rounded-xl bg-gefahr/10 p-3 text-sm text-gefahr" role="alert">{allgemeinerFehler}</p>}

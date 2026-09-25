@@ -21,7 +21,11 @@ model revisions).
 - **Public collections** (visible to logged-in users; prices and serial numbers stay private)
 - **Scans & documents per game**: high-resolution cover scans (incl. TIFF), PDF manuals – private or shared
 - **Print covers at original size** (based on scan DPI) or fixed sizes, with crop marks
-- Admin panel: lock users, roles, reset 2FA, close registration
+- Admin panel: lock users, roles (user/moderator/admin), reset 2FA, close registration
+- **Moderated global catalogue**: only moderators/admins publish directly; users keep entries private or submit them for review; merge duplicates
+- Fixed **platform taxonomy** (PS5, Switch, N64 …), **known variants/revisions** as a collecting checklist, multiple copies per item
+- Private comments per item, **price history** (automatic market prices + user-reported offers/sales)
+- Public catalogue pages with clearly marked **affiliate “buy here” links** (defaults in `server/affiliate-konfiguration.js`)
 
 **Stack:** Node.js 22 · Express 5 · SQLite (better-sqlite3) · sharp · React 19 · Vite · Tailwind CSS 4
 

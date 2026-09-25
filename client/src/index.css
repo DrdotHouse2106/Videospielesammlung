@@ -15,6 +15,10 @@
   --color-gefahr: #f87171;
   --color-erfolg: #4ade80;
   --color-warnung: #facc15;
+  /* Diagramm-Reihen (validierte Kategorie-Palette, dunkle Stufe) */
+  --color-serie-1: #3987e5;
+  --color-serie-2: #d95926;
+  --color-serie-3: #199e70;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -32,6 +36,9 @@
     --color-gefahr: #dc2626;
     --color-erfolg: #15803d;
     --color-warnung: #a16207;
+    --color-serie-1: #2a78d6;
+    --color-serie-2: #eb6834;
+    --color-serie-3: #1baf7a;
   }
 }
 

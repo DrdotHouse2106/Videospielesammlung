@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ARTIKELTYPEN, beschriftung } from '../../../shared/konstanten.js';
+import { ARTIKELTYPEN, beschriftung, istModerator } from '../../../shared/konstanten.js';
+import StatusAbzeichen from '../komponenten/StatusAbzeichen.jsx';
 import { api } from '../api.js';
 import Layout from '../komponenten/Layout.jsx';
 import { useSitzung } from '../sitzung.js';
@@ -46,9 +47,11 @@ export default function Einstellungen({ route }) {
         <nav className="karte divide-y divide-rand overflow-hidden" aria-label="Weitere Seiten">
           {[
             ['#/konto', 'benutzer', 'Konto & Sicherheit', benutzer?.totp_aktiv ? 'Passwort, 2FA aktiv, Sichtbarkeit' : 'Passwort, Zwei-Faktor-Anmeldung, Sichtbarkeit'],
+            ['#/katalog', 'suche', 'Katalog', 'Alle Spiele, Konsolen & Zubehör nach Plattform'],
             ['#/community', 'community', 'Community', 'Öffentliche Sammlungen anderer Benutzer'],
             ['#/statistik', 'statistik', 'Statistik', 'Verteilung nach Plattform, Region, Zustand'],
-            ...(benutzer?.rolle === 'admin' ? [['#/admin', 'schild', 'Benutzerverwaltung', 'Konten sperren, Rollen, 2FA zurücksetzen']] : []),
+            ...(istModerator(benutzer) ? [['#/moderation', 'schild', 'Moderation', 'Einreichungen prüfen, Plattformen pflegen']] : []),
+            ...(benutzer?.rolle === 'admin' ? [['#/admin', 'benutzer', 'Benutzerverwaltung', 'Konten sperren, Rollen, 2FA zurücksetzen']] : []),
           ].map(([href, symbol, titel, text]) => (
             <a key={href} href={href} className="flex items-center gap-3 p-4 hover:bg-karte-hover">
               <Symbol name={symbol} className="size-5 shrink-0 text-akzent-hell" />
@@ -107,7 +110,10 @@ export default function Einstellungen({ route }) {
 
         <section className="karte p-4">
           <h2 className="font-semibold">Meine Katalogeinträge</h2>
-          <p className="mb-3 text-sm text-leise">Selbst angelegte Einträge für Hardware, Zubehör und Raritäten, die in keiner Online-Datenbank stehen.</p>
+          <p className="mb-3 text-sm text-leise">
+            Selbst angelegte Einträge für Hardware, Zubehör und Raritäten. Private Einträge siehst nur du – über „Einreichen“
+            kannst du sie für die globale Datenbank vorschlagen.
+          </p>
           {eigene.length === 0 ? (
             <p className="text-sm text-leise">Noch keine eigenen Einträge.</p>
           ) : (
@@ -115,13 +121,16 @@ export default function Einstellungen({ route }) {
               {eigene.map((e) => (
                 <li key={e.id} className="flex items-center gap-2 py-2">
                   <Symbol name={e.typ} className="size-4 shrink-0 text-leise" />
-                  <span className="min-w-0 flex-1 truncate">
+                  <a href={`#/katalog/${e.id}`} className="min-w-0 flex-1 truncate hover:underline">
                     {e.titel}
                     <span className="text-leise"> · {beschriftung(ARTIKELTYPEN, e.typ)}{e.plattformen[0] ? ` · ${e.plattformen[0]}` : ''}</span>
-                  </span>
+                  </a>
+                  <StatusAbzeichen status={e.status} />
+                  {e.status !== 'freigegeben' && (
                   <button type="button" onClick={() => eintragLoeschen(e)} className="rounded-lg p-1.5 text-leise hover:bg-gefahr/10 hover:text-gefahr" aria-label={`${e.titel} löschen`}>
                     <Symbol name="muell" className="size-4" />
                   </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -151,7 +160,7 @@ function Zeile({ label, ok, text }) {
     <div className="flex items-start gap-2 text-sm">
       <span className={`mt-1.5 size-2 shrink-0 rounded-full ${ok ? 'bg-erfolg' : 'bg-warnung'}`} aria-hidden="true" />
       <span className="w-40 shrink-0 text-leise">{label}</span>
-      <span className="min-w-0 flex-1">{text}</span>
+      <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{text}</span>
     </div>
   );
 }

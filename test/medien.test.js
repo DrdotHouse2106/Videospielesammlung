@@ -50,16 +50,28 @@ test('Hochauflösender TIFF-Scan: DPI wird erkannt, Anzeige- und Vorschaubild en
   assert.match(original.headers.get('content-disposition'), /cover-vorne\.tif/);
 
   // Privat: andere Benutzer sehen weder Liste noch Datei
-  assert.equal((await bernd.api(`/api/katalog/${aktualisiert.katalog_id}/medien`)).json.length, 0);
+  // Der automatisch angelegte Katalogeintrag ist privat → für andere unsichtbar
+  assert.equal((await bernd.api(`/api/katalog/${aktualisiert.katalog_id}/medien`)).status, 404);
   assert.equal((await bernd.api(medium.url)).status, 404);
   assert.equal((await server.client().api(medium.url)).status, 401);
 
-  // Geteilt: sichtbar für alle angemeldeten Benutzer, aber nur vom Eigentümer änderbar
-  await anna.api(`/api/medien/${medium.id}`, { methode: 'PUT', daten: { sichtbarkeit: 'geteilt' } });
+  // Eingereicht: noch nicht sichtbar für andere, erst nach Freigabe durch das Moderationsteam
+  await bernd.api(`/api/medien/${medium.id}`, { methode: 'PUT', daten: { sichtbarkeit: 'eingereicht' } }); // fremd → wirkungslos
+  const eingereicht = (await anna.api(`/api/medien/${medium.id}`, { methode: 'PUT', daten: { sichtbarkeit: 'eingereicht' } })).json;
+  assert.equal(eingereicht.sichtbarkeit, 'eingereicht');
+  assert.equal((await bernd.api(medium.url)).status, 404);
+  const warteschlange = (await anna.api('/api/moderation/warteschlange')).json; // anna ist Admin (erstes Konto)
+  assert.equal(warteschlange.medien[0].id, medium.id);
+  assert.equal((await bernd.api('/api/moderation/warteschlange')).status, 403);
+  // Katalogeintrag des Artikels ist privat → erst freigeben, dann den Scan
+  await anna.api(`/api/moderation/katalog/${aktualisiert.katalog_id}/freigeben`, { methode: 'POST', daten: {} });
+  assert.equal((await anna.api(`/api/moderation/medien/${medium.id}/freigeben`, { methode: 'POST', daten: {} })).status, 200);
   const fremd = (await bernd.api(`/api/katalog/${aktualisiert.katalog_id}/medien`)).json;
   assert.equal(fremd.length, 1);
   assert.equal(fremd[0].darf_bearbeiten, false);
   assert.equal(fremd[0].hochgeladen_von, 'anna');
+  assert.equal(fremd[0].sichtbarkeit, 'freigegeben');
+  assert.ok(fremd[0].geprueft_am);
   assert.equal((await bernd.api(medium.url)).status, 200);
   assert.equal((await bernd.api(`/api/medien/${medium.id}`, { methode: 'DELETE' })).status, 404);
 });
@@ -88,7 +100,7 @@ test('Teilen lässt sich serverweit abschalten', async () => {
     const c = await s.registriere('x-user');
     const a = (await c.api('/api/artikel', { methode: 'POST', daten: { typ: 'spiel', titel: 'Test' } })).json;
     const png = await sharp({ create: { width: 10, height: 10, channels: 3, background: '#000' } }).png().toBuffer();
-    const r = await hochladen(c, a.id, { puffer: png, typ: 'image/png', name: 'a.png', felder: { art: 'cover_vorne', sichtbarkeit: 'geteilt' } });
+    const r = await hochladen(c, a.id, { puffer: png, typ: 'image/png', name: 'a.png', felder: { art: 'cover_vorne', sichtbarkeit: 'eingereicht' } });
     assert.equal(r.status, 400);
     assert.match(r.json.felder.sichtbarkeit, /deaktiviert/);
   } finally {

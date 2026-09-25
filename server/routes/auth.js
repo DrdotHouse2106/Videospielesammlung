@@ -28,6 +28,7 @@ export function authRouter({ db, konten, konfiguration, dateien }) {
       registrierungOffen: registrierungOffen || ersteinrichtung,
       ersteinrichtung,
       zweiFaktorPflicht,
+      oeffentlicherKatalog: konfiguration.oeffentlicherKatalog,
     });
   });
 

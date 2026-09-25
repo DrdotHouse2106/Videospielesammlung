@@ -101,6 +101,13 @@ export function pruefeArtikel(eingabe, teilweise = false) {
     else daten.anzahl = anzahl;
   }
 
+  for (const feld of ['plattform_id', 'variante_id']) {
+    if (teilweise && !hat(feld)) continue;
+    const id = eingabe[feld] === '' || eingabe[feld] == null ? null : Number(eingabe[feld]);
+    if (id !== null && !Number.isInteger(id)) fehler[feld] = 'Ungültige Auswahl.';
+    else daten[feld] = id;
+  }
+
   if (!teilweise || hat('katalog_id')) {
     const id = eingabe.katalog_id === '' || eingabe.katalog_id == null ? null : Number(eingabe.katalog_id);
     if (id !== null && !Number.isInteger(id)) fehler.katalog_id = 'Ungültiger Katalogeintrag.';
@@ -136,4 +143,63 @@ export function pruefeKatalogEintrag(eingabe = {}) {
     cover_url: /^https?:\/\//i.test(eingabe.cover_url ?? '') ? String(eingabe.cover_url).trim().slice(0, 1000) : null,
     beschreibung: leerZuNull(eingabe.beschreibung)?.slice(0, 5000) ?? null,
   };
+}
+
+/** Prüft eine Variante/Revision eines Katalogeintrags. */
+export function pruefeVariante(eingabe = {}) {
+  const fehler = {};
+  const text = (f, max) => leerZuNull(eingabe[f])?.slice(0, max) ?? null;
+  const daten = {
+    bezeichnung: text('bezeichnung', 200),
+    modellnummer: text('modellnummer', 100),
+    farbe: text('farbe', 100),
+    edition: text('edition', 200),
+    region: leerZuNull(eingabe.region),
+    beschreibung: text('beschreibung', 2000),
+    erscheinungsjahr: leerZuNull(eingabe.erscheinungsjahr),
+  };
+  if (!daten.bezeichnung) {
+    daten.bezeichnung = [daten.modellnummer, daten.farbe, daten.edition].filter(Boolean).join(' · ') || null;
+  }
+  if (!daten.bezeichnung) fehler.bezeichnung = 'Bitte eine Bezeichnung oder Modellnummer angeben.';
+  if (daten.region && !ALLE_WERTE.region.includes(daten.region)) fehler.region = 'Ungültige Auswahl.';
+  if (daten.erscheinungsjahr !== null) {
+    daten.erscheinungsjahr = Number(daten.erscheinungsjahr);
+    if (!Number.isInteger(daten.erscheinungsjahr) || daten.erscheinungsjahr < 1950 || daten.erscheinungsjahr > 2100) {
+      fehler.erscheinungsjahr = 'Ungültiges Jahr.';
+    }
+  }
+  if (Object.keys(fehler).length) throw new ValidierungsFehler(fehler);
+  return daten;
+}
+
+/** Prüft eine Preis-Meldung (Angebot oder Verkauf). */
+export function pruefePreismeldung(eingabe = {}) {
+  const fehler = {};
+  const preis = leerZuNull(eingabe.preis) === null ? null : leseEuro(eingabe.preis);
+  if (preis === null || preis <= 0) fehler.preis = 'Bitte einen gültigen Preis angeben (z. B. 49,99).';
+  if (!ALLE_WERTE.preisart.includes(eingabe.art)) fehler.art = 'Bitte „Angeboten“ oder „Verkauft“ wählen.';
+  if (!ALLE_WERTE.preisquelle.includes(eingabe.quelle)) fehler.quelle = 'Bitte angeben, wo der Artikel angeboten wurde.';
+  const datum = leerZuNull(eingabe.datum) ?? new Date().toISOString().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum) || Number.isNaN(Date.parse(datum))) fehler.datum = 'Bitte ein gültiges Datum angeben.';
+  else if (datum > new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)) fehler.datum = 'Das Datum darf nicht in der Zukunft liegen.';
+  const url = leerZuNull(eingabe.url);
+  if (url && (!/^https?:\/\//i.test(url) || url.length > 1000)) fehler.url = 'Der Link muss mit http:// oder https:// beginnen.';
+  for (const [feld, liste] of [['zustand', ALLE_WERTE.zustand], ['vollstaendigkeit', ALLE_WERTE.vollstaendigkeit], ['region', ALLE_WERTE.region]]) {
+    const wert = leerZuNull(eingabe[feld]);
+    if (wert && !liste.includes(wert)) fehler[feld] = 'Ungültige Auswahl.';
+  }
+  if (Object.keys(fehler).length) throw new ValidierungsFehler(fehler);
+  return {
+    preis, art: eingabe.art, quelle: eingabe.quelle, datum, url,
+    zustand: leerZuNull(eingabe.zustand), vollstaendigkeit: leerZuNull(eingabe.vollstaendigkeit), region: leerZuNull(eingabe.region),
+    notiz: leerZuNull(eingabe.notiz)?.slice(0, 500) ?? null,
+  };
+}
+
+export function pruefeKommentar(eingabe = {}) {
+  const text = leerZuNull(eingabe.text);
+  if (!text) throw new ValidierungsFehler({ text: 'Bitte einen Text eingeben.' });
+  if (text.length > 5000) throw new ValidierungsFehler({ text: 'Maximal 5000 Zeichen erlaubt.' });
+  return text;
 }

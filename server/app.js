@@ -14,11 +14,16 @@ import { erstelleKatalogDienst } from './services/katalog.js';
 import { erstelleKontenDienst, KontoFehler } from './services/konten.js';
 import { erstelleDateiDienst } from './services/dateien.js';
 import { erstellePreisDienst } from './services/preise.js';
+import { erstellePlattformDienst } from './services/plattformen.js';
+import { erstelleAffiliateDienst } from './services/affiliate.js';
+import { istModerator } from '../shared/konstanten.js';
 import { ladeSchluessel } from './services/sicherheit.js';
 import { ValidierungsFehler } from './services/validierung.js';
 import { authRouter } from './routes/auth.js';
 import { artikelRouter } from './routes/artikel.js';
-import { katalogRouter } from './routes/katalog.js';
+import { katalogRouter, katalogUnterRouter } from './routes/katalog.js';
+import { oeffentlichRouter } from './routes/oeffentlich.js';
+import { moderationRouter } from './routes/moderation.js';
 import { statistikRouter } from './routes/statistik.js';
 import { exportRouter } from './routes/export.js';
 import { statusRouter } from './routes/status.js';
@@ -38,11 +43,13 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const cache = erstelleCache(db, konfiguration.cacheTtlStunden);
   const igdb = erstelleIgdbDienst(konfiguration.igdb, db, { fetchFn });
   const barcode = erstelleBarcodeDienst(konfiguration.barcode, { fetchFn });
-  const katalog = erstelleKatalogDienst(db, { igdb, barcode, cache });
+  const plattformen = erstellePlattformDienst(db);
+  const katalog = erstelleKatalogDienst(db, { igdb, barcode, cache, plattformen });
+  const affiliate = erstelleAffiliateDienst(db, konfiguration.affiliate);
   const konten = erstelleKontenDienst(db, { schluessel, sitzungTage: konfiguration.konten.sitzungTage });
   const dateien = erstelleDateiDienst(db, { uploadVerzeichnis: konfiguration.uploadVerzeichnis });
   const preise = erstellePreisDienst(db, konfiguration.preise, { cache, fetchFn });
-  const kontext = { db, cache, igdb, barcode, katalog, konten, dateien, preise, konfiguration, version };
+  const kontext = { db, cache, igdb, barcode, katalog, konten, dateien, preise, plattformen, affiliate, konfiguration, version };
 
   const app = express();
   app.disable('x-powered-by');
@@ -78,6 +85,7 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
 
   app.use('/api', pruefeHerkunft, express.json({ limit: '20mb' }), ladeSitzung(konten));
   app.use('/api', authRouter(kontext));
+  app.use('/api', oeffentlichRouter(kontext)); // teils ohne Anmeldung (PUBLIC_CATALOG)
 
   const angemeldet = erfordereAnmeldung(konfiguration.konten);
   app.use('/api', angemeldet, statusRouter(kontext));
@@ -85,6 +93,9 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   app.use('/api/katalog', angemeldet, katalogRouter(kontext));
   app.use('/api/statistik', angemeldet, statistikRouter(kontext));
   app.use('/api/admin', angemeldet, erfordereAdmin, adminRouter(kontext));
+  app.use('/api/moderation', angemeldet, (req, res, next) => (istModerator(req.benutzer)
+    ? next() : res.status(403).json({ fehler: 'Nur für das Moderationsteam.' })), moderationRouter(kontext));
+  app.use('/api', angemeldet, katalogUnterRouter(kontext));
   app.use('/api', angemeldet, medienRouter(kontext), werteRouter(kontext), communityRouter(kontext), exportRouter(kontext));
   app.use('/api', (_req, res) => res.status(404).json({ fehler: 'Unbekannter API-Endpunkt.' }));
 
