@@ -1,21 +1,62 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Videospielesammlung – Docker Compose
+#
+# Startet die komplette App (Server + Oberfläche) in einem einzigen Container.
+# Datenbank (SQLite), Fotos, Scans und der automatisch erzeugte Schlüssel
+# (geheimnis.key) liegen im Volume „sammlung-daten“ und bleiben bei Updates erhalten.
+#
+#   cp .env.example .env            # Konfiguration anlegen
+#   docker compose up -d --build    # bauen und im Hintergrund starten
+#   docker compose logs -f          # Protokoll ansehen
+#   docker compose down             # anhalten (Daten bleiben erhalten)
+#
+# Ausführliche Beschreibung: README.md → „Die docker-compose.yml im Detail“
+# ─────────────────────────────────────────────────────────────────────────────
+
 services:
   sammlung:
+    # Image aus dem Dockerfile in diesem Ordner bauen (mehrstufig: Oberfläche bauen,
+    # danach schlankes Laufzeit-Image, läuft als unprivilegierter Benutzer „node“).
     build: .
     image: videospielesammlung:latest
     container_name: videospielesammlung
+
+    # Nach Absturz oder Neustart des Hosts automatisch wieder starten –
+    # außer der Container wurde bewusst mit „docker compose stop/down“ angehalten.
     restart: unless-stopped
+
+    # Alle Einstellungen aus der .env übernehmen (IGDB, 2FA, KI, eBay, Speicher …).
+    # Fehlt die Datei, startet die App mit Standardwerten. Viele Werte lassen sich
+    # zusätzlich unter Administration → Einstellungen in der App ändern.
     env_file:
       - path: .env
         required: false
+
+    # Diese Werte gelten immer im Container und überschreiben die .env:
+    # Die App lauscht intern auf Port 3000 und speichert alles im Volume /app/data.
+    # Den Port nach außen legst du unten unter „ports“ fest.
     environment:
-      # Innerhalb des Containers immer Port 3000 und Daten im Volume /app/data.
       PORT: 3000
       DATABASE_PATH: /app/data/sammlung.db
       UPLOAD_DIR: /app/data/uploads
+
+    # Port auf dem Host → Port im Container.
+    # PORT aus der .env bestimmt den Port auf dem Host (Standard 3000).
+    # Hinter einem Reverse-Proxy (Caddy, nginx, Traefik) auf demselben Server besser nur lokal freigeben:
+    #   - "127.0.0.1:${PORT:-3000}:3000"
     ports:
       - "${PORT:-3000}:3000"
+
+    # Persistente Daten. Statt des benannten Volumes kann auch ein Ordner auf dem Host
+    # genutzt werden (einmalig: mkdir -p data && sudo chown 1000:1000 data):
+    #   - ./data:/app/data
     volumes:
       - sammlung-daten:/app/data
 
+    # Ein Healthcheck (GET /api/health) ist bereits im Dockerfile hinterlegt –
+    # „docker compose ps“ zeigt den Zustand als „healthy“ an.
+
 volumes:
+  # Benanntes Docker-Volume für Datenbank, Uploads und geheimnis.key.
+  # Sicherung: siehe README.md → „Datensicherung & Updates“.
   sammlung-daten:

@@ -130,6 +130,42 @@ Alle Daten (SQLite-Datenbank und hochgeladene Fotos) liegen im Docker-Volume
 > `docker-compose.yml` die Zeile `- sammlung-daten:/app/data` durch `- ./data:/app/data`
 > und führe einmalig `mkdir -p data && sudo chown 1000:1000 data` aus.
 
+### Die docker-compose.yml im Detail
+
+Die mitgelieferte [`docker-compose.yml`](docker-compose.yml) startet die komplette App – Server und Oberfläche –
+in **einem einzigen Container**. Eine separate Datenbank ist nicht nötig, weil SQLite als Datei im Datenverzeichnis liegt.
+
+| Eintrag | Bedeutung |
+| --- | --- |
+| `build: .` | Baut das Image aus dem [`Dockerfile`](Dockerfile): erst die Oberfläche, dann ein schlankes Laufzeit-Image, das als unprivilegierter Benutzer `node` läuft. |
+| `image`, `container_name` | Name des gebauten Images (`videospielesammlung:latest`) und des Containers (`videospielesammlung`). |
+| `restart: unless-stopped` | Startet den Container nach einem Absturz oder Neustart des Servers automatisch wieder – außer du hast ihn bewusst angehalten. |
+| `env_file: .env` | Übernimmt alle Einstellungen aus der `.env` (IGDB, 2FA, KI, eBay, Speicher …). Fehlt die Datei, gelten die Standardwerte. |
+| `environment` | Feste Werte **im Container**: Port `3000`, Datenbank `/app/data/sammlung.db`, Uploads `/app/data/uploads`. Sie haben Vorrang vor der `.env`. |
+| `ports: "${PORT:-3000}:3000"` | Verbindet einen Port des Hosts mit Port 3000 im Container. `PORT` aus der `.env` legt den Port **auf dem Host** fest (Standard 3000). |
+| `volumes: sammlung-daten:/app/data` | Speichert Datenbank, Fotos, Scans und den automatisch erzeugten Schlüssel `geheimnis.key` dauerhaft im Docker-Volume `sammlung-daten`. |
+
+Ein **Healthcheck** (`GET /api/health`) ist bereits im Dockerfile hinterlegt. `docker compose ps` zeigt dann
+`healthy` an, sobald die App bereit ist.
+
+**Häufige Anpassungen:**
+
+- **Anderer Port:** in der `.env` z. B. `PORT=8080` setzen. Die App ist dann unter `http://localhost:8080` erreichbar,
+  im Container bleibt es Port 3000.
+- **Hinter einem Reverse-Proxy** (Caddy, nginx, Traefik) auf demselben Server: Port nur lokal freigeben, damit die App
+  nicht ohne HTTPS von außen erreichbar ist:
+  ```yaml
+  ports:
+    - "127.0.0.1:${PORT:-3000}:3000"
+  ```
+  Zusätzlich `TRUST_PROXY=1` in der `.env` setzen (siehe [Betrieb im Internet](#betrieb-im-internet-reverse-proxy)).
+- **Daten in einem Ordner statt im Volume:** siehe Tipp oben (`./data:/app/data`).
+
+> **Wichtig:** Das Volume enthält neben der Datenbank auch `geheimnis.key`. Ohne diese Datei (oder ein festes
+> `APP_SECRET` in der `.env`) lassen sich 2FA-Geheimnisse und in der Weboberfläche gespeicherte API-Schlüssel nicht mehr
+> entschlüsseln. `docker compose down -v` löscht das Volume samt **allen Daten** – nur verwenden, wenn du wirklich neu
+> anfangen möchtest. Wie du das Volume sicherst, steht unter [Datensicherung & Updates](#datensicherung--updates).
+
 ---
 
 ## Konfiguration (.env)

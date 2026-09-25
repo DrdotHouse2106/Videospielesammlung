@@ -53,6 +53,15 @@ docker compose up -d --build
 Open <http://localhost:3000>. The first account you register becomes administrator.
 Data is stored in the `sammlung-daten` Docker volume – back up the whole directory including `geheimnis.key`.
 
+### docker-compose.yml
+
+The bundled `docker-compose.yml` runs the whole app (server + UI) in a single container. Settings come from `.env`
+(optional). Inside the container the app always listens on port 3000 and stores everything in `/app/data`; `PORT` in
+`.env` only sets the **host** port. Data (SQLite database, uploads, `geheimnis.key`) lives in the named volume
+`sammlung-daten` – `docker compose down -v` deletes it. Behind a reverse proxy bind to localhost only
+(`"127.0.0.1:${PORT:-3000}:3000"`) and set `TRUST_PROXY=1`. The file is commented in German; see the German README
+(“Die docker-compose.yml im Detail”) for details.
+
 ## Configuration
 
 All settings live in `.env` (template: [`.env.example`](.env.example); `.env` is git-ignored).
