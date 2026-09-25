@@ -1,62 +1,127 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Videospielesammlung – Docker Compose
 #
-# Startet die komplette App (Server + Oberfläche) in einem einzigen Container.
-# Datenbank (SQLite), Fotos, Scans und der automatisch erzeugte Schlüssel
-# (geheimnis.key) liegen im Volume „sammlung-daten“ und bleiben bei Updates erhalten.
+# Diese Datei genügt, um die App zu betreiben – kein git clone nötig.
+# Einfach als docker-compose.yml speichern (oder in Portainer, Dockge, Synology
+# Container Manager … als Stack einfügen), Werte unten anpassen und starten:
 #
-#   cp .env.example .env            # Konfiguration anlegen
-#   docker compose up -d --build    # bauen und im Hintergrund starten
+#   docker compose up -d            # herunterladen und im Hintergrund starten
+#   docker compose pull && docker compose up -d   # auf die neueste Version aktualisieren
 #   docker compose logs -f          # Protokoll ansehen
 #   docker compose down             # anhalten (Daten bleiben erhalten)
 #
-# Ausführliche Beschreibung: README.md → „Die docker-compose.yml im Detail“
+# Alle Einstellungen stehen als Einträge unter „environment“. Leere Werte ("")
+# bedeuten „nicht gesetzt“ bzw. Standardwert. Viele Werte lassen sich später auch
+# in der App unter Administration → Einstellungen ändern – diese haben dann Vorrang.
+#
+# Achtung: Enthält ein Wert ein Dollarzeichen, muss es doppelt geschrieben werden ($$).
+# Die Datei enthält Geheimnisse (API-Schlüssel) – nicht öffentlich teilen.
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
   sammlung:
-    # Image aus dem Dockerfile in diesem Ordner bauen (mehrstufig: Oberfläche bauen,
-    # danach schlankes Laufzeit-Image, läuft als unprivilegierter Benutzer „node“).
-    build: .
-    image: videospielesammlung:latest
+    # Fertiges Image von der GitHub Container Registry (amd64 und arm64, z. B. Raspberry Pi/NAS).
+    # „latest“ = aktueller Stand; für feste Versionen z. B. :1.2 verwenden.
+    image: ghcr.io/drdothouse2106/videospielesammlung:latest
+    # Wer das Repository geklont hat und selbst bauen möchte, ersetzt „image“ durch:
+    # build: .
     container_name: videospielesammlung
 
     # Nach Absturz oder Neustart des Hosts automatisch wieder starten –
-    # außer der Container wurde bewusst mit „docker compose stop/down“ angehalten.
+    # außer der Container wurde bewusst angehalten.
     restart: unless-stopped
 
-    # Alle Einstellungen aus der .env übernehmen (IGDB, 2FA, KI, eBay, Speicher …).
-    # Fehlt die Datei, startet die App mit Standardwerten. Viele Werte lassen sich
-    # zusätzlich unter Administration → Einstellungen in der App ändern.
-    env_file:
-      - path: .env
-        required: false
-
-    # Diese Werte gelten immer im Container und überschreiben die .env:
-    # Die App lauscht intern auf Port 3000 und speichert alles im Volume /app/data.
-    # Den Port nach außen legst du unten unter „ports“ fest.
-    environment:
-      PORT: 3000
-      DATABASE_PATH: /app/data/sammlung.db
-      UPLOAD_DIR: /app/data/uploads
-
-    # Port auf dem Host → Port im Container.
-    # PORT aus der .env bestimmt den Port auf dem Host (Standard 3000).
-    # Hinter einem Reverse-Proxy (Caddy, nginx, Traefik) auf demselben Server besser nur lokal freigeben:
-    #   - "127.0.0.1:${PORT:-3000}:3000"
+    # Host-Port → Port im Container (im Container immer 3000).
+    # Hinter einem Reverse-Proxy (Caddy, nginx, Traefik …) auf demselben Server
+    # besser nur lokal freigeben:  - "127.0.0.1:3000:3000"
     ports:
-      - "${PORT:-3000}:3000"
+      - "3000:3000"
 
-    # Persistente Daten. Statt des benannten Volumes kann auch ein Ordner auf dem Host
-    # genutzt werden (einmalig: mkdir -p data && sudo chown 1000:1000 data):
-    #   - ./data:/app/data
+    # Datenbank, Fotos, Scans und der automatisch erzeugte Schlüssel geheimnis.key.
+    # Statt des Volumes geht auch ein Ordner auf dem Host (einmalig:
+    # mkdir -p data && sudo chown 1000:1000 data):  - ./data:/app/data
     volumes:
       - sammlung-daten:/app/data
 
-    # Ein Healthcheck (GET /api/health) ist bereits im Dockerfile hinterlegt –
-    # „docker compose ps“ zeigt den Zustand als „healthy“ an.
+    environment:
+      # ── Konten & Sicherheit ─────────────────────────────────────
+      # Dürfen sich neue Benutzer selbst registrieren? Das erste Konto wird immer Administrator.
+      REGISTRATION_OPEN: "true"
+      # Zwei-Faktor-Anmeldung für alle Pflicht (empfohlen bei öffentlichem Betrieb)
+      REQUIRE_2FA: "false"
+      # Schlüssel zum Verschlüsseln von 2FA-Geheimnissen und API-Schlüsseln.
+      # Empfohlen: einmalig mit „openssl rand -base64 32“ erzeugen und NIE wieder ändern.
+      # Leer = wird automatisch erzeugt und als geheimnis.key im Volume gespeichert.
+      APP_SECRET: ""
+      # Wie lange eine Anmeldung gültig bleibt (Tage)
+      SESSION_DAYS: "30"
+      # Registrierungen pro Stunde und IP-Adresse (Schutz vor Missbrauch)
+      REGISTRATIONS_PER_HOUR: "5"
+      # Hinter einem Reverse-Proxy mit HTTPS: "1" setzen (richtige Besucher-IP, sichere Cookies)
+      TRUST_PROXY: ""
+      # Sichere Cookies: auto (erkennt HTTPS), true oder false
+      COOKIE_SECURE: "auto"
+
+      # ── Öffentlicher Katalog & Suchmaschinen ────────────────────
+      # Katalogseiten (Spiele, Preise, Kauflinks) ohne Anmeldung zeigen – Voraussetzung für Google
+      PUBLIC_CATALOG: "true"
+      # Öffentliche Adresse ohne / am Ende, z. B. https://sammlung.example.de (Sitemap, Canonical-Links)
+      PUBLIC_URL: ""
+      # Externe Cover-/Handbuch-Links nur zu diesen Domains erlauben (kommagetrennt, leer = alle HTTPS-Seiten)
+      LINK_DOMAINS: ""
+
+      # ── Uploads & Speicher ──────────────────────────────────────
+      # Speicherplatz je Benutzer für eigene Fotos und Scans in MB (0 = unbegrenzt)
+      STORAGE_QUOTA_MB: "1024"
+      # Maximale Größe eines Artikelfotos bzw. eines Scans/PDFs in MB
+      MAX_UPLOAD_MB: "8"
+      MEDIA_MAX_MB: "200"
+      # Dürfen Benutzer eigene Scans zur Freigabe für alle einreichen?
+      MEDIA_SHARING: "true"
+
+      # ── Spieledaten (IGDB) & Barcodes ───────────────────────────
+      # Kostenlos unter https://dev.twitch.tv/console → „Anwendung registrieren“
+      TWITCH_CLIENT_ID: ""
+      TWITCH_CLIENT_SECRET: ""
+      # Online-Dienste für die Barcode-Suche (Reihenfolge = Abfragereihenfolge)
+      BARCODE_PROVIDERS: "opengtindb,upcitemdb"
+      OPENGTINDB_QUERYID: ""
+
+      # ── Preise & Angebote ───────────────────────────────────────
+      # eBay-Angebote: https://developer.ebay.com → Application Keys (Production)
+      EBAY_CLIENT_ID: ""
+      EBAY_CLIENT_SECRET: ""
+      EBAY_MARKETPLACE: "EBAY_DE"
+      # Automatischer Preisimport alle X Stunden (0 = aus) und Einträge pro Durchlauf
+      PRICE_IMPORT_HOURS: "24"
+      PRICE_IMPORT_MAX: "150"
+      # Optional: Marktpreise von PriceCharting (kostenpflichtiges Abo)
+      PRICECHARTING_TOKEN: ""
+
+      # ── Affiliate-Links („Hier kaufen“) ─────────────────────────
+      # Ohne Einträge gelten die Partner-IDs aus server/affiliate-konfiguration.js.
+      # Nur bei Bedarf einkommentieren (ein leerer Wert "" würde die ID abschalten):
+      # AFFILIATE_AMAZON_TAG: "deinpartner-21"
+      # AFFILIATE_EBAY_CAMPID: "5338000000"
+      # AFFILIATE_LINKS: "false"          # „Hier kaufen“-Links ganz abschalten
+
+      # ── KI-Vorprüfung von Einreichungen (optional) ──────────────
+      # Anbieter: aus, anthropic, gemini oder openai (auch Mistral, Ollama … über AI_BASE_URL)
+      AI_PROVIDER: "aus"
+      AI_API_KEY: ""
+      # Leer = Standardmodell des Anbieters (falls vorhanden)
+      AI_MODEL: ""
+      # Nur für OpenAI-kompatible Dienste, z. B. https://api.mistral.ai/v1 oder http://ollama:11434/v1
+      AI_BASE_URL: ""
+      # Eindeutige Fälle automatisch freigeben/ablehnen, ab welcher Sicherheit (0,5–1)
+      AI_AUTO_APPROVE: "true"
+      AI_AUTO_REJECT: "true"
+      AI_MIN_CONFIDENCE: "0.85"
+
+    # Ein Healthcheck (GET /api/health) ist bereits im Image hinterlegt –
+    # „docker compose ps“ zeigt „healthy“, sobald die App bereit ist.
 
 volumes:
   # Benanntes Docker-Volume für Datenbank, Uploads und geheimnis.key.
-  # Sicherung: siehe README.md → „Datensicherung & Updates“.
+  # Achtung: „docker compose down -v“ löscht es samt allen Daten!
   sammlung-daten:

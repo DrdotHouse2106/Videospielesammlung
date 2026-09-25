@@ -43,11 +43,10 @@ model revisions).
 
 ## Quick start (Docker)
 
+Save [`docker-compose.yml`](docker-compose.yml), adjust the `environment:` entries and run:
+
 ```bash
-git clone https://github.com/DrdotHouse2106/Videospielesammlung.git
-cd Videospielesammlung
-cp .env.example .env
-docker compose up -d --build
+docker compose up -d
 ```
 
 Open <http://localhost:3000>. The first account you register becomes administrator.
@@ -55,12 +54,13 @@ Data is stored in the `sammlung-daten` Docker volume – back up the whole direc
 
 ### docker-compose.yml
 
-The bundled `docker-compose.yml` runs the whole app (server + UI) in a single container. Settings come from `.env`
-(optional). Inside the container the app always listens on port 3000 and stores everything in `/app/data`; `PORT` in
-`.env` only sets the **host** port. Data (SQLite database, uploads, `geheimnis.key`) lives in the named volume
-`sammlung-daten` – `docker compose down -v` deletes it. Behind a reverse proxy bind to localhost only
-(`"127.0.0.1:${PORT:-3000}:3000"`) and set `TRUST_PROXY=1`. The file is commented in German; see the German README
-(“Die docker-compose.yml im Detail”) for details.
+You only need the file `docker-compose.yml` – no `git clone`, no build. It pulls the ready-made image
+`ghcr.io/drdothouse2106/videospielesammlung` (amd64 + arm64), and all settings are entries under `environment:`
+(commented in German; empty `""` = default). Paste it as a stack into Portainer/Dockge or run `docker compose up -d`.
+Update with `docker compose pull && docker compose up -d`. Data (SQLite database, uploads, `geheimnis.key`) lives in
+the named volume `sammlung-daten` – `docker compose down -v` deletes it. Behind a reverse proxy bind to localhost only
+(`"127.0.0.1:3000:3000"`) and set `TRUST_PROXY: "1"`. Clone the repository only if you want to change the code
+(replace `image:` with `build: .`). The image is built and published by GitHub Actions on every push to `main`.
 
 ## Configuration
 

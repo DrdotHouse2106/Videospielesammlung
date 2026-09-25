@@ -103,13 +103,20 @@ eigener Eintrag für Raritäten, die in keiner Datenbank stehen.
 
 ## Schnellstart mit Docker
 
-Voraussetzung: [Docker](https://docs.docker.com/get-docker/) mit Docker Compose.
+Voraussetzung: [Docker](https://docs.docker.com/get-docker/) mit Docker Compose – oder eine Oberfläche wie
+Portainer, Dockge oder den Container Manager einer Synology/QNAP.
+
+**Du brauchst nur die Datei [`docker-compose.yml`](docker-compose.yml)** – kein `git clone`, kein Bauen.
+Das fertige Image wird automatisch von der GitHub Container Registry geladen
+(`ghcr.io/drdothouse2106/videospielesammlung`, für normale Server/PCs und ARM-Geräte wie Raspberry Pi).
+
+1. Inhalt der [`docker-compose.yml`](docker-compose.yml) kopieren und als `docker-compose.yml` speichern
+   bzw. in Portainer/Dockge als neuen **Stack** einfügen.
+2. Die Einträge unter `environment:` anpassen (alle sind kommentiert; leere Werte `""` = Standard).
+3. Starten:
 
 ```bash
-git clone https://github.com/DrdotHouse2106/Videospielesammlung.git
-cd Videospielesammlung
-cp .env.example .env          # Konfiguration anlegen und bei Bedarf anpassen
-docker compose up -d --build  # Image bauen und im Hintergrund starten
+docker compose up -d
 ```
 
 Die App ist anschließend unter **<http://localhost:3000>** erreichbar. **Das erste Konto, das du
@@ -118,62 +125,80 @@ registrierst, wird Administrator.**
 Nützliche Befehle:
 
 ```bash
-docker compose logs -f        # Protokoll ansehen
-docker compose down           # Anhalten (Daten bleiben erhalten)
-git pull && docker compose up -d --build            # Aktualisieren
+docker compose logs -f                        # Protokoll ansehen
+docker compose down                           # Anhalten (Daten bleiben erhalten)
+docker compose pull && docker compose up -d   # Auf die neueste Version aktualisieren
 ```
 
-Alle Daten (SQLite-Datenbank und hochgeladene Fotos) liegen im Docker-Volume
+In Portainer entspricht das Aktualisieren dem Knopf **„Update the stack“** mit aktivierter Option
+**„Re-pull image“**.
+
+Alle Daten (SQLite-Datenbank, Fotos, Scans und `geheimnis.key`) liegen im Docker-Volume
 `sammlung-daten` und bleiben bei Updates und Neustarts erhalten.
 
-> **Tipp:** Möchtest du die Daten lieber in einem Ordner auf dem Host sehen, ersetze in
-> `docker-compose.yml` die Zeile `- sammlung-daten:/app/data` durch `- ./data:/app/data`
-> und führe einmalig `mkdir -p data && sudo chown 1000:1000 data` aus.
+### Nur die yml oder das Repository klonen?
+
+Für den Betrieb ist **die yml mit Einträgen der bessere Weg**: Du lädst das geprüfte, fertige Image herunter
+(die Tests laufen vorher automatisch auf GitHub), Updates sind ein einfaches `pull`, und alle Einstellungen stehen
+übersichtlich an einer Stelle. Viele Werte lassen sich später zusätzlich in der App unter
+*Administration → Einstellungen* ändern.
+
+Klonen lohnt sich nur, wenn du **am Code etwas ändern** möchtest. Dann in der `docker-compose.yml` die Zeile
+`image: …` durch `build: .` ersetzen und mit `docker compose up -d --build` starten.
+
+Beide Wege lassen sich mischen: Statt der Einträge unter `environment:` kann auch eine `.env`-Datei neben der yml
+liegen (`env_file: .env`). Für Portainer & Co. sind die Einträge in der yml aber am einfachsten.
 
 ### Die docker-compose.yml im Detail
 
-Die mitgelieferte [`docker-compose.yml`](docker-compose.yml) startet die komplette App – Server und Oberfläche –
-in **einem einzigen Container**. Eine separate Datenbank ist nicht nötig, weil SQLite als Datei im Datenverzeichnis liegt.
-
 | Eintrag | Bedeutung |
 | --- | --- |
-| `build: .` | Baut das Image aus dem [`Dockerfile`](Dockerfile): erst die Oberfläche, dann ein schlankes Laufzeit-Image, das als unprivilegierter Benutzer `node` läuft. |
-| `image`, `container_name` | Name des gebauten Images (`videospielesammlung:latest`) und des Containers (`videospielesammlung`). |
+| `image` | Das fertige Image `ghcr.io/drdothouse2106/videospielesammlung:latest`. Für eine feste Version z. B. `:1.2` statt `:latest` verwenden. |
+| `container_name` | Name des Containers (`videospielesammlung`), z. B. für `docker logs videospielesammlung`. |
 | `restart: unless-stopped` | Startet den Container nach einem Absturz oder Neustart des Servers automatisch wieder – außer du hast ihn bewusst angehalten. |
-| `env_file: .env` | Übernimmt alle Einstellungen aus der `.env` (IGDB, 2FA, KI, eBay, Speicher …). Fehlt die Datei, gelten die Standardwerte. |
-| `environment` | Feste Werte **im Container**: Port `3000`, Datenbank `/app/data/sammlung.db`, Uploads `/app/data/uploads`. Sie haben Vorrang vor der `.env`. |
-| `ports: "${PORT:-3000}:3000"` | Verbindet einen Port des Hosts mit Port 3000 im Container. `PORT` aus der `.env` legt den Port **auf dem Host** fest (Standard 3000). |
-| `volumes: sammlung-daten:/app/data` | Speichert Datenbank, Fotos, Scans und den automatisch erzeugten Schlüssel `geheimnis.key` dauerhaft im Docker-Volume `sammlung-daten`. |
+| `ports: "3000:3000"` | Host-Port links, Port im Container rechts (immer 3000). Für Port 8080: `"8080:3000"`. |
+| `volumes: sammlung-daten:/app/data` | Speichert Datenbank, Fotos, Scans und `geheimnis.key` dauerhaft im Docker-Volume. |
+| `environment` | **Alle Einstellungen** als Einträge – gruppiert nach Konten & Sicherheit, öffentlichem Katalog, Uploads, IGDB, Preisen, Affiliate-Links und KI. Die Bedeutung jedes Werts steht als Kommentar darüber und in der Tabelle unter [Konfiguration](#konfiguration-env). |
 
-Ein **Healthcheck** (`GET /api/health`) ist bereits im Dockerfile hinterlegt. `docker compose ps` zeigt dann
-`healthy` an, sobald die App bereit ist.
+Datenbankpfad, Upload-Ordner und interner Port sind im Image fest eingestellt und müssen nicht angegeben werden.
+Ein **Healthcheck** (`GET /api/health`) ist ebenfalls im Image hinterlegt – `docker compose ps` bzw. Portainer
+zeigen `healthy`, sobald die App bereit ist.
 
 **Häufige Anpassungen:**
 
-- **Anderer Port:** in der `.env` z. B. `PORT=8080` setzen. Die App ist dann unter `http://localhost:8080` erreichbar,
-  im Container bleibt es Port 3000.
-- **Hinter einem Reverse-Proxy** (Caddy, nginx, Traefik) auf demselben Server: Port nur lokal freigeben, damit die App
-  nicht ohne HTTPS von außen erreichbar ist:
+- **Hinter einem Reverse-Proxy** (Caddy, nginx, Traefik, Nginx Proxy Manager) auf demselben Server: Port nur lokal
+  freigeben, damit die App nicht ohne HTTPS von außen erreichbar ist, und `TRUST_PROXY: "1"` setzen:
   ```yaml
   ports:
-    - "127.0.0.1:${PORT:-3000}:3000"
+    - "127.0.0.1:3000:3000"
   ```
-  Zusätzlich `TRUST_PROXY=1` in der `.env` setzen (siehe [Betrieb im Internet](#betrieb-im-internet-reverse-proxy)).
-- **Daten in einem Ordner statt im Volume:** siehe Tipp oben (`./data:/app/data`).
+- **Daten in einem Ordner statt im Volume:** `- ./data:/app/data` statt `- sammlung-daten:/app/data` und einmalig
+  `mkdir -p data && sudo chown 1000:1000 data` ausführen (der Container läuft als Benutzer 1000).
+- **Dollarzeichen in Werten** (z. B. in Schlüsseln) doppelt schreiben: `$$`. Compose würde `$` sonst als Variable deuten.
 
-> **Wichtig:** Das Volume enthält neben der Datenbank auch `geheimnis.key`. Ohne diese Datei (oder ein festes
-> `APP_SECRET` in der `.env`) lassen sich 2FA-Geheimnisse und in der Weboberfläche gespeicherte API-Schlüssel nicht mehr
-> entschlüsseln. `docker compose down -v` löscht das Volume samt **allen Daten** – nur verwenden, wenn du wirklich neu
-> anfangen möchtest. Wie du das Volume sicherst, steht unter [Datensicherung & Updates](#datensicherung--updates).
+> **Wichtig:** Die yml enthält API-Schlüssel – teile sie nicht öffentlich. Setze `APP_SECRET` einmalig
+> (`openssl rand -base64 32`) und ändere es danach **nie** wieder – oder sichere `geheimnis.key` aus dem Volume.
+> Ohne den Schlüssel lassen sich 2FA-Geheimnisse und in der App gespeicherte API-Schlüssel nicht mehr entschlüsseln.
+> `docker compose down -v` löscht das Volume samt **allen Daten**. Wie du es sicherst, steht unter
+> [Datensicherung & Updates](#datensicherung--updates).
+
+> **Für den Betreiber des Repositorys:** Das Image wird bei jedem Push auf `main` (und bei Tags `v*`) von
+> GitHub Actions gebaut und veröffentlicht. Nach dem ersten Lauf das Paket einmalig unter
+> *GitHub → Profil → Packages → videospielesammlung → Package settings → Change visibility* auf **Public** stellen,
+> damit es ohne Anmeldung heruntergeladen werden kann.
 
 ---
 
 ## Konfiguration (.env)
 
-Die Grundkonfiguration erfolgt über Umgebungsvariablen – viele Werte können Administratoren zusätzlich unter
+Die Grundkonfiguration erfolgt über Umgebungsvariablen – mit Docker als Einträge unter `environment:` in der
+`docker-compose.yml`, ohne Docker in der Datei `.env`. Viele Werte können Administratoren zusätzlich unter
 *Administration → Einstellungen* ändern (siehe [Einstellungen über die Weboberfläche](#einstellungen-über-die-weboberfläche)). Vorlage ist die Datei
 [`.env.example`](.env.example) – kopiere sie nach `.env`. **Die `.env`-Datei enthält
 Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
+
+> Wo in dieser Anleitung „in die `.env` eintragen“ steht, gilt mit Docker: als Eintrag unter `environment:` in der
+> `docker-compose.yml` eintragen (z. B. `REQUIRE_2FA: "true"`) und den Container mit `docker compose up -d` neu starten.
 
 | Variable               | Standard                  | Beschreibung |
 | ---------------------- | ------------------------- | ------------ |
@@ -682,7 +707,8 @@ Hochgeladene Fotos und Scans liegen im Volume unter `/app/data/uploads`. **Siche
 Datenverzeichnis** (`/app/data`) – inklusive `geheimnis.key`, sonst funktionieren eingerichtete
 2FA-Zugänge nach einer Wiederherstellung nicht mehr (außer du hast `APP_SECRET` gesetzt).
 
-Ein komplettes Backup des Volumes:
+Ein komplettes Backup des Volumes (der Volume-Name beginnt mit dem Namen des Projekts bzw. Stacks –
+`docker volume ls` zeigt ihn an):
 
 ```bash
 docker run --rm -v videospielesammlung_sammlung-daten:/daten -v "$PWD":/ziel alpine \
@@ -692,9 +718,11 @@ docker run --rm -v videospielesammlung_sammlung-daten:/daten -v "$PWD":/ziel alp
 **Update auf eine neue Version:**
 
 ```bash
-git pull
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
+
+(Bei selbst gebautem Image: `git pull && docker compose up -d --build`.)
 
 Datenbank-Migrationen laufen beim Start automatisch.
 
