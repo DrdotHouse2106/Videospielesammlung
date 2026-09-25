@@ -3,7 +3,9 @@
 // - Gebaute Assets & Coverbilder: Cache zuerst (Dateinamen enthalten Hashes)
 // - API-GET-Anfragen: Netzwerk zuerst, offline die zuletzt gesehene Antwort
 
-const VERSION = 'v2';
+const VERSION = 'v3';
+// Server-gerenderte öffentliche Seiten (Suchmaschinen) nicht durch die App-Hülle ersetzen
+const SERVERSEITEN = /^\/(spiel|konsole|zubehoer|plattform|plattformen)(\/|$)|^\/(sitemap[^/]*\.xml|robots\.txt)$/;
 const HUELLE = `huelle-${VERSION}`;
 const DATEN = `daten-${VERSION}`;
 const BILDER = `bilder-${VERSION}`;
@@ -64,6 +66,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   if (url.origin !== self.location.origin) return;
+  if (SERVERSEITEN.test(url.pathname)) return;
 
   if (url.pathname.startsWith('/api/')) {
     // Anmeldung, Exporte und Online-Suchen nie zwischenspeichern.

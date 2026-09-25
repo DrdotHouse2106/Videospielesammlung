@@ -31,7 +31,7 @@ export function artikelZuObjekt(zeile) {
 export function artikelRouter({ db, katalog, konfiguration, dateien, plattformen, ki, speicher }) {
   const router = Router();
 
-  const upload = multer({
+  const upload = () => multer({
     storage: multer.diskStorage({
       destination: dateien.verzeichnis,
       filename: (_req, datei, cb) => cb(null, `${crypto.randomUUID()}${ERLAUBTE_BILDTYPEN[datei.mimetype]}`),
@@ -39,6 +39,7 @@ export function artikelRouter({ db, katalog, konfiguration, dateien, plattformen
     limits: { fileSize: konfiguration.maxUploadMb * 1024 * 1024, files: 1 },
     fileFilter: (_req, datei, cb) => cb(null, Boolean(ERLAUBTE_BILDTYPEN[datei.mimetype])),
   });
+  const einzeldatei = (feld) => (req, res, next) => upload().single(feld)(req, res, next);
 
   const basisAbfrage = `
     SELECT a.*, k.cover_url AS katalog_cover_url, k.erscheinungsjahr, k.quelle AS katalog_quelle, k.status AS katalog_status,
@@ -179,7 +180,7 @@ export function artikelRouter({ db, katalog, konfiguration, dateien, plattformen
     res.status(204).end();
   });
 
-  router.post('/:id/bild', upload.single('bild'), (req, res) => {
+  router.post('/:id/bild', einzeldatei('bild'), (req, res) => {
     const vorhanden = holeOder404(req, res);
     if (!vorhanden) {
       if (req.file) bildEntfernen(req.file.filename);

@@ -28,8 +28,14 @@ function pfad(wert, standard) {
   return path.isAbsolute(p) ? p : path.join(PROJEKT_WURZEL, p);
 }
 
+/** Basis-URL der Seite (für Canonical-Links und Sitemap), ohne abschließenden Schrägstrich. */
+function basisUrl(wert) {
+  const roh = String(wert ?? '').trim().replace(/\/+$/, '');
+  return /^https?:\/\/[^\s/]+/i.test(roh) ? roh : '';
+}
+
 export function ladeKonfiguration(env = process.env) {
-  return {
+  const konfiguration = {
     port: zahl(env.PORT, 3000),
     host: env.HOST || '0.0.0.0',
     datenbankPfad: pfad(env.DATABASE_PATH, 'data/sammlung.db'),
@@ -42,6 +48,8 @@ export function ladeKonfiguration(env = process.env) {
     // Katalogseiten (Spiele, Varianten, Preisverlauf, Kauflinks) auch ohne Anmeldung zeigen
     oeffentlicherKatalog: jaNein(env.PUBLIC_CATALOG, true),
     // Links zu externen Cover-/Handbuch-Seiten: optional nur bestimmte Domains erlauben (kommagetrennt)
+    // Öffentliche Adresse, z. B. https://sammlung.example.de – für Suchmaschinen (Canonical, Sitemap)
+    oeffentlicheUrl: basisUrl(env.PUBLIC_URL),
     linkDomains: (env.LINK_DOMAINS || '').split(',').map((d) => d.trim().toLowerCase().replace(/^www\./, '')).filter(Boolean),
     cacheTtlStunden: zahl(env.CACHE_TTL_HOURS, 24 * 7),
     igdb: {
@@ -95,4 +103,17 @@ export function ladeKonfiguration(env = process.env) {
     vertrauteProxies: env.TRUST_PROXY || '',
     affiliate: ladeAffiliateKonfiguration(env),
   };
+  // Quelle merken: Einstellungen aus der Weboberfläche werden darüber gelegt (siehe services/einstellungen.js)
+  Object.defineProperty(konfiguration, 'quellEnv', { value: env, enumerable: false, writable: true });
+  return konfiguration;
+}
+
+/** Überträgt eine neu geladene Konfiguration in das bestehende Objekt, damit alle Verweise aktuell bleiben. */
+export function uebernehmeKonfiguration(ziel, neu) {
+  for (const [schluessel, wert] of Object.entries(neu)) {
+    const istObjekt = (w) => w && typeof w === 'object' && !Array.isArray(w);
+    if (istObjekt(wert) && istObjekt(ziel[schluessel])) Object.assign(ziel[schluessel], wert);
+    else ziel[schluessel] = wert;
+  }
+  return ziel;
 }

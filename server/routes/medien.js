@@ -68,8 +68,9 @@ function pruefeMetadaten(eingabe, { teilweise = false, teilenErlaubt, moderator 
 
 export function medienRouter({ db, konfiguration, dateien, katalog, speicher }) {
   const router = Router();
-  const teilenErlaubt = konfiguration.medienTeilenErlaubt;
-  const upload = multer({
+  const teilen = () => konfiguration.medienTeilenErlaubt;
+  // Multer je Anfrage erzeugen, damit die Größengrenze live änderbar ist
+  const upload = () => multer({
     storage: multer.diskStorage({
       destination: dateien.verzeichnis,
       filename: (_req, datei, cb) => cb(null, neuerDateiname(datei.mimetype)),
@@ -77,6 +78,7 @@ export function medienRouter({ db, konfiguration, dateien, katalog, speicher }) 
     limits: { fileSize: konfiguration.maxMedienMb * 1024 * 1024, files: 1 },
     fileFilter: (_req, datei, cb) => cb(null, Boolean(MEDIEN_TYPEN[datei.mimetype])),
   });
+  const einzeldatei = (feld) => (req, res, next) => upload().single(feld)(req, res, next);
 
   const sichtbareMedien = db.prepare(`
     SELECT m.*, COALESCE(b.anzeigename, b.benutzername) AS hochgeladen_von
@@ -103,7 +105,7 @@ export function medienRouter({ db, konfiguration, dateien, katalog, speicher }) 
       .map((m) => medienZuObjekt(m, req.benutzer)));
   });
 
-  router.post('/artikel/:id/medien', speicher.vorabPruefung, upload.single('datei'), async (req, res) => {
+  router.post('/artikel/:id/medien', speicher.vorabPruefung, einzeldatei('datei'), async (req, res) => {
     const artikel = eigenerArtikel.get(Number(req.params.id), req.benutzer.id);
     if (!artikel || !req.file) {
       if (req.file) dateien.loesche(req.file.filename);
@@ -113,7 +115,7 @@ export function medienRouter({ db, konfiguration, dateien, katalog, speicher }) 
     }
     let verarbeitet;
     try {
-      const meta = pruefeMetadaten(req.body ?? {}, { teilenErlaubt, moderator: istModerator(req.benutzer) });
+      const meta = pruefeMetadaten(req.body ?? {}, { teilenErlaubt: teilen(), moderator: istModerator(req.benutzer) });
       verarbeitet = await verarbeiteMedium({ verzeichnis: dateien.verzeichnis, datei: req.file.filename, mime: req.file.mimetype });
       const groesseGesamt = speicher.summe(verarbeitet.datei, verarbeitet.anzeige_datei, verarbeitet.vorschau_datei);
       // Freigegebene Scans zählen nicht zum Kontingent – Moderatoren können direkt freigeben
@@ -154,7 +156,7 @@ export function medienRouter({ db, konfiguration, dateien, katalog, speicher }) 
       return res.status(404).json({ fehler: 'Scan nicht gefunden.' });
     }
     const daten = pruefeMetadaten(req.body ?? {}, {
-      teilweise: true, teilenErlaubt, moderator: istModerator(req.benutzer), bisher: m.sichtbarkeit,
+      teilweise: true, teilenErlaubt: teilen(), moderator: istModerator(req.benutzer), bisher: m.sichtbarkeit,
     });
     const felder = Object.keys(daten);
     if (felder.length) db.prepare(`UPDATE medien SET ${felder.map((f) => `${f} = @${f}`).join(', ')} WHERE id = @id`).run({ ...daten, id: m.id });

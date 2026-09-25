@@ -1,8 +1,13 @@
 import { Router } from 'express';
 import { KontoFehler } from '../services/konten.js';
+import { erstelleDrossel } from '../services/drossel.js';
 
-export function adminRouter({ db, konten, dateien, speicher, preisimport, igdb, ebay, preise, affiliate, ki, konfiguration }) {
+// Nur über die .env änderbar – zur Information in der Oberfläche
+const NUR_ENV = ['APP_SECRET', 'DATABASE_PATH', 'UPLOAD_DIR', 'PORT', 'HOST', 'TRUST_PROXY', 'COOKIE_SECURE', 'SESSION_DAYS', 'REGISTRATIONS_PER_HOUR'];
+
+export function adminRouter({ db, konten, dateien, speicher, preisimport, igdb, ebay, preise, affiliate, ki, einstellungen, konfiguration }) {
   const router = Router();
+  const bestaetigungsDrossel = erstelleDrossel({ maxVersuche: 5 });
   const anzahlAdmins = () => db.prepare("SELECT COUNT(*) AS n FROM benutzer WHERE rolle = 'admin' AND gesperrt = 0").get().n;
   const ziel = (req) => {
     const b = konten.holeBenutzer(Number(req.params.id));
@@ -60,6 +65,38 @@ export function adminRouter({ db, konten, dateien, speicher, preisimport, igdb, 
     if (!preisimport.aktiv()) return res.status(400).json({ fehler: 'Keine Preisquelle eingerichtet (EBAY_CLIENT_ID/SECRET oder PRICECHARTING_TOKEN).' });
     preisimport.lauf({ max: konfiguration.preisimportMax }).catch((e) => console.warn('[preisimport]', e.message));
     res.status(202).json({ gestartet: true });
+  });
+
+  // ── Server-Einstellungen (Vorrang vor der .env, wirken sofort) ─────────
+  router.get('/einstellungen', (_req, res) => {
+    res.json({ einstellungen: einstellungen.liste(), nurEnv: NUR_ENV, protokoll: einstellungen.protokoll(50) });
+  });
+
+  router.put('/einstellungen', async (req, res) => {
+    const { werte = {}, zuruecksetzen = [], entfernen = [], passwort, code } = req.body ?? {};
+    const aenderung = {
+      werte: werte && typeof werte === 'object' ? werte : {},
+      zuruecksetzen: Array.isArray(zuruecksetzen) ? zuruecksetzen.map(String) : [],
+      entfernen: Array.isArray(entfernen) ? entfernen.map(String) : [],
+    };
+    // Schlüssel und sicherheitsrelevante Werte nur mit Passwort (und 2FA-Code, falls aktiv)
+    if (einstellungen.brauchtBestaetigung(aenderung)) {
+      const drosselSchluessel = `einstellungen:${req.benutzer.id}`;
+      if (bestaetigungsDrossel.gesperrt(drosselSchluessel)) {
+        throw new KontoFehler('Zu viele Fehlversuche. Bitte warte 15 Minuten.', 429);
+      }
+      if (!passwort) throw new KontoFehler('Diese Änderung ist sicherheitsrelevant. Bitte bestätige sie mit deinem Passwort.', 403, 'bestaetigung_noetig');
+      const b = await konten.pruefeZugangsdaten(req.benutzer.benutzername, passwort);
+      const vollstaendig = konten.holeBenutzer(req.benutzer.id);
+      const zweiterFaktorOk = !vollstaendig.totp_aktiv || (code && konten.pruefeZweitenFaktor(vollstaendig, { code: String(code) }));
+      if (!b || !zweiterFaktorOk) {
+        bestaetigungsDrossel.fehlschlag(drosselSchluessel);
+        throw new KontoFehler(!b ? 'Das Passwort ist falsch.' : 'Der 2FA-Code ist falsch oder fehlt.', 403, 'bestaetigung_noetig');
+      }
+      bestaetigungsDrossel.zuruecksetzen(drosselSchluessel);
+    }
+    const geaendert = einstellungen.setze(aenderung, req.benutzer);
+    res.json({ geaendert, einstellungen: einstellungen.liste(), protokoll: einstellungen.protokoll(50) });
   });
 
   router.get('/benutzer', (_req, res) => {

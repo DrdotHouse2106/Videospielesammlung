@@ -68,7 +68,7 @@ Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Nutzungsvertrag).
 
 Deine Sammlung (Artikel, Zustand, Kaufpreis, Notizen, Kommentare, Fotos und Scans) ist **privat** und nur für dich sichtbar. Du kannst deine Sammlung freiwillig für andere angemeldete Benutzer freigeben; Kaufpreise, Kaufdaten, Seriennummern, Barcodes und Notizen bleiben auch dann privat. Scans, die du zur Freigabe einreichst, sind nach Prüfung für angemeldete Benutzer sichtbar und mit deinem Benutzernamen gekennzeichnet. Preis-Meldungen werden anderen ohne Namen angezeigt.
 
-Für Statistiken (z. B. „12 Sammler besitzen dieses Spiel“, Median-Preise) werden Daten aller Benutzer zusammengefasst und nur anonym angezeigt, Preise erst ab drei Angaben.
+Für Statistiken (z. B. „12 Sammler besitzen dieses Spiel“, Median-Preise) werden Daten aller Benutzer zusammengefasst und nur anonym angezeigt, Preise erst ab drei Angaben. Diese anonymen Kennzahlen erscheinen auch auf den öffentlichen, für Suchmaschinen lesbaren Katalogseiten – ohne Rückschluss auf einzelne Benutzer.
 
 Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
 

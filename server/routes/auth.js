@@ -10,7 +10,10 @@ const ZU_VIELE = 'Zu viele Fehlversuche. Bitte warte 15 Minuten und versuche es 
 
 export function authRouter({ db, konten, konfiguration, dateien, speicher }) {
   const router = Router();
-  const { cookieSicher, registrierungOffen, zweiFaktorPflicht } = konfiguration.konten;
+  const { cookieSicher } = konfiguration.konten;
+  // Live-Werte (über Admin → Einstellungen änderbar)
+  const registrierungOffen = () => konfiguration.konten.registrierungOffen;
+  const zweiFaktorPflicht = () => konfiguration.konten.zweiFaktorPflicht;
   const drossel = erstelleDrossel({ maxVersuche: 10 });
   const registrierDrossel = erstelleDrossel({ maxVersuche: konfiguration.konten.registrierungenProStunde, fensterMs: 60 * 60 * 1000 });
   const geraet = (req) => req.headers['user-agent'];
@@ -25,15 +28,15 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher }) {
     res.json({
       angemeldet: Boolean(req.benutzer),
       benutzer: oeffentlichesProfil(req.benutzer),
-      registrierungOffen: registrierungOffen || ersteinrichtung,
+      registrierungOffen: registrierungOffen() || ersteinrichtung,
       ersteinrichtung,
-      zweiFaktorPflicht,
+      zweiFaktorPflicht: zweiFaktorPflicht(),
       oeffentlicherKatalog: konfiguration.oeffentlicherKatalog,
     });
   });
 
   router.post('/auth/registrieren', async (req, res) => {
-    if (!registrierungOffen && !konten.istErsteinrichtung()) {
+    if (!registrierungOffen() && !konten.istErsteinrichtung()) {
       return res.status(403).json({ fehler: 'Die Registrierung ist auf diesem Server geschlossen.' });
     }
     if (registrierDrossel.gesperrt(req.ip)) return res.status(429).json({ fehler: 'Zu viele Registrierungen. Bitte später erneut versuchen.' });
@@ -139,7 +142,7 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher }) {
   });
 
   router.post('/konto/2fa/deaktivieren', angemeldet, async (req, res) => {
-    if (zweiFaktorPflicht) throw new KontoFehler('Auf diesem Server ist die Zwei-Faktor-Anmeldung Pflicht.', 403);
+    if (zweiFaktorPflicht()) throw new KontoFehler('Auf diesem Server ist die Zwei-Faktor-Anmeldung Pflicht.', 403);
     await bestaetigePasswort(req);
     if (!konten.pruefeZweitenFaktor(req.benutzer, { code: req.body?.code })) {
       throw new ValidierungsFehler({ code: 'Der Code ist falsch oder abgelaufen.' });

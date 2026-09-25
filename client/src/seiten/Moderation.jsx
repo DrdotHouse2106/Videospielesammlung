@@ -132,7 +132,7 @@ export default function Moderation({ route }) {
   );
 }
 
-const GRUND = { urheberrecht: 'Urheberrecht', rechtswidrig: 'Rechtswidrig', falsch: 'Falsche Angaben', spam: 'Spam', sonstiges: 'Sonstiges' };
+const GRUND = { urheberrecht: 'Urheberrecht', rechtswidrig: 'Rechtswidrig', falsch: 'Falsche Angaben', spam: 'Spam', ergaenzung: 'Ergänzungsvorschlag', sonstiges: 'Sonstiges' };
 const BEREICH = { medien: 'Scan/Dokument', katalog: 'Katalogeintrag', preis: 'Preis-Meldung', link: 'Externer Link' };
 
 function Meldungen({ onGeaendert }) {

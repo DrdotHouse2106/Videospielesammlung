@@ -115,8 +115,11 @@ export default function App() {
     inhalt = <RechtlicheSeite key={t.slug} route={route} slug={t.slug} />;
   } else if (!auth.angemeldet && auth.oeffentlicherKatalog && route.pfad.startsWith('/katalog')) {
     // Öffentlicher Katalog ohne Anmeldung
+    // Alte Links (#/katalog/42) führen Besucher auf die öffentliche, für Suchmaschinen lesbare Seite.
+    // ?app=1 (z. B. vom Knopf „In meine Sammlung“) bleibt in der App.
     const t = passt('/katalog/:id', route.pfad);
-    inhalt = t ? <KatalogSeite key={t.id} route={route} id={t.id} /> : <Katalog route={route} />;
+    if (t && !route.parameter.app) inhalt = <Weiterleitung ziel={`/spiel/${encodeURIComponent(t.id)}`} />;
+    else inhalt = t ? <KatalogSeite key={t.id} route={route} id={t.id} /> : <Katalog route={route} />;
   } else if (!auth.angemeldet) {
     inhalt = <Anmelden />;
   } else if (auth.zweiFaktorPflicht && !auth.benutzer.totp_aktiv) {
@@ -137,4 +140,9 @@ export default function App() {
       </HinweisAnbieter>
     </SitzungKontext.Provider>
   );
+}
+
+function Weiterleitung({ ziel }) {
+  useEffect(() => { window.location.replace(ziel); }, [ziel]);
+  return <div className="flex min-h-dvh items-center justify-center p-6 text-leise">Wird geladen …</div>;
 }

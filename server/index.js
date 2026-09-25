@@ -23,20 +23,31 @@ const aufraeumen = setInterval(() => {
 }, 6 * 60 * 60 * 1000);
 aufraeumen.unref();
 
-// KI-Vorprüfung: liegengebliebene Einreichungen regelmäßig nachholen
-if (kontext.ki.aktiv) {
-  console.log(`   KI-Vorprüfung: ${kontext.ki.anbieter} (${kontext.ki.modell})`);
-  setInterval(() => kontext.ki.verarbeiteWarteschlange().catch((e) => console.warn('[ki]', e.message)), 5 * 60 * 1000).unref();
-  setTimeout(() => kontext.ki.anstossen(), 10_000).unref();
-}
+// KI-Vorprüfung: liegengebliebene Einreichungen regelmäßig nachholen.
+// Der Anbieter kann sich zur Laufzeit ändern (Admin → Einstellungen), daher wird jedes Mal geprüft.
+if (kontext.ki.aktiv) console.log(`   KI-Vorprüfung: ${kontext.ki.anbieter} (${kontext.ki.modell})`);
+setInterval(() => {
+  if (kontext.ki.aktiv) kontext.ki.verarbeiteWarteschlange().catch((e) => console.warn('[ki]', e.message));
+}, 5 * 60 * 1000).unref();
+setTimeout(() => kontext.ki.anstossen(), 10_000).unref();
 
-// Automatischer Preisimport (eBay-Angebote, Marktpreise) im Hintergrund
-if (konfiguration.preisimportStunden > 0 && kontext.preisimport.aktiv()) {
-  const importieren = () => kontext.preisimport.lauf({ max: konfiguration.preisimportMax })
+// Automatischer Preisimport (eBay-Angebote, Marktpreise) im Hintergrund.
+// Intervall und Zugangsdaten sind live änderbar – alle 10 Minuten prüfen, ob ein Lauf fällig ist.
+function preisimportFaellig() {
+  const stunden = konfiguration.preisimportStunden;
+  if (!(stunden > 0) || !kontext.preisimport.aktiv()) return false;
+  const status = kontext.preisimport.status();
+  if (status.laeuft) return false;
+  const letzter = Date.parse(status.letzterLauf ?? '') || 0;
+  return Date.now() - letzter >= stunden * 60 * 60 * 1000;
+}
+setInterval(() => {
+  if (!preisimportFaellig()) return;
+  kontext.preisimport.lauf({ max: konfiguration.preisimportMax })
     .then((s) => console.log(`[preisimport] ${s.verarbeitet ?? 0} Einträge aktualisiert.`))
     .catch((e) => console.warn('[preisimport]', e.message));
-  setTimeout(importieren, 5 * 60 * 1000).unref();
-  setInterval(importieren, konfiguration.preisimportStunden * 60 * 60 * 1000).unref();
+}, 10 * 60 * 1000).unref();
+if (konfiguration.preisimportStunden > 0 && kontext.preisimport.aktiv()) {
   console.log(`   Preisimport: alle ${konfiguration.preisimportStunden} Stunden`);
 }
 

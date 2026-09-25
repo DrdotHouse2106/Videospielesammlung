@@ -61,6 +61,8 @@ export function katalogRouter({ db, katalog, dateien, ki }) {
     if (!vorhanden) return;
     if (!darfAendern(req, vorhanden)) return res.status(403).json({ fehler: 'Freigegebene Einträge kann nur das Moderationsteam ändern.' });
     const daten = pruefeKatalogEintrag({ ...vorhanden, ...req.body });
+    // SEO-Angaben pflegt nur das Moderationsteam
+    if (!istModerator(req.benutzer)) Object.assign(daten, { seo_titel: vorhanden.seo_titel ?? null, seo_beschreibung: vorhanden.seo_beschreibung ?? null });
     res.json(katalog.aktualisiere(vorhanden.id, daten, { plattformenNeu: Array.isArray(req.body?.plattformen) }));
   });
 

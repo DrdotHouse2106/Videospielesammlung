@@ -173,6 +173,8 @@ export const api = {
   preisimportStarten: () => anfrage('/api/admin/preisimport', { methode: 'POST', daten: {} }),
 
   // Administration
+  adminEinstellungen: () => anfrage('/api/admin/einstellungen'),
+  adminEinstellungenSpeichern: (daten) => anfrage('/api/admin/einstellungen', { methode: 'PUT', daten }),
   adminBenutzer: () => anfrage('/api/admin/benutzer'),
   adminBenutzerAendern: (id, daten) => anfrage(`/api/admin/benutzer/${id}`, { methode: 'PUT', daten }),
   admin2faZuruecksetzen: (id) => anfrage(`/api/admin/benutzer/${id}/2fa-zuruecksetzen`, { methode: 'POST', daten: {} }),

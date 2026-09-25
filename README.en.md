@@ -31,6 +31,13 @@ model revisions).
 - Public catalogue pages with clearly marked **affiliate “buy here” links** (defaults in `server/affiliate-konfiguration.js`)
 - **Admin dashboard**: statistics, users & roles, editable legal pages (imprint, privacy policy, terms, security), price import
 - **Automatic price import** of current offers via the official eBay Browse API; content reporting (notice-and-takedown)
+- **Search-engine friendly public pages** rendered on the server (`/spiel/42-super-mario-64-n64`, `/plattform/n64`) with
+  automatic meta tags, Open Graph, JSON-LD (`VideoGame`, `BreadcrumbList`, `AggregateOffer`), sitemap and robots.txt.
+  Only games that someone collects (or that moderators curated) are indexable – plain IGDB search hits stay `noindex`.
+  Each page shows how many collectors own the game, a 90-day value summary and moderator-curated **collector notes**
+- **Settings in the web UI** (Admin → Settings): most `.env` values can be changed live; they override the `.env`,
+  API keys are stored AES-256-GCM-encrypted and never shown again in plain text, security-relevant changes need the
+  admin's password (+ 2FA code), every change is logged. Paths, port, proxy/cookie settings and `APP_SECRET` stay `.env`-only
 
 **Stack:** Node.js 22 · Express 5 · SQLite (better-sqlite3) · sharp · React 19 · Vite · Tailwind CSS 4
 
@@ -60,6 +67,7 @@ The most important ones:
 | `PRICECHARTING_TOKEN` | Optional market prices |
 | `MEDIA_SHARING`, `MEDIA_MAX_MB` | Allow sharing scans, max. scan size |
 | `STORAGE_QUOTA_MB` | Per-user storage for own photos and scans in MB (default 1024, `0` = unlimited; approved scans don't count, admins can override per user) |
+| `PUBLIC_CATALOG`, `PUBLIC_URL` | Public catalogue without login; public base URL for canonical links and the sitemap |
 | `TRUST_PROXY` | Set to `1` behind a reverse proxy |
 
 The camera (barcode scanner) only works over **HTTPS** or on `localhost` – use a reverse proxy such as Caddy.

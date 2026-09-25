@@ -89,8 +89,9 @@ export function erstelleKatalogDienst(db, { igdb, barcode, cache, plattformen })
     return db.transaction(() => {
       const zeile = db.prepare(`UPDATE katalog SET typ = @typ, titel = @titel, plattformen = @plattformen,
           erscheinungsjahr = @erscheinungsjahr, hersteller = @hersteller, cover_url = @cover_url, beschreibung = @beschreibung,
+          sammlerhinweise = @sammlerhinweise, seo_titel = @seo_titel, seo_beschreibung = @seo_beschreibung,
           manuell_bearbeitet = CASE WHEN quelle = 'igdb' THEN 1 ELSE manuell_bearbeitet END, aktualisiert_am = datetime('now')
-        WHERE id = @id RETURNING *`).get({ ...daten, plattformen: JSON.stringify(daten.plattformen ?? []), id });
+        WHERE id = @id RETURNING *`).get({ sammlerhinweise: null, seo_titel: null, seo_beschreibung: null, ...daten, plattformen: JSON.stringify(daten.plattformen ?? []), id });
       if (plattformenNeu) db.prepare('DELETE FROM katalog_plattformen WHERE katalog_id = ?').run(id);
       plattformen?.verknuepfeKatalog(id, daten.plattformen);
       return katalogZeileZuObjekt(zeile);

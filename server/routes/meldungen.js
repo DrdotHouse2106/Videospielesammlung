@@ -4,7 +4,7 @@ import { istModerator } from '../../shared/konstanten.js';
 import { erstelleDrossel } from '../services/drossel.js';
 import { ValidierungsFehler } from '../services/validierung.js';
 
-export const MELDEGRUENDE = ['urheberrecht', 'rechtswidrig', 'falsch', 'spam', 'sonstiges'];
+export const MELDEGRUENDE = ['urheberrecht', 'rechtswidrig', 'falsch', 'spam', 'ergaenzung', 'sonstiges'];
 
 /** Öffentlich (auch ohne Konto), damit Rechteinhaber Inhalte melden können. */
 export function meldenRouter({ db, katalog }) {

@@ -142,6 +142,11 @@ export function pruefeKatalogEintrag(eingabe = {}) {
     hersteller: leerZuNull(eingabe.hersteller)?.slice(0, 200) ?? null,
     cover_url: /^https?:\/\//i.test(eingabe.cover_url ?? '') ? String(eingabe.cover_url).trim().slice(0, 1000) : null,
     beschreibung: leerZuNull(eingabe.beschreibung)?.slice(0, 5000) ?? null,
+    // Markdown: Varianten, PAL-Besonderheiten, Lieferumfang, Fälschungsmerkmale …
+    sammlerhinweise: leerZuNull(eingabe.sammlerhinweise)?.slice(0, 10000) ?? null,
+    // Optionale Überschreibungen für Suchmaschinen (nur Moderatoren, siehe Route)
+    seo_titel: leerZuNull(eingabe.seo_titel)?.replace(/\s+/g, ' ').slice(0, 120) ?? null,
+    seo_beschreibung: leerZuNull(eingabe.seo_beschreibung)?.replace(/\s+/g, ' ').slice(0, 300) ?? null,
   };
 }
 

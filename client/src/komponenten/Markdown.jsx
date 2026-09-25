@@ -1,4 +1,4 @@
-// Kleiner, sicherer Markdown-Renderer für die rechtlichen Seiten.
+// Kleiner, sicherer Markdown-Renderer für rechtliche Seiten und Sammlerhinweise.
 // Erzeugt ausschließlich React-Elemente (kein innerHTML) – Unterstützt: Überschriften (#, ##, ###),
 // Absätze, Listen (-, *, 1.), **fett**, *kursiv*, [Links](https://…) und Zeilenumbrüche.
 
@@ -57,7 +57,7 @@ export default function Markdown({ text }) {
           return (
             <div key={bi} className="space-y-2">
               <Tag className="mt-4 text-lg font-semibold">{inline(ueberschrift[2], `h${bi}`)}</Tag>
-              <p>{mitUmbruechen(zeilen.slice(1), `p${bi}`)}</p>
+              <Markdown text={zeilen.slice(1).join('\n')} />
             </div>
           );
         }

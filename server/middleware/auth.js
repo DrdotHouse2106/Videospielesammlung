@@ -64,10 +64,11 @@ export function pruefeHerkunft(req, res, next) {
   res.status(403).json({ fehler: 'Anfrage von fremder Herkunft abgelehnt.' });
 }
 
-export function erfordereAnmeldung({ zweiFaktorPflicht }) {
+/** `optionen.zweiFaktorPflicht` wird bei jeder Anfrage gelesen (live änderbar über Admin → Einstellungen). */
+export function erfordereAnmeldung(optionen) {
   return (req, res, next) => {
     if (!req.benutzer) return res.status(401).json({ fehler: 'Bitte melde dich an.', code: 'nicht_angemeldet' });
-    if (zweiFaktorPflicht && !req.benutzer.totp_aktiv) {
+    if (optionen.zweiFaktorPflicht && !req.benutzer.totp_aktiv) {
       return res.status(403).json({
         fehler: 'Auf diesem Server ist die Zwei-Faktor-Anmeldung Pflicht. Bitte richte sie zuerst ein.',
         code: '2fa_einrichten',

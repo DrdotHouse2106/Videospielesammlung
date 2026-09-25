@@ -361,6 +361,29 @@ const MIGRATIONEN = [
   ALTER TABLE medien ADD COLUMN groesse_gesamt INTEGER;        -- Original + Anzeige- und Vorschaudatei in Byte
   ALTER TABLE artikel ADD COLUMN bild_groesse INTEGER;
   `,
+  // 10: Server-Einstellungen über die Weboberfläche, Sammlerhinweise und SEO-Angaben am Katalog
+  `
+  CREATE TABLE server_einstellungen (
+    schluessel     TEXT PRIMARY KEY,              -- Name wie in der .env, z. B. REGISTRATION_OPEN
+    wert           TEXT,                          -- bei Geheimnissen AES-256-GCM-verschlüsselt
+    verschluesselt INTEGER NOT NULL DEFAULT 0,
+    geaendert_von  INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    geaendert_am   TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE einstellungen_protokoll (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    schluessel  TEXT    NOT NULL,
+    aktion      TEXT    NOT NULL,                 -- geaendert, zurueckgesetzt, entfernt
+    alt         TEXT,                             -- Geheimnisse nie im Klartext
+    neu         TEXT,
+    benutzer_id INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    erstellt_am TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  ALTER TABLE katalog ADD COLUMN sammlerhinweise TEXT;
+  ALTER TABLE katalog ADD COLUMN seo_titel TEXT;
+  ALTER TABLE katalog ADD COLUMN seo_beschreibung TEXT;
+  CREATE INDEX IF NOT EXISTS idx_artikel_katalog ON artikel (katalog_id);
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

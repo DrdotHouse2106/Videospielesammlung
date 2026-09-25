@@ -1,4 +1,4 @@
-// Administration: Übersicht, Benutzer & Rollen (Moderatoren ernennen), rechtliche Seiten, Preisimport.
+// Administration: Übersicht, Benutzer & Rollen (Moderatoren ernennen), Server-Einstellungen, rechtliche Seiten, Preisimport.
 import { useEffect, useState } from 'react';
 import { ROLLEN } from '../../../shared/konstanten.js';
 import { api } from '../api.js';
@@ -7,9 +7,10 @@ import { useSitzung } from '../sitzung.js';
 import Layout from '../komponenten/Layout.jsx';
 import Symbol from '../komponenten/Symbole.jsx';
 import SpeicherAnzeige from '../komponenten/SpeicherAnzeige.jsx';
+import AdminEinstellungen from './AdminEinstellungen.jsx';
 import { useHinweis } from '../komponenten/Hinweise.jsx';
 
-const REITER = [['uebersicht', 'Übersicht'], ['benutzer', 'Benutzer & Rollen'], ['rechtliches', 'Rechtliches'], ['preise', 'Preisimport']];
+const REITER = [['uebersicht', 'Übersicht'], ['benutzer', 'Benutzer & Rollen'], ['einstellungen', 'Einstellungen'], ['rechtliches', 'Rechtliches'], ['preise', 'Preisimport']];
 
 export default function Admin({ route }) {
   const reiter = route.parameter.reiter ?? 'uebersicht';
@@ -29,6 +30,7 @@ export default function Admin({ route }) {
         {fehler && <p className="text-gefahr" role="alert">{fehler}</p>}
         {reiter === 'uebersicht' && daten && <Uebersicht d={daten} />}
         {reiter === 'benutzer' && <Benutzer />}
+        {reiter === 'einstellungen' && <AdminEinstellungen />}
         {reiter === 'rechtliches' && <Rechtliches />}
         {reiter === 'preise' && daten && <Preisimport d={daten} onNeu={laden} />}
       </div>

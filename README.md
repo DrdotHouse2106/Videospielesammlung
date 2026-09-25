@@ -42,6 +42,8 @@ eigener Eintrag für Raritäten, die in keiner Datenbank stehen.
 - [Preis-Historie](#preis-historie)
 - [Affiliate-Links („Hier kaufen“)](#affiliate-links-hier-kaufen)
 - [Administration & rechtliche Seiten](#administration--rechtliche-seiten)
+- [Einstellungen über die Weboberfläche](#einstellungen-über-die-weboberfläche)
+- [Suchmaschinen (SEO) & öffentliche Seiten](#suchmaschinen-seo--öffentliche-seiten)
 - [Automatischer Preisimport (eBay)](#automatischer-preisimport-ebay)
 - [KI-Vorprüfung (optional)](#ki-vorprüfung-optional)
 - [Öffentlich hosten – Checkliste](#öffentlich-hosten--checkliste)
@@ -132,7 +134,8 @@ Alle Daten (SQLite-Datenbank und hochgeladene Fotos) liegen im Docker-Volume
 
 ## Konfiguration (.env)
 
-Die gesamte Konfiguration erfolgt über Umgebungsvariablen. Vorlage ist die Datei
+Die Grundkonfiguration erfolgt über Umgebungsvariablen – viele Werte können Administratoren zusätzlich unter
+*Administration → Einstellungen* ändern (siehe [Einstellungen über die Weboberfläche](#einstellungen-über-die-weboberfläche)). Vorlage ist die Datei
 [`.env.example`](.env.example) – kopiere sie nach `.env`. **Die `.env`-Datei enthält
 Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 
@@ -160,7 +163,8 @@ Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 | `USD_EUR_RATE`         | EZB-Tageskurs             | Fester Umrechnungskurs USD → EUR |
 | `PRICE_CACHE_HOURS`    | `72`                      | Gültigkeit abgerufener Marktpreise |
 | `TRUST_PROXY`          | –                         | Hinter einem Reverse-Proxy `1` setzen (für HTTPS-Cookies und IP-basierte Sperren) |
-| `PUBLIC_CATALOG`       | `true`                    | Katalogseiten ohne Anmeldung zeigen (Sammlungen bleiben privat) |
+| `PUBLIC_CATALOG`       | `true`                    | Katalogseiten ohne Anmeldung zeigen (Sammlungen bleiben privat) – Voraussetzung für Suchmaschinen |
+| `PUBLIC_URL`           | –                         | Öffentliche Adresse, z. B. `https://sammlung.example.de` (Canonical-Links, Sitemap) |
 | `LINK_DOMAINS`         | –                         | Links zu Cover-/Handbuch-Seiten nur zu diesen Domains erlauben (kommagetrennt) |
 | `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` | –        | Zugang zur offiziellen eBay Browse API für den automatischen Preisimport |
 | `EBAY_MARKETPLACE` / `EBAY_ITEM_LOCATION` | `EBAY_DE` / `DE` | Marktplatz und Artikelstandort der eBay-Suche |
@@ -251,12 +255,44 @@ Administratoren finden unter **Mehr → Administration**:
   (einfaches Markdown mit Vorschau). Die Seiten sind ohne Anmeldung erreichbar und auf jeder Seite in der Fußzeile verlinkt.
   Mitgeliefert werden **Vorlagen** passend zu den Funktionen der App – bitte alle Angaben in [eckigen Klammern] ersetzen
   (die Vorlagen sind keine Rechtsberatung).
+- **Einstellungen:** Server-Einstellungen (Registrierung, 2FA-Pflicht, Speicher, KI, Preisimport, API-Schlüssel …) ohne Neustart ändern – siehe unten.
 - **Preisimport:** Status und manueller Start des automatischen Preisimports.
 
 Bei der Registrierung bestätigen neue Benutzer die Nutzungsbedingungen und die Kenntnisnahme der Datenschutzerklärung.
 
 **Moderatoren** bearbeiten unter *Mehr → Moderation* bzw. direkt auf jeder Katalogseite (Stift-Symbol) alle Katalogeinträge –
 auch aus IGDB übernommene (diese werden dann bei späteren Importen nicht mehr überschrieben) – sowie Varianten, Plattformen und Kauflinks.
+
+### Einstellungen über die Weboberfläche
+
+Unter *Administration → Einstellungen* ändern Administratoren viele Werte der `.env` direkt in der App:
+
+- **Konten & Sicherheit:** Registrierung offen, 2FA-Pflicht
+- **Uploads & Speicher:** Speicherkontingent, maximale Dateigrößen, Teilen von Scans
+- **Öffentlicher Katalog & Suchmaschinen:** öffentlicher Katalog, `PUBLIC_URL`, erlaubte Link-Domains
+- **KI-Vorprüfung:** Anbieter, Modell, Basis-URL, API-Schlüssel, Schwellwert, automatische Freigabe/Ablehnung
+- **Preise & Angebote:** Importintervall, Einträge pro Lauf, eBay- und PriceCharting-Zugangsdaten
+- **Spieledaten & Barcodes:** IGDB-/Twitch-Zugangsdaten, Barcode-Dienste, OpenGTINDB-Query-ID
+
+So funktioniert es:
+
+- Die `.env` bleibt die **Grundeinstellung**. In der Oberfläche gesetzte Werte werden in der Datenbank gespeichert und
+  haben **Vorrang**. Bei jedem Wert steht, woher er stammt (*Standard*, *.env* oder *Weboberfläche*);
+  „Auf .env-Wert zurücksetzen“ entfernt den Wert wieder aus der Datenbank.
+- Änderungen wirken **sofort** – betroffene Dienste (IGDB, eBay, PriceCharting, KI, Barcode-Suche, Preisimport) werden
+  automatisch neu gestartet.
+- **API-Schlüssel** werden mit AES-256-GCM verschlüsselt gespeichert (Schlüssel aus `APP_SECRET` bzw. `data/geheimnis.key`)
+  und nie wieder im Klartext angezeigt – nur gekürzt als `••••1234`. Ein leeres Feld lässt den Schlüssel unverändert,
+  „Schlüssel entfernen“ löscht ihn.
+- **Sicherheitsrelevante Änderungen** (Schlüssel, Registrierung, 2FA-Pflicht, KI-Anbieter und -Adresse) erfordern das eigene
+  **Passwort** und – falls aktiviert – einen **2FA-Code**. Fehlversuche werden begrenzt.
+- Jede Änderung landet im **Änderungsprotokoll** (wer, wann, alter → neuer Wert; Schlüssel nur gekürzt).
+- **Nur über die `.env`** änderbar bleiben `APP_SECRET`, `DATABASE_PATH`, `UPLOAD_DIR`, `PORT`, `HOST`, `TRUST_PROXY`,
+  `COOKIE_SECURE`, `SESSION_DAYS` und `REGISTRATIONS_PER_HOUR` – eine Fehleinstellung dort könnte den Server aussperren
+  oder unsicher machen.
+
+> **Hinweis:** Wird `APP_SECRET` geändert (oder `data/geheimnis.key` gelöscht), können in der Oberfläche gespeicherte
+> Schlüssel nicht mehr entschlüsselt werden – dann gilt wieder der Wert aus der `.env`, und die Schlüssel müssen neu eingegeben werden.
 
 ### Meldungen (Notice-and-Takedown)
 
@@ -432,6 +468,53 @@ Für ein DVD-Inlay reicht ein A4-Scanner; größere Einleger in zwei Teilen scan
 
 ---
 
+## Suchmaschinen (SEO) & öffentliche Seiten
+
+Die App selbst nutzt Adressen mit `#` (z. B. `/#/katalog/42`) – diese sieht Google nicht als eigene Seiten. Deshalb erzeugt
+der Server für den öffentlichen Katalog **eigene, schnelle HTML-Seiten ohne JavaScript**:
+
+| Adresse | Inhalt |
+| --- | --- |
+| `/spiel/42-super-mario-64-n64` | Spieleseite (Konsolen: `/konsole/…`, Zubehör: `/zubehoer/…`) |
+| `/plattform/n64` | Alle Einträge einer Plattform, sortiert nach Anzahl der Sammler |
+| `/plattformen` | Übersicht aller Plattformen |
+| `/sitemap.xml` | Sitemap-Index (Plattformen + Katalogseiten, je 40.000 Adressen) |
+| `/robots.txt` | Erlaubt alles außer `/api/`, verweist auf die Sitemap |
+
+**Welche Spiele bekommen eine Seite?** Seiten werden erst beim Aufruf erzeugt – es wird nichts vorab gespeichert.
+Treffer aus der IGDB-Suche landen zwar im Katalog, sind für Suchmaschinen aber **gesperrt** (`noindex`, nicht in der Sitemap).
+**Indexierbar** ist ein Eintrag nur, wenn er freigegeben ist **und**
+
+- mindestens ein Benutzer ihn in seiner Sammlung hat **oder** das Moderationsteam ihn gepflegt hat
+  (eigener freigegebener Eintrag, Sammlerhinweise, freigegebene Scans oder Links), **und**
+- er nicht „dünn“ ist (Beschreibung, Sammlerhinweise, Cover oder Preisdaten vorhanden).
+
+So wächst die Zahl der Seiten nur mit den echten Sammlungen – leere Seiten schaden sonst dem Ranking der ganzen Domain.
+
+**Was steht auf einer Spieleseite?** Cover, Plattformen, Jahr, Hersteller, **wie viele Sammler das Spiel besitzen**
+(anonym), ein **Wert-Abschnitt** aus den Preisdaten der letzten 90 Tagen („im Schnitt 38 €, Spanne 25–60 €“),
+Beschreibung, **Sammlerhinweise**, Varianten, Links zu Cover/Handbüchern, Anzahl der Scans (sichtbar nach Anmeldung) und
+„Hier kaufen“ (als **Anzeige** gekennzeichnet, Links mit `rel="sponsored"`). Der Knopf „In meine Sammlung“ führt in die App.
+
+**Automatische Metadaten:** Seitentitel, Beschreibung, Canonical-Link, Open Graph (Vorschau beim Teilen) und strukturierte
+Daten (`VideoGame` bzw. `Product`, `BreadcrumbList`, `AggregateOffer` nur aus echten aktuellen Angeboten) entstehen
+automatisch aus der Datenbank. Moderatoren können Titel und Beschreibung im Bearbeiten-Formular unter
+*Suchmaschinen* überschreiben.
+
+**Sammlerhinweise** (Markdown) pflegt das Moderationsteam am Katalogeintrag – z. B. PAL-/USK-Versionen, Lieferumfang,
+Revisionen, Fälschungsmerkmale. Eigene Worte statt kopierter Texte sind der wichtigste Faktor für ein gutes Ranking.
+Benutzer schlagen Ergänzungen über „Sammlerhinweis oder Korrektur vorschlagen“ vor; die Vorschläge erscheinen im
+Moderationsbereich unter *Meldungen*.
+
+**Einrichten:**
+
+1. `PUBLIC_CATALOG=true` und `PUBLIC_URL=https://deine-domain.de` setzen (auch unter *Administration → Einstellungen*).
+2. Domain in der [Google Search Console](https://search.google.com/search-console) und bei
+   [Bing Webmaster Tools](https://www.bing.com/webmasters) bestätigen und `https://deine-domain.de/sitemap.xml` einreichen.
+3. Sammlerhinweise für beliebte Spiele pflegen und die Seite in Retro-Communitys bekannt machen.
+
+Alte Links auf `/#/katalog/42` leiten Besucher ohne Anmeldung automatisch auf die öffentliche Seite weiter.
+
 ## Öffentlich hosten – Checkliste
 
 1. Reverse-Proxy mit **HTTPS** einrichten (siehe unten) und `TRUST_PROXY=1` setzen.
@@ -444,7 +527,8 @@ Für ein DVD-Inlay reicht ein A4-Scanner; größere Einleger in zwei Teilen scan
 8. Affiliate-IDs in `server/affiliate-konfiguration.js` eintragen (oder per `.env`).
 9. Unter *Administration → Rechtliches* **Impressum, Datenschutzerklärung, Nutzungsbedingungen und Sicherheit** ausfüllen.
 10. Meldungen im Moderationsbereich regelmäßig und zeitnah bearbeiten.
-11. Impressum/Datenschutzerklärung: Bei einem öffentlich erreichbaren Angebot in Deutschland in der Regel Pflicht –
+11. Für Suchmaschinen `PUBLIC_URL` setzen und die Sitemap einreichen (siehe [SEO](#suchmaschinen-seo--öffentliche-seiten)).
+12. Impressum/Datenschutzerklärung: Bei einem öffentlich erreichbaren Angebot in Deutschland in der Regel Pflicht –
    z. B. als eigene Seite über den Reverse-Proxy bereitstellen.
 
 ---
@@ -634,6 +718,8 @@ außer `/api/health` und `/api/auth/*` erfordern eine Anmeldung (Sitzungs-Cookie
 | GET     | `/api/community`                  | Öffentliche Sammlungen |
 | GET     | `/api/community/:name`            | Eine öffentliche Sammlung |
 | GET/PUT/DELETE | `/api/admin/benutzer/…`    | Benutzerverwaltung (nur Admins) |
+| GET/PUT | `/api/admin/einstellungen` | Server-Einstellungen (nur Admins, sicherheitsrelevante Änderungen mit Passwort) |
+| GET | `/spiel/…`, `/plattform/…`, `/sitemap.xml`, `/robots.txt` | Öffentliche, server-gerenderte Seiten für Suchmaschinen |
 | GET     | `/api/plattformen`                | Plattformen (öffentlich, falls `PUBLIC_CATALOG`) |
 | GET     | `/api/katalog-liste?plattform=&typ=&q=&seite=` | Globaler Katalog (öffentlich) |
 | GET     | `/api/katalog-seite/:id`          | Katalogseite inkl. Varianten, Preisverlauf, Kauflinks (öffentlich) |

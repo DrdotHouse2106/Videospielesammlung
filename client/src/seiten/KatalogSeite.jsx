@@ -5,6 +5,8 @@ import {
 } from '../../../shared/konstanten.js';
 import { nachHersteller, usePlattformen } from '../plattformen.js';
 import MeldenKnopf from '../komponenten/MeldenKnopf.jsx';
+import Markdown from '../komponenten/Markdown.jsx';
+import { katalogPfad } from '../../../shared/seo.js';
 import ExterneLinks from '../komponenten/ExterneLinks.jsx';
 import { api } from '../api.js';
 import { navigiere } from '../router.js';
@@ -86,8 +88,21 @@ export default function KatalogSeite({ route, id }) {
             <div className="flex flex-wrap gap-3 text-xs text-leise">
               {e.quelle === 'igdb' && <span>Daten: IGDB.com{e.manuell_bearbeitet ? ' (vom Moderationsteam überarbeitet)' : ''}</span>}
               {e.status === 'freigegeben' && <MeldenKnopf bereich="katalog" zielId={e.id} />}
+              {e.status === 'freigegeben' && (
+                <a href={katalogPfad(e, daten.plattformen[0]?.kurz)} className="underline hover:text-text" title="Öffentliche Seite – auch für Suchmaschinen">Öffentliche Seite</a>
+              )}
             </div>
           </div>
+
+          {(e.sammlerhinweise || (e.status === 'freigegeben' && benutzer && !istModerator(benutzer))) && (
+            <section className="karte space-y-2 p-4">
+              <h3 className="flex items-center gap-2 font-semibold"><Symbol name="dokument" className="size-5" />Sammlerhinweise</h3>
+              {e.sammlerhinweise
+                ? <div className="text-sm"><Markdown text={e.sammlerhinweise} /></div>
+                : <p className="text-sm text-leise">Noch keine Sammlerhinweise. Weißt du etwas über Varianten, Lieferumfang oder Besonderheiten?</p>}
+              {e.status === 'freigegeben' && benutzer && !istModerator(benutzer) && <MeldenKnopf bereich="katalog" zielId={e.id} vorschlag />}
+            </section>
+          )}
 
           {e.eigener && e.status !== 'freigegeben' && (
             <div className="rounded-xl border border-rand p-3 text-sm">
@@ -239,7 +254,10 @@ function KatalogBearbeiten({ eintrag, plattformIds, onFertig }) {
   const [w, setW] = useState({
     titel: eintrag.titel, typ: eintrag.typ, erscheinungsjahr: eintrag.erscheinungsjahr ?? '', hersteller: eintrag.hersteller ?? '',
     cover_url: eintrag.cover_url ?? '', beschreibung: eintrag.beschreibung ?? '',
+    sammlerhinweise: eintrag.sammlerhinweise ?? '', seo_titel: eintrag.seo_titel ?? '', seo_beschreibung: eintrag.seo_beschreibung ?? '',
   });
+  const { benutzer } = useSitzung();
+  const moderator = istModerator(benutzer);
   const [auswahl, setAuswahl] = useState(new Set(plattformIds));
   const setze = (f) => (e) => setW((x) => ({ ...x, [f]: e.target.value }));
   async function speichern(ev) {
@@ -264,7 +282,25 @@ function KatalogBearbeiten({ eintrag, plattformIds, onFertig }) {
         <label><span className="beschriftung">Hersteller / Publisher</span><input className="eingabe" value={w.hersteller} onChange={setze('hersteller')} /></label>
         <label><span className="beschriftung">Coverbild (https://…)</span><input className="eingabe" value={w.cover_url} onChange={setze('cover_url')} inputMode="url" /></label>
         <label className="sm:col-span-2"><span className="beschriftung">Beschreibung</span><textarea className="eingabe" rows={5} value={w.beschreibung} onChange={setze('beschreibung')} /></label>
+        <label className="sm:col-span-2">
+          <span className="beschriftung">Sammlerhinweise (Markdown)</span>
+          <textarea className="eingabe font-mono text-xs" rows={6} value={w.sammlerhinweise} onChange={setze('sammlerhinweise')}
+            placeholder={'## PAL-Versionen\n- **Erstauflage:** rotes USK-Logo, mehrsprachige Anleitung\n- **Players Choice:** …\n\n## Lieferumfang\n- Modul, Anleitung, Karton, Poster'} />
+          <span className="text-xs text-leise">Eigene Worte statt kopierter Texte – z. B. Varianten, Lieferumfang, Revisionen, Fälschungsmerkmale. Erscheint auch auf der öffentlichen Seite.</span>
+        </label>
       </div>
+      {moderator && (
+        <details className="rounded-xl border border-rand p-3">
+          <summary className="cursor-pointer font-semibold">Suchmaschinen (optional)</summary>
+          <p className="mt-2 text-xs text-leise">Leer lassen = automatisch aus Titel, Plattform, Jahr, Preisen und Sammleranzahl erzeugt.</p>
+          <div className="mt-2 grid gap-3">
+            <label><span className="beschriftung">Seitentitel ({w.seo_titel.length}/60 empfohlen)</span>
+              <input className="eingabe" maxLength={120} value={w.seo_titel} onChange={setze('seo_titel')} placeholder="z. B. Super Mario 64 (N64) – Wert & PAL-Varianten" /></label>
+            <label><span className="beschriftung">Beschreibung ({w.seo_beschreibung.length}/155 empfohlen)</span>
+              <textarea className="eingabe" rows={3} maxLength={300} value={w.seo_beschreibung} onChange={setze('seo_beschreibung')} /></label>
+          </div>
+        </details>
+      )}
       <fieldset>
         <legend className="beschriftung">Plattformen</legend>
         <div className="max-h-56 space-y-2 overflow-y-auto rounded-xl border border-rand p-2">

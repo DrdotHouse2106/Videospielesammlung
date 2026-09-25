@@ -20,6 +20,8 @@ import { erstelleAffiliateDienst } from './services/affiliate.js';
 import { erstelleEbayDienst } from './services/ebay.js';
 import { erstellePreisImport } from './services/preisimport.js';
 import { erstelleKiDienst } from './services/ki.js';
+import { erstelleEinstellungsDienst } from './services/einstellungen.js';
+import { seoRouter } from './routes/seo.js';
 import { seitenRouter, seitenAdminRouter } from './routes/seiten.js';
 import { meldenRouter, meldungenModerationRouter } from './routes/meldungen.js';
 import { linksRouter } from './routes/links.js';
@@ -47,6 +49,10 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
     : path.dirname(konfiguration.datenbankPfad);
   const schluessel = ladeSchluessel(konfiguration.konten.appGeheimnis, datenVerzeichnis);
 
+  // Einstellungen aus der Weboberfläche über die .env legen – vor dem Start aller Dienste
+  const einstellungen = erstelleEinstellungsDienst(db, { konfiguration, schluessel, nachAenderung: (geaendert) => baueDiensteNeu(geaendert) });
+  einstellungen.wendeAn();
+
   const cache = erstelleCache(db, konfiguration.cacheTtlStunden);
   const igdb = erstelleIgdbDienst(konfiguration.igdb, db, { fetchFn });
   const barcode = erstelleBarcodeDienst(konfiguration.barcode, { fetchFn });
@@ -56,13 +62,33 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const ebay = erstelleEbayDienst(konfiguration.ebay, konfiguration.affiliate, { fetchFn });
   const konten = erstelleKontenDienst(db, { schluessel, sitzungTage: konfiguration.konten.sitzungTage });
   const dateien = erstelleDateiDienst(db, { uploadVerzeichnis: konfiguration.uploadVerzeichnis });
-  const speicher = erstelleSpeicherDienst(db, { standardMb: konfiguration.speicherKontingentMb ?? 1024, dateien });
+  const speicher = erstelleSpeicherDienst(db, { standardMb: () => konfiguration.speicherKontingentMb ?? 1024, dateien });
   const preise = erstellePreisDienst(db, konfiguration.preise, { cache, fetchFn });
   const preisimport = erstellePreisImport(db, { preise, ebay, cache });
-  const ki = erstelleKiDienst(db, konfiguration.ki ?? { anbieter: 'aus' }, { katalog, fetchFn, anbieterFn: konfiguration.kiAnbieterFn });
+  const neueKi = () => erstelleKiDienst(db, konfiguration.ki ?? { anbieter: 'aus' }, { katalog, fetchFn, anbieterFn: konfiguration.kiAnbieterFn });
+  const ki = neueKi();
   const kontext = {
-    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, konfiguration, version,
+    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, konfiguration, version,
   };
+
+  /**
+   * Nach einer Änderung in Admin → Einstellungen: betroffene Dienste mit der neuen Konfiguration
+   * neu aufbauen. Die Objekte bleiben dieselben (Object.assign), damit alle Router sie weiter nutzen.
+   */
+  function baueDiensteNeu(geaendert = []) {
+    const betrifft = (...praefixe) => geaendert.some((s) => praefixe.some((p) => s.startsWith(p)));
+    if (betrifft('TWITCH_')) {
+      db.prepare("DELETE FROM einstellungen WHERE schluessel = 'igdb_token'").run(); // Token gehört zur alten Client-ID
+      Object.assign(igdb, erstelleIgdbDienst(konfiguration.igdb, db, { fetchFn }));
+    }
+    if (betrifft('BARCODE_', 'OPENGTINDB_')) Object.assign(barcode, erstelleBarcodeDienst(konfiguration.barcode, { fetchFn }));
+    if (betrifft('EBAY_')) Object.assign(ebay, erstelleEbayDienst(konfiguration.ebay, konfiguration.affiliate, { fetchFn }));
+    if (betrifft('PRICECHARTING_')) Object.assign(preise, erstellePreisDienst(db, konfiguration.preise, { cache, fetchFn }));
+    if (betrifft('AI_')) {
+      Object.assign(ki, neueKi());
+      ki.anstossen();
+    }
+  }
 
   const app = express();
   app.disable('x-powered-by');
@@ -93,9 +119,14 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
     next();
   });
 
+  // API-Antworten und Dateien nie in Suchmaschinen aufnehmen
+  app.use('/api', (_req, res, next) => { res.set('X-Robots-Tag', 'noindex, nofollow'); next(); });
+
   // Ohne Anmeldung erreichbar, damit Docker-Healthchecks funktionieren.
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
+  // Öffentliche Seiten für Suchmaschinen (server-gerendert), Sitemap und robots.txt
+  app.use(seoRouter(kontext));
   app.use('/api', pruefeHerkunft, express.json({ limit: '20mb' }), ladeSitzung(konten));
   app.use('/api', authRouter(kontext));
   app.use('/api', seitenRouter(kontext), meldenRouter(kontext)); // ohne Anmeldung: Rechtliches, Meldungen

@@ -41,10 +41,12 @@ export function erstelleSpeicherDienst(db, { standardMb = 1024, dateien }) {
   const benutzerLimit = db.prepare('SELECT rolle, speicher_limit_mb FROM benutzer WHERE id = ?');
 
   /** Limit in Byte, null = unbegrenzt. Administratoren sind ohne eigenes Limit unbegrenzt. */
+  const standard = () => (typeof standardMb === 'function' ? standardMb() : standardMb);
+
   function limitBytes(benutzerId) {
     const b = benutzerLimit.get(benutzerId);
     if (!b) return 0;
-    const mb = b.speicher_limit_mb ?? (b.rolle === 'admin' ? 0 : standardMb);
+    const mb = b.speicher_limit_mb ?? (b.rolle === 'admin' ? 0 : standard());
     return mb > 0 ? mb * MB : null;
   }
 
@@ -59,7 +61,7 @@ export function erstelleSpeicherDienst(db, { standardMb = 1024, dateien }) {
       limit,
       frei: limit === null ? null : Math.max(0, limit - genutzt),
       eigenesLimit: b?.speicher_limit_mb ?? null,
-      standardMb,
+      standardMb: standard(),
     };
   }
 
@@ -92,5 +94,5 @@ export function erstelleSpeicherDienst(db, { standardMb = 1024, dateien }) {
 
   const summe = (...namen) => namen.reduce((s, n) => s + dateiGroesse(n), 0);
 
-  return { info, pruefe, vorabPruefung, limitBytes, belegt, summe, standardMb };
+  return { info, pruefe, vorabPruefung, limitBytes, belegt, summe, get standardMb() { return standard(); } };
 }
