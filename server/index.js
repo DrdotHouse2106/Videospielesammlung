@@ -9,11 +9,17 @@ const server = app.listen(konfiguration.port, konfiguration.host, () => {
   console.log(`   Datenbank: ${konfiguration.datenbankPfad}`);
   console.log(`   IGDB: ${kontext.igdb.konfiguriert ? 'aktiv' : 'nicht konfiguriert (nur eigene Einträge)'}`);
   console.log(`   Barcode-Dienste: ${kontext.barcode.aktiveAnbieter.join(', ') || 'keine'}`);
-  if (!kontext.konfiguration.auth.benutzer) console.log('   Zugangsschutz: aus (AUTH_USER/AUTH_PASSWORD setzen, um ihn zu aktivieren)');
+  console.log(`   Marktpreise (PriceCharting): ${kontext.preise.aktiv ? 'aktiv' : 'nicht konfiguriert'}`);
+  console.log(`   Registrierung: ${konfiguration.konten.registrierungOffen ? 'offen' : 'geschlossen'}`
+    + ` · 2FA-Pflicht: ${konfiguration.konten.zweiFaktorPflicht ? 'ja' : 'nein'}`);
+  if (kontext.konten.istErsteinrichtung()) console.log('   ➜ Noch kein Konto vorhanden: Das erste registrierte Konto wird Administrator.');
 });
 
-// Abgelaufene Cache-Einträge regelmäßig entfernen.
-const aufraeumen = setInterval(() => kontext.cache.raeumeAuf(), 6 * 60 * 60 * 1000);
+// Abgelaufene Cache-Einträge und Sitzungen regelmäßig entfernen.
+const aufraeumen = setInterval(() => {
+  kontext.cache.raeumeAuf();
+  kontext.konten.raeumeAuf();
+}, 6 * 60 * 60 * 1000);
 aufraeumen.unref();
 
 function beenden(signal) {

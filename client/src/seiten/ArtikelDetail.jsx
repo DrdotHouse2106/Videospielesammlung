@@ -10,16 +10,27 @@ import Cover from '../komponenten/Cover.jsx';
 import Abzeichen from '../komponenten/Abzeichen.jsx';
 import Symbol from '../komponenten/Symbole.jsx';
 import { useHinweis } from '../komponenten/Hinweise.jsx';
+import Scans from '../komponenten/Scans.jsx';
+import WertBox from '../komponenten/WertBox.jsx';
 
-export default function ArtikelDetail({ route, id }) {
+/**
+ * Detailansicht eines Artikels. Mit „sammlerName“ wird ein Artikel aus einer
+ * fremden, öffentlichen Sammlung schreibgeschützt angezeigt.
+ */
+export default function ArtikelDetail({ route, id, sammlerName }) {
   const zeigeHinweis = useHinweis();
+  const eigener = !sammlerName;
   const [artikel, setArtikel] = useState(null);
+  const [sammler, setSammler] = useState(null);
   const [fehler, setFehler] = useState(null);
   const [laedtBild, setLaedtBild] = useState(false);
 
-  useEffect(() => {
-    api.artikel(id).then(setArtikel).catch((e) => setFehler(e.message));
-  }, [id]);
+  const laden = () => (eigener
+    ? api.artikel(id).then(setArtikel)
+    : api.communityArtikel(sammlerName, id).then((d) => { setArtikel(d.artikel); setSammler(d.sammler); })
+  ).catch((e) => setFehler(e.message));
+  useEffect(() => { laden(); }, [id, sammlerName]);
+  const zurueckPfad = eigener ? '/' : `/community/${encodeURIComponent(sammlerName)}`;
 
   async function loeschen() {
     if (!window.confirm(`„${artikel.titel}“ wirklich aus der Sammlung löschen? Das kann nicht rückgängig gemacht werden.`)) return;
@@ -58,7 +69,7 @@ export default function ArtikelDetail({ route, id }) {
 
   if (!artikel) {
     return (
-      <Layout route={route} titel="Artikel" zurueck="/">
+      <Layout route={route} titel="Artikel" zurueck={zurueckPfad}>
         {fehler ? <p className="text-gefahr" role="alert">{fehler}</p> : <p className="text-leise">Wird geladen …</p>}
       </Layout>
     );
@@ -77,6 +88,7 @@ export default function ArtikelDetail({ route, id }) {
     ['Barcode', artikel.barcode],
     ['Anzahl', artikel.anzahl > 1 ? `${artikel.anzahl} Stück` : null],
     ['Kaufpreis', artikel.kaufpreis != null ? euro(artikel.kaufpreis) : null],
+    ['Marktwert', artikel.marktwert != null ? `${euro(artikel.marktwert)} (eigene Schätzung)` : null],
     ['Kaufdatum', artikel.kaufdatum ? datumDe(artikel.kaufdatum) : null],
     ['Erscheinungsjahr', artikel.erscheinungsjahr],
   ].filter(([, wert]) => wert);
@@ -85,8 +97,8 @@ export default function ArtikelDetail({ route, id }) {
     <Layout
       route={route}
       titel={artikel.titel}
-      zurueck="/"
-      aktionen={(
+      zurueck={zurueckPfad}
+      aktionen={eigener && (
         <a href={`#/artikel/${id}/bearbeiten`} className="rounded-lg p-2 text-leise hover:bg-karte hover:text-text" aria-label="Bearbeiten">
           <Symbol name="stift" />
         </a>
@@ -95,7 +107,7 @@ export default function ArtikelDetail({ route, id }) {
       <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-[18rem_1fr]">
         <div className="space-y-3">
           <Cover url={artikel.bild_url} typ={artikel.typ} alt={artikel.titel} className="mx-auto aspect-[3/4] w-2/3 rounded-2xl border border-rand md:w-full" />
-          <div className="flex justify-center gap-2">
+          {eigener && <div className="flex justify-center gap-2">
             <label className={`knopf-sekundaer cursor-pointer px-3 py-1.5 ${laedtBild ? 'opacity-50' : ''}`}>
               <Symbol name="kamera" className="size-4" />
               {laedtBild ? 'Lädt hoch …' : artikel.bild_datei ? 'Foto ersetzen' : 'Foto hinzufügen'}
@@ -104,11 +116,16 @@ export default function ArtikelDetail({ route, id }) {
             {artikel.bild_datei && (
               <button type="button" className="knopf-sekundaer px-3 py-1.5" onClick={bildEntfernen}>Foto entfernen</button>
             )}
-          </div>
+          </div>}
         </div>
 
         <div className="space-y-4">
           <div>
+            {sammler && (
+              <p className="mb-1 text-sm text-leise">
+                Aus der Sammlung von <a className="text-akzent-hell underline" href={`#${zurueckPfad}`}>{sammler.anzeigename}</a>
+              </p>
+            )}
             <h2 className="text-2xl font-bold">{artikel.titel}</h2>
             {artikel.plattform && <p className="text-leise">{artikel.plattform}</p>}
             <div className="mt-2"><Abzeichen artikel={artikel} mitZustand /></div>
@@ -130,16 +147,25 @@ export default function ArtikelDetail({ route, id }) {
             </section>
           )}
 
-          <p className="text-xs text-leise">
+          <WertBox artikel={artikel} eigenerArtikel={eigener} />
+
+          <Scans
+            katalogId={artikel.katalog_id}
+            artikelId={eigener ? artikel.id : null}
+            nurLesen={!eigener}
+            onKatalogVerknuepft={() => laden()}
+          />
+
+          {eigener && <p className="text-xs text-leise">
             Erfasst am {datumDe(artikel.erstellt_am)}
             {artikel.aktualisiert_am !== artikel.erstellt_am && ` · zuletzt geändert am ${datumDe(artikel.aktualisiert_am)}`}
             {artikel.katalog_quelle === 'igdb' && ' · Daten: IGDB.com'}
-          </p>
+          </p>}
 
-          <div className="flex flex-wrap gap-2">
+          {eigener && <div className="flex flex-wrap gap-2">
             <a href={`#/artikel/${id}/bearbeiten`} className="knopf-primaer"><Symbol name="stift" className="size-4" />Bearbeiten</a>
             <button type="button" className="knopf-gefahr" onClick={loeschen}><Symbol name="muell" className="size-4" />Löschen</button>
-          </div>
+          </div>}
         </div>
       </div>
     </Layout>

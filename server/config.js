@@ -17,6 +17,11 @@ function zahl(wert, standard) {
   return Number.isFinite(n) ? n : standard;
 }
 
+function jaNein(wert, standard) {
+  if (wert === undefined || wert === '') return standard;
+  return ['1', 'true', 'ja', 'yes', 'on'].includes(String(wert).trim().toLowerCase());
+}
+
 function pfad(wert, standard) {
   const p = wert && wert.trim() ? wert.trim() : standard;
   return path.isAbsolute(p) ? p : path.join(PROJEKT_WURZEL, p);
@@ -29,6 +34,8 @@ export function ladeKonfiguration(env = process.env) {
     datenbankPfad: pfad(env.DATABASE_PATH, 'data/sammlung.db'),
     uploadVerzeichnis: pfad(env.UPLOAD_DIR, 'data/uploads'),
     maxUploadMb: zahl(env.MAX_UPLOAD_MB, 8),
+    maxMedienMb: zahl(env.MEDIA_MAX_MB, 200),
+    medienTeilenErlaubt: jaNein(env.MEDIA_SHARING, true),
     cacheTtlStunden: zahl(env.CACHE_TTL_HOURS, 24 * 7),
     igdb: {
       clientId: (env.TWITCH_CLIENT_ID || '').trim(),
@@ -42,9 +49,20 @@ export function ladeKonfiguration(env = process.env) {
         .filter(Boolean),
       openGtinDbQueryId: (env.OPENGTINDB_QUERYID || '').trim(),
     },
-    auth: {
-      benutzer: (env.AUTH_USER || '').trim(),
-      passwort: env.AUTH_PASSWORD || '',
+    konten: {
+      // Geheimer Schlüssel zum Verschlüsseln der 2FA-Geheimnisse. Ohne Angabe wird
+      // automatisch einer erzeugt und neben der Datenbank gespeichert.
+      appGeheimnis: (env.APP_SECRET || '').trim(),
+      registrierungOffen: jaNein(env.REGISTRATION_OPEN, true),
+      zweiFaktorPflicht: jaNein(env.REQUIRE_2FA, false),
+      sitzungTage: zahl(env.SESSION_DAYS, 30),
+      registrierungenProStunde: zahl(env.REGISTRATIONS_PER_HOUR, 5),
+      cookieSicher: (env.COOKIE_SECURE || 'auto').trim().toLowerCase(),
+    },
+    preise: {
+      priceChartingToken: (env.PRICECHARTING_TOKEN || '').trim(),
+      usdEurKurs: Number.parseFloat(env.USD_EUR_RATE || '') || null,
+      cacheStunden: zahl(env.PRICE_CACHE_HOURS, 72),
     },
     vertrauteProxies: env.TRUST_PROXY || '',
   };

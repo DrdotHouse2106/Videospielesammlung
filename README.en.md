@@ -16,9 +16,14 @@ model revisions).
 - Custom catalogue entries for hardware, accessories and rare items; barcodes are learned on first use
 - Own photos per item, filters, statistics, JSON/CSV export and JSON import
 - Installable PWA with offline access to the last loaded data, light & dark mode
-- Optional HTTP Basic Auth
+- User accounts with self-registration, scrypt password hashing and **two-factor authentication (TOTP)** with recovery codes
+- **Collection value**: own estimates, optional PriceCharting market prices (converted to EUR), anonymous community values
+- **Public collections** (visible to logged-in users; prices and serial numbers stay private)
+- **Scans & documents per game**: high-resolution cover scans (incl. TIFF), PDF manuals – private or shared
+- **Print covers at original size** (based on scan DPI) or fixed sizes, with crop marks
+- Admin panel: lock users, roles, reset 2FA, close registration
 
-**Stack:** Node.js 22 · Express 5 · SQLite (better-sqlite3) · React 19 · Vite · Tailwind CSS 4
+**Stack:** Node.js 22 · Express 5 · SQLite (better-sqlite3) · sharp · React 19 · Vite · Tailwind CSS 4
 
 ## Quick start (Docker)
 
@@ -29,7 +34,8 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Open <http://localhost:3000>. Data is stored in the `sammlung-daten` Docker volume.
+Open <http://localhost:3000>. The first account you register becomes administrator.
+Data is stored in the `sammlung-daten` Docker volume – back up the whole directory including `geheimnis.key`.
 
 ## Configuration
 
@@ -40,7 +46,10 @@ The most important ones:
 | --- | --- |
 | `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` | IGDB credentials from <https://dev.twitch.tv/console> |
 | `BARCODE_PROVIDERS`, `OPENGTINDB_QUERYID` | Barcode → product name lookup (opengtindb.org, upcitemdb.com) |
-| `AUTH_USER`, `AUTH_PASSWORD` | Enable Basic Auth (strongly recommended when exposed to the internet) |
+| `REGISTRATION_OPEN`, `REQUIRE_2FA` | Open self-registration, enforce 2FA for all users |
+| `APP_SECRET` | Key for encrypting 2FA secrets (auto-generated in `data/geheimnis.key` if empty) |
+| `PRICECHARTING_TOKEN` | Optional market prices |
+| `MEDIA_SHARING`, `MEDIA_MAX_MB` | Allow sharing scans, max. scan size |
 | `TRUST_PROXY` | Set to `1` behind a reverse proxy |
 
 The camera (barcode scanner) only works over **HTTPS** or on `localhost` – use a reverse proxy such as Caddy.

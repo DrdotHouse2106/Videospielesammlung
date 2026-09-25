@@ -19,12 +19,14 @@
   "dependencies": {
     "better-sqlite3": "^13.0.3",
     "express": "^5.2.1",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.35.4"
   },
   "devDependencies": {
-    "concurrently": "^10.0.5",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.5",
     "html5-qrcode": "^2.3.8",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

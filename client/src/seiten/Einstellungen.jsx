@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { ARTIKELTYPEN, beschriftung } from '../../../shared/konstanten.js';
 import { api } from '../api.js';
 import Layout from '../komponenten/Layout.jsx';
+import { useSitzung } from '../sitzung.js';
 import Symbol from '../komponenten/Symbole.jsx';
 import { useHinweis } from '../komponenten/Hinweise.jsx';
 
-export default function Einstellungen({ route, status }) {
+export default function Einstellungen({ route }) {
   const zeigeHinweis = useHinweis();
+  const { status, benutzer, abmelden } = useSitzung();
   const [eigene, setEigene] = useState([]);
   const [importiert, setImportiert] = useState(null);
 
@@ -39,16 +41,40 @@ export default function Einstellungen({ route, status }) {
   }
 
   return (
-    <Layout route={route} titel="Einstellungen & Daten">
+    <Layout route={route} titel="Mehr">
       <div className="mx-auto max-w-3xl space-y-4">
+        <nav className="karte divide-y divide-rand overflow-hidden" aria-label="Weitere Seiten">
+          {[
+            ['#/konto', 'benutzer', 'Konto & Sicherheit', benutzer?.totp_aktiv ? 'Passwort, 2FA aktiv, Sichtbarkeit' : 'Passwort, Zwei-Faktor-Anmeldung, Sichtbarkeit'],
+            ['#/community', 'community', 'Community', 'Öffentliche Sammlungen anderer Benutzer'],
+            ['#/statistik', 'statistik', 'Statistik', 'Verteilung nach Plattform, Region, Zustand'],
+            ...(benutzer?.rolle === 'admin' ? [['#/admin', 'schild', 'Benutzerverwaltung', 'Konten sperren, Rollen, 2FA zurücksetzen']] : []),
+          ].map(([href, symbol, titel, text]) => (
+            <a key={href} href={href} className="flex items-center gap-3 p-4 hover:bg-karte-hover">
+              <Symbol name={symbol} className="size-5 shrink-0 text-akzent-hell" />
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold">{titel}</span>
+                <span className="block truncate text-xs text-leise">{text}</span>
+              </span>
+              <Symbol name="weiter" className="size-5 text-leise" />
+            </a>
+          ))}
+          <button type="button" onClick={abmelden} className="flex w-full items-center gap-3 p-4 text-left hover:bg-karte-hover">
+            <Symbol name="abmelden" className="size-5 shrink-0 text-leise" />
+            <span className="flex-1 font-semibold">Abmelden <span className="font-normal text-leise">({benutzer?.benutzername})</span></span>
+          </button>
+        </nav>
+
         <section className="karte space-y-2 p-4">
-          <h2 className="font-semibold">Status</h2>
+          <h2 className="font-semibold">Serverstatus</h2>
           <Zeile label="Online-Suche (IGDB)" ok={status?.igdbKonfiguriert}
             text={status?.igdbKonfiguriert ? 'Aktiv' : 'Nicht eingerichtet – TWITCH_CLIENT_ID/SECRET in .env setzen'} />
           <Zeile label="Barcode-Datenbanken" ok={status?.barcodeAnbieter?.length > 0}
             text={status?.barcodeAnbieter?.length ? status.barcodeAnbieter.join(', ') : 'Keine – nur gelernte Barcodes'} />
-          <Zeile label="Zugangsschutz" ok={status?.zugangsschutz}
-            text={status?.zugangsschutz ? 'Aktiv (Benutzername/Passwort)' : 'Aus – für den Betrieb im Internet empfohlen'} />
+          <Zeile label="Marktpreise" ok={status?.priceChartingAktiv}
+            text={status?.priceChartingAktiv ? 'PriceCharting aktiv' : 'Nur eigene Schätzungen & Community-Werte'} />
+          <Zeile label="Registrierung" ok
+            text={`${status?.registrierungOffen ? 'Offen' : 'Geschlossen'}${status?.zweiFaktorPflicht ? ' · 2FA ist Pflicht' : ''}`} />
           <Zeile label="Kamera für Scanner" ok={window.isSecureContext}
             text={window.isSecureContext ? 'Verfügbar (sichere Verbindung)' : 'Nur über HTTPS verfügbar'} />
           {status?.version && <p className="pt-1 text-xs text-leise">Version {status.version}</p>}
@@ -80,7 +106,7 @@ export default function Einstellungen({ route, status }) {
         </section>
 
         <section className="karte p-4">
-          <h2 className="font-semibold">Eigene Katalogeinträge</h2>
+          <h2 className="font-semibold">Meine Katalogeinträge</h2>
           <p className="mb-3 text-sm text-leise">Selbst angelegte Einträge für Hardware, Zubehör und Raritäten, die in keiner Online-Datenbank stehen.</p>
           {eigene.length === 0 ? (
             <p className="text-sm text-leise">Noch keine eigenen Einträge.</p>
@@ -112,6 +138,7 @@ export default function Einstellungen({ route, status }) {
 
         <section className="space-y-1 px-1 pb-4 text-xs text-leise">
           <p>Videospielesammlung ist freie Software unter der MIT-Lizenz.</p>
+          <p>Marktpreise optional von <a className="underline" href="https://www.pricecharting.com" target="_blank" rel="noreferrer">PriceCharting</a>, Wechselkurs von der Europäischen Zentralbank.</p>
           <p>Spieldaten und Coverbilder werden von <a className="underline" href="https://www.igdb.com" target="_blank" rel="noreferrer">IGDB.com</a> bereitgestellt.</p>
         </section>
       </div>

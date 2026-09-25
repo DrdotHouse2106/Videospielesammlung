@@ -27,6 +27,15 @@ function leerZuNull(wert) {
   return s === '' ? null : s;
 }
 
+/** Liest Beträge in deutscher oder englischer Schreibweise: "1.299,90", "49,99", "49.99". */
+export function leseEuro(roh) {
+  if (typeof roh === 'number') return Number.isFinite(roh) && roh >= 0 && roh <= 1_000_000 ? Math.round(roh * 100) / 100 : null;
+  const text = String(roh).replace(/[€\s]/g, '');
+  const zahl = Number(/,/.test(text) ? text.replace(/\./g, '').replace(',', '.') : text);
+  if (!Number.isFinite(zahl) || zahl < 0 || zahl > 1_000_000) return null;
+  return Math.round(zahl * 100) / 100;
+}
+
 /**
  * Prüft und normalisiert einen Sammlungsartikel.
  * @param {object} eingabe  Rohdaten aus dem Request
@@ -67,15 +76,14 @@ export function pruefeArtikel(eingabe, teilweise = false) {
     daten[feld] = wert;
   }
 
-  if (!teilweise || hat('kaufpreis')) {
-    const roh = leerZuNull(eingabe.kaufpreis);
-    if (roh === null) daten.kaufpreis = null;
+  for (const feld of ['kaufpreis', 'marktwert']) {
+    if (teilweise && !hat(feld)) continue;
+    const roh = leerZuNull(eingabe[feld]);
+    if (roh === null) daten[feld] = null;
     else {
-      // Deutsche Schreibweise erlauben: "1.299,90" oder "49,99"
-      const text = String(roh).replace(/[€\s]/g, '');
-      const zahl = Number(/,/.test(text) ? text.replace(/\./g, '').replace(',', '.') : text);
-      if (!Number.isFinite(zahl) || zahl < 0 || zahl > 1_000_000) fehler.kaufpreis = 'Bitte einen gültigen Preis angeben (z. B. 49,99).';
-      else daten.kaufpreis = Math.round(zahl * 100) / 100;
+      const zahl = leseEuro(roh);
+      if (zahl === null) fehler[feld] = 'Bitte einen gültigen Betrag angeben (z. B. 49,99).';
+      else daten[feld] = zahl;
     }
   }
 

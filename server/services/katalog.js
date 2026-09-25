@@ -11,8 +11,8 @@ export function katalogZeileZuObjekt(zeile) {
 
 export function erstelleKatalogDienst(db, { igdb, barcode, cache }) {
   const upsert = db.prepare(`
-    INSERT INTO katalog (quelle, externe_id, typ, titel, plattformen, erscheinungsjahr, hersteller, cover_url, beschreibung)
-    VALUES (@quelle, @externe_id, @typ, @titel, @plattformen, @erscheinungsjahr, @hersteller, @cover_url, @beschreibung)
+    INSERT INTO katalog (quelle, externe_id, typ, titel, plattformen, erscheinungsjahr, hersteller, cover_url, beschreibung, erstellt_von)
+    VALUES (@quelle, @externe_id, @typ, @titel, @plattformen, @erscheinungsjahr, @hersteller, @cover_url, @beschreibung, @erstellt_von)
     ON CONFLICT (quelle, externe_id) DO UPDATE SET
       titel = excluded.titel, plattformen = excluded.plattformen, erscheinungsjahr = excluded.erscheinungsjahr,
       hersteller = excluded.hersteller, cover_url = excluded.cover_url, beschreibung = excluded.beschreibung,
@@ -32,11 +32,11 @@ export function erstelleKatalogDienst(db, { igdb, barcode, cache }) {
       produktname = COALESCE(excluded.produktname, barcodes.produktname),
       quelle = COALESCE(excluded.quelle, barcodes.quelle),
       abgerufen_am = datetime('now')`);
-  const artikelMitBarcode = db.prepare('SELECT id, titel, plattform, typ FROM artikel WHERE barcode = ?');
+  const artikelMitBarcode = db.prepare('SELECT id, titel, plattform, typ FROM artikel WHERE barcode = ? AND benutzer_id = ?');
 
   function speichere(eintrag) {
     return katalogZeileZuObjekt(
-      upsert.get({ ...eintrag, plattformen: JSON.stringify(eintrag.plattformen ?? []) }),
+      upsert.get({ erstellt_von: null, ...eintrag, plattformen: JSON.stringify(eintrag.plattformen ?? []) }),
     );
   }
 
@@ -82,9 +82,9 @@ export function erstelleKatalogDienst(db, { igdb, barcode, cache }) {
    *  1. Bereits bekannter Barcode (früher einem Katalogeintrag zugeordnet)?
    *  2. Sonst Produktname über Barcode-Datenbanken ermitteln und bei IGDB suchen.
    */
-  async function sucheBarcode(code) {
+  async function sucheBarcode(code, benutzerId) {
     const varianten = barcodeVarianten(code);
-    const vorhandeneArtikel = varianten.flatMap((v) => artikelMitBarcode.all(v));
+    const vorhandeneArtikel = varianten.flatMap((v) => artikelMitBarcode.all(v, benutzerId));
 
     let bekannt = varianten.map((v) => barcodeLesen.get(v)).find(Boolean);
     const zugeordnet = bekannt?.katalog_id ? holeEintrag(bekannt.katalog_id) : null;

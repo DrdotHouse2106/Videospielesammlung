@@ -89,3 +89,18 @@ export function beschriftung(liste, wert, feld = 'label') {
   const eintrag = liste.find((e) => e.value === wert);
   return eintrag ? eintrag[feld] ?? eintrag.label : wert ?? '';
 }
+
+// Arten von Scans und Dokumenten, die an einen Katalogeintrag (z. B. ein Spiel) angehängt werden können.
+export const MEDIENARTEN = [
+  { value: 'cover_vorne', label: 'Cover vorne' },
+  { value: 'cover_hinten', label: 'Cover hinten' },
+  { value: 'cover_komplett', label: 'Cover komplett (Inlay)' },
+  { value: 'handbuch', label: 'Handbuch / Anleitung' },
+  { value: 'label', label: 'Modul-/Disc-Label' },
+  { value: 'sonstiges', label: 'Sonstiges' },
+];
+
+export const SICHTBARKEITEN = [
+  { value: 'privat', label: 'Nur für mich' },
+  { value: 'geteilt', label: 'Für alle angemeldeten Benutzer' },
+];

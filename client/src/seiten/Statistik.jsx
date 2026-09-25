@@ -15,7 +15,7 @@ export default function Statistik({ route }) {
   }, []);
 
   return (
-    <Layout route={route} titel="Statistik">
+    <Layout route={route} titel="Statistik" zurueck="/einstellungen">
       {fehler && <p className="text-gefahr" role="alert">{fehler}</p>}
       {!daten && !fehler && <p className="text-leise">Wird geladen …</p>}
       {daten && (

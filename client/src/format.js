@@ -14,3 +14,16 @@ export function datumDe(iso) {
 
 /** Preis für ein Eingabefeld im deutschen Format: 49.9 → "49,90". */
 export const preisFeld = (wert) => (wert == null ? '' : wert.toFixed(2).replace('.', ','));
+
+/** Dateigröße lesbar: 12345678 → "11,8 MB". */
+export function dateigroesse(bytes) {
+  if (bytes == null) return '';
+  if (bytes < 1024 * 1024) return `${anzahl(Math.round(bytes / 1024))} KB`;
+  return `${(bytes / 1024 / 1024).toLocaleString('de-DE', { maximumFractionDigits: 1 })} MB`;
+}
+
+/** Vorzeichenbehafteter Euro-Betrag: +12,50 € / −3,00 €. */
+export const euroMitVorzeichen = (wert) => (wert == null ? '–' : `${wert > 0 ? '+' : wert < 0 ? '−' : '±'}${waehrung.format(Math.abs(wert))}`);
+
+/** Region des Artikels → Preisregion für Marktpreise. */
+export const preisregion = (region) => (region === 'ntsc_u' ? 'ntsc' : region === 'ntsc_j' ? 'jp' : 'pal');

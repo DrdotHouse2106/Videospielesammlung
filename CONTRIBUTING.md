@@ -36,7 +36,8 @@ npm run dev              # Server (Port 3000) + Oberfläche mit Hot-Reload (Port
 ```
 server/            Express-Backend
   routes/          API-Endpunkte (Artikel, Katalog, Statistik, Export)
-  services/        IGDB, Barcode-Dienste, Cache, Validierung
+  services/        IGDB, Barcode, Preise, Konten/2FA, Scans, Cache, Validierung
+  middleware/      Anmeldung, CSRF-Schutz
   db.js            SQLite-Schema und Migrationen
 shared/            Gemeinsame Konstanten (Zustände, Regionen …) für Server und Client
 client/            React-Oberfläche (Vite + Tailwind CSS)
@@ -54,6 +55,8 @@ test/              Tests
   bestehende Migrationen nie verändern.
 - **Werte-Listen:** Neue Zustände, Regionen usw. in `shared/konstanten.js` ergänzen.
   Gespeicherte Schlüssel (`value`) niemals umbenennen.
+- **Sicherheit:** Jede neue Abfrage auf Benutzerdaten muss nach `benutzer_id` filtern.
+  Dateien immer über `/api/dateien` mit Berechtigungsprüfung ausliefern.
 - **Geheimnisse:** Keine Schlüssel oder Tokens committen. Neue Einstellungen in
   `.env.example` dokumentieren.
 - **Tests:** Neue Funktionen im Backend möglichst mit einem Test in `test/` absichern.

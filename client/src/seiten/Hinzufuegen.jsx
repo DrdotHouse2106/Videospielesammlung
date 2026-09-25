@@ -3,12 +3,14 @@ import { ARTIKELTYPEN } from '../../../shared/konstanten.js';
 import { api } from '../api.js';
 import { navigiere } from '../router.js';
 import Layout from '../komponenten/Layout.jsx';
+import { useSitzung } from '../sitzung.js';
 import BarcodeScanner from '../komponenten/BarcodeScanner.jsx';
 import Cover from '../komponenten/Cover.jsx';
 import Symbol from '../komponenten/Symbole.jsx';
 
-export default function Hinzufuegen({ route, status }) {
+export default function Hinzufuegen({ route }) {
   const p = route.parameter;
+  const { status } = useSitzung();
   const typ = p.typ ?? 'spiel';
   const [suchtext, setSuchtext] = useState(p.q ?? '');
   const [ergebnis, setErgebnis] = useState(null);

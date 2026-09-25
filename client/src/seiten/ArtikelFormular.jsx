@@ -19,6 +19,7 @@ const FARBVORSCHLAEGE = [
 const LEER = {
   typ: 'spiel', titel: '', plattform: '', katalog_id: null, barcode: '', cover_url: '', zustand: '', vollstaendigkeit: '',
   region: 'pal_de', farbe: '', edition: '', modellnummer: '', seriennummer: '', notizen: '', kaufpreis: '', kaufdatum: '', anzahl: 1,
+  marktwert: '',
 };
 
 export default function ArtikelFormular({ route, artikelId }) {
@@ -39,7 +40,7 @@ export default function ArtikelFormular({ route, artikelId }) {
       try {
         if (bearbeiten) {
           const a = await api.artikel(artikelId);
-          setWerte({ ...LEER, ...Object.fromEntries(Object.entries(a).map(([k, v]) => [k, v ?? ''])), kaufpreis: preisFeld(a.kaufpreis), katalog_id: a.katalog_id });
+          setWerte({ ...LEER, ...Object.fromEntries(Object.entries(a).map(([k, v]) => [k, v ?? ''])), kaufpreis: preisFeld(a.kaufpreis), marktwert: preisFeld(a.marktwert), katalog_id: a.katalog_id });
           if (a.katalog_id) setKatalogEintrag(await api.katalogEintrag(a.katalog_id).catch(() => null));
           return;
         }
@@ -211,6 +212,9 @@ export default function ArtikelFormular({ route, artikelId }) {
           </Feld>
           <Feld label="Kaufdatum" fehler={fehler.kaufdatum}>
             {(id) => <input id={id} type="date" className="eingabe" value={werte.kaufdatum} onChange={setze('kaufdatum')} />}
+          </Feld>
+          <Feld label="Marktwert (€, eigene Schätzung)" fehler={fehler.marktwert}>
+            {(id) => <input id={id} className="eingabe" value={werte.marktwert} onChange={setze('marktwert')} inputMode="decimal" placeholder="optional, pro Stück" />}
           </Feld>
           <Feld label="Barcode (EAN/UPC)" fehler={fehler.barcode}>
             {(id) => (

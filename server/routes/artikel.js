@@ -1,9 +1,7 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import crypto from 'node:crypto';
 import { Router } from 'express';
 import multer from 'multer';
-import { pruefeArtikel } from '../services/validierung.js';
+import { pruefeArtikel, ValidierungsFehler } from '../services/validierung.js';
 
 const SORTIERUNGEN = {
   neueste: 'a.erstellt_am DESC, a.id DESC',
@@ -11,31 +9,30 @@ const SORTIERUNGEN = {
   plattform: 'a.plattform COLLATE NOCASE ASC, a.titel COLLATE NOCASE ASC',
   preis: 'a.kaufpreis IS NULL, a.kaufpreis DESC',
   kaufdatum: 'a.kaufdatum IS NULL, a.kaufdatum DESC',
+  marktwert: 'a.marktwert IS NULL, a.marktwert DESC',
 };
 
 const ERLAUBTE_BILDTYPEN = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif' };
 
 const FELDER = [
   'typ', 'titel', 'plattform', 'katalog_id', 'barcode', 'cover_url', 'zustand', 'vollstaendigkeit', 'region',
-  'farbe', 'edition', 'modellnummer', 'seriennummer', 'notizen', 'kaufpreis', 'kaufdatum', 'anzahl',
+  'farbe', 'edition', 'modellnummer', 'seriennummer', 'notizen', 'kaufpreis', 'kaufdatum', 'anzahl', 'marktwert',
 ];
 
 export function artikelZuObjekt(zeile) {
   if (!zeile) return null;
   return {
     ...zeile,
-    bild_url: zeile.bild_datei ? `/uploads/${zeile.bild_datei}` : zeile.cover_url || zeile.katalog_cover_url || null,
+    bild_url: zeile.bild_datei ? `/api/dateien/${zeile.bild_datei}` : zeile.cover_url || zeile.katalog_cover_url || null,
   };
 }
 
-export function artikelRouter({ db, katalog, konfiguration }) {
+export function artikelRouter({ db, katalog, konfiguration, dateien }) {
   const router = Router();
-  const uploadVerzeichnis = konfiguration.uploadVerzeichnis;
-  fs.mkdirSync(uploadVerzeichnis, { recursive: true });
 
   const upload = multer({
     storage: multer.diskStorage({
-      destination: uploadVerzeichnis,
+      destination: dateien.verzeichnis,
       filename: (_req, datei, cb) => cb(null, `${crypto.randomUUID()}${ERLAUBTE_BILDTYPEN[datei.mimetype]}`),
     }),
     limits: { fileSize: konfiguration.maxUploadMb * 1024 * 1024, files: 1 },
@@ -45,26 +42,29 @@ export function artikelRouter({ db, katalog, konfiguration }) {
   const basisAbfrage = `
     SELECT a.*, k.cover_url AS katalog_cover_url, k.erscheinungsjahr, k.quelle AS katalog_quelle
     FROM artikel a LEFT JOIN katalog k ON k.id = a.katalog_id`;
-  const perId = db.prepare(`${basisAbfrage} WHERE a.id = ?`);
+  const perId = db.prepare(`${basisAbfrage} WHERE a.id = ? AND a.benutzer_id = ?`);
   const einfuegen = db.prepare(
-    `INSERT INTO artikel (${FELDER.join(', ')}) VALUES (${FELDER.map((f) => `@${f}`).join(', ')}) RETURNING id`,
+    `INSERT INTO artikel (benutzer_id, ${FELDER.join(', ')}) VALUES (@benutzer_id, ${FELDER.map((f) => `@${f}`).join(', ')}) RETURNING id`,
   );
   const loeschen = db.prepare('DELETE FROM artikel WHERE id = ?');
-
-  function bildEntfernen(datei) {
-    if (!datei) return;
-    fs.rm(path.join(uploadVerzeichnis, path.basename(datei)), { force: true }, () => {});
-  }
+  const bildEntfernen = (datei) => dateien.loesche(datei);
 
   function holeOder404(req, res) {
-    const artikel = perId.get(Number(req.params.id));
+    const artikel = perId.get(Number(req.params.id), req.benutzer.id);
     if (!artikel) res.status(404).json({ fehler: 'Artikel nicht gefunden.' });
     return artikel;
   }
 
+  // Katalogeinträge sind gemeinsam genutzt – existieren müssen sie trotzdem.
+  function pruefeKatalog(katalogId) {
+    if (katalogId && !katalog.holeEintrag(katalogId)) {
+      throw new ValidierungsFehler({ katalog_id: 'Der verknüpfte Katalogeintrag existiert nicht.' });
+    }
+  }
+
   router.get('/', (req, res) => {
-    const bedingungen = [];
-    const parameter = {};
+    const bedingungen = ['a.benutzer_id = @benutzer_id'];
+    const parameter = { benutzer_id: req.benutzer.id };
     const { typ, q, plattform, region, zustand, vollstaendigkeit } = req.query;
     for (const [feld, wert] of Object.entries({ typ, plattform, region, zustand, vollstaendigkeit })) {
       if (typeof wert === 'string' && wert) {
@@ -78,16 +78,16 @@ export function artikelRouter({ db, katalog, konfiguration }) {
         .map((f) => `a.${f} LIKE @q ESCAPE '\\'`).join(' OR ')})`);
     }
     const sortierung = SORTIERUNGEN[req.query.sortierung] ?? SORTIERUNGEN.neueste;
-    const where = bedingungen.length ? `WHERE ${bedingungen.join(' AND ')}` : '';
+    const where = `WHERE ${bedingungen.join(' AND ')}`;
     const zeilen = db.prepare(`${basisAbfrage} ${where} ORDER BY ${sortierung}`).all(parameter);
     res.json(zeilen.map(artikelZuObjekt));
   });
 
-  router.get('/plattformen', (_req, res) => {
+  router.get('/plattformen', (req, res) => {
     const zeilen = db.prepare(
-      `SELECT plattform, COUNT(*) AS anzahl FROM artikel WHERE plattform IS NOT NULL
+      `SELECT plattform, COUNT(*) AS anzahl FROM artikel WHERE plattform IS NOT NULL AND benutzer_id = ?
        GROUP BY plattform ORDER BY plattform COLLATE NOCASE`,
-    ).all();
+    ).all(req.benutzer.id);
     res.json(zeilen);
   });
 
@@ -98,18 +98,20 @@ export function artikelRouter({ db, katalog, konfiguration }) {
 
   router.post('/', (req, res) => {
     const daten = pruefeArtikel(req.body);
+    pruefeKatalog(daten.katalog_id);
     const id = db.transaction(() => {
-      const { id: neueId } = einfuegen.get(daten);
+      const { id: neueId } = einfuegen.get({ ...daten, benutzer_id: req.benutzer.id });
       if (daten.barcode && daten.katalog_id) katalog.verknuepfeBarcode(daten.barcode, daten.katalog_id);
       return neueId;
     })();
-    res.status(201).json(artikelZuObjekt(perId.get(id)));
+    res.status(201).json(artikelZuObjekt(perId.get(id, req.benutzer.id)));
   });
 
   router.put('/:id', (req, res) => {
     const vorhanden = holeOder404(req, res);
     if (!vorhanden) return;
     const daten = pruefeArtikel(req.body, true);
+    if (daten.katalog_id) pruefeKatalog(daten.katalog_id);
     const felder = Object.keys(daten);
     if (felder.length) {
       db.transaction(() => {
@@ -121,7 +123,7 @@ export function artikelRouter({ db, katalog, konfiguration }) {
         if (barcode && katalogId) katalog.verknuepfeBarcode(barcode, katalogId);
       })();
     }
-    res.json(artikelZuObjekt(perId.get(vorhanden.id)));
+    res.json(artikelZuObjekt(perId.get(vorhanden.id, req.benutzer.id)));
   });
 
   router.delete('/:id', (req, res) => {
@@ -144,7 +146,7 @@ export function artikelRouter({ db, katalog, konfiguration }) {
     db.prepare("UPDATE artikel SET bild_datei = ?, aktualisiert_am = datetime('now') WHERE id = ?")
       .run(req.file.filename, vorhanden.id);
     bildEntfernen(vorhanden.bild_datei);
-    res.json(artikelZuObjekt(perId.get(vorhanden.id)));
+    res.json(artikelZuObjekt(perId.get(vorhanden.id, req.benutzer.id)));
   });
 
   router.delete('/:id/bild', (req, res) => {
@@ -152,7 +154,7 @@ export function artikelRouter({ db, katalog, konfiguration }) {
     if (!vorhanden) return;
     db.prepare("UPDATE artikel SET bild_datei = NULL, aktualisiert_am = datetime('now') WHERE id = ?").run(vorhanden.id);
     bildEntfernen(vorhanden.bild_datei);
-    res.json(artikelZuObjekt(perId.get(vorhanden.id)));
+    res.json(artikelZuObjekt(perId.get(vorhanden.id, req.benutzer.id)));
   });
 
   return router;

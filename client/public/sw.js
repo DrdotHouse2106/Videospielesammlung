@@ -3,7 +3,7 @@
 // - Gebaute Assets & Coverbilder: Cache zuerst (Dateinamen enthalten Hashes)
 // - API-GET-Anfragen: Netzwerk zuerst, offline die zuletzt gesehene Antwort
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const HUELLE = `huelle-${VERSION}`;
 const DATEN = `daten-${VERSION}`;
 const BILDER = `bilder-${VERSION}`;
@@ -59,15 +59,16 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
 
-  if (url.hostname === 'images.igdb.com' || (url.origin === self.location.origin && url.pathname.startsWith('/uploads/'))) {
+  if (url.hostname === 'images.igdb.com' || (url.origin === self.location.origin && url.pathname.startsWith('/api/dateien/'))) {
     event.respondWith(cacheZuerst(request, BILDER, MAX_BILDER));
     return;
   }
   if (url.origin !== self.location.origin) return;
 
   if (url.pathname.startsWith('/api/')) {
-    // Exporte und Online-Suchen nicht zwischenspeichern.
-    if (url.pathname.startsWith('/api/export') || url.pathname.startsWith('/api/katalog/')) return;
+    // Anmeldung, Exporte und Online-Suchen nie zwischenspeichern.
+    if (['/api/auth/', '/api/konto', '/api/admin', '/api/export', '/api/katalog/suche', '/api/katalog/barcode']
+      .some((p) => url.pathname.startsWith(p))) return;
     event.respondWith(netzwerkZuerst(request, DATEN));
     return;
   }

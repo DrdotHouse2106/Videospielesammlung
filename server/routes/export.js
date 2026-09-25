@@ -20,6 +20,7 @@ const CSV_SPALTEN = [
   ['anzahl', 'Anzahl'],
   ['kaufpreis', 'Kaufpreis (EUR)', (w) => (w == null ? '' : w.toFixed(2).replace('.', ','))],
   ['kaufdatum', 'Kaufdatum', (w) => (w ? w.split('-').reverse().join('.') : '')],
+  ['marktwert', 'Marktwert (EUR)', (w) => (w == null ? '' : w.toFixed(2).replace('.', ','))],
   ['notizen', 'Eigene Notizen'],
   ['erstellt_am', 'Erfasst am'],
 ];
@@ -33,16 +34,19 @@ export function exportRouter({ db }) {
   const router = Router();
   const datumHeute = () => new Date().toISOString().slice(0, 10);
 
-  router.get('/export.json', (_req, res) => {
-    const artikel = db.prepare('SELECT * FROM artikel ORDER BY id').all();
-    const eigeneKatalogeintraege = db.prepare("SELECT * FROM katalog WHERE quelle = 'eigen' ORDER BY id").all();
+  router.get('/export.json', (req, res) => {
+    const artikel = db.prepare('SELECT * FROM artikel WHERE benutzer_id = ? ORDER BY id').all(req.benutzer.id)
+      .map(({ benutzer_id: _b, bild_datei: _d, ...rest }) => rest);
+    const eigeneKatalogeintraege = db.prepare(`SELECT * FROM katalog WHERE quelle = 'eigen'
+      AND id IN (SELECT katalog_id FROM artikel WHERE benutzer_id = @b UNION SELECT id FROM katalog WHERE erstellt_von = @b)
+      ORDER BY id`).all({ b: req.benutzer.id }).map(({ erstellt_von: _e, ...rest }) => rest);
     res.attachment(`videospielesammlung-${datumHeute()}.json`);
     res.json({ format: 'videospielesammlung', version: 1, exportiert_am: new Date().toISOString(), artikel, eigeneKatalogeintraege });
   });
 
   // CSV im deutschen Excel-Format: Semikolon als Trenner, Dezimalkomma, UTF-8 mit BOM.
-  router.get('/export.csv', (_req, res) => {
-    const artikel = db.prepare('SELECT * FROM artikel ORDER BY titel COLLATE NOCASE').all();
+  router.get('/export.csv', (req, res) => {
+    const artikel = db.prepare('SELECT * FROM artikel WHERE benutzer_id = ? ORDER BY titel COLLATE NOCASE').all(req.benutzer.id);
     const zeilen = [
       CSV_SPALTEN.map(([, kopf]) => csvFeld(kopf)).join(';'),
       ...artikel.map((a) => CSV_SPALTEN.map(([feld, , format]) => csvFeld(format ? format(a[feld]) : a[feld])).join(';')),
@@ -59,13 +63,13 @@ export function exportRouter({ db }) {
 
     const katalogIds = new Map();
     const katalogEinfuegen = db.prepare(`
-      INSERT INTO katalog (quelle, externe_id, typ, titel, plattformen, erscheinungsjahr, hersteller, cover_url, beschreibung)
-      VALUES ('eigen', @externe_id, @typ, @titel, @plattformen, @erscheinungsjahr, @hersteller, @cover_url, @beschreibung)
-      ON CONFLICT (quelle, externe_id) DO UPDATE SET titel = excluded.titel
+      INSERT INTO katalog (quelle, externe_id, typ, titel, plattformen, erscheinungsjahr, hersteller, cover_url, beschreibung, erstellt_von)
+      VALUES ('eigen', @externe_id, @typ, @titel, @plattformen, @erscheinungsjahr, @hersteller, @cover_url, @beschreibung, @erstellt_von)
+      ON CONFLICT (quelle, externe_id) DO UPDATE SET titel = titel
       RETURNING id`);
     const katalogVorhanden = db.prepare('SELECT id FROM katalog WHERE id = ?');
-    const felder = ['typ', 'titel', 'plattform', 'katalog_id', 'barcode', 'cover_url', 'zustand', 'vollstaendigkeit', 'region',
-      'farbe', 'edition', 'modellnummer', 'seriennummer', 'notizen', 'kaufpreis', 'kaufdatum', 'anzahl'];
+    const felder = ['benutzer_id', 'typ', 'titel', 'plattform', 'katalog_id', 'barcode', 'cover_url', 'zustand', 'vollstaendigkeit', 'region',
+      'farbe', 'edition', 'modellnummer', 'seriennummer', 'notizen', 'kaufpreis', 'kaufdatum', 'anzahl', 'marktwert'];
     const einfuegen = db.prepare(`INSERT INTO artikel (${felder.join(', ')}) VALUES (${felder.map((f) => `@${f}`).join(', ')})`);
 
     const fehlerhaft = [];
@@ -77,7 +81,7 @@ export function exportRouter({ db }) {
           externe_id: String(eintrag.externe_id), typ: eintrag.typ ?? 'spiel', titel: String(eintrag.titel),
           plattformen: typeof eintrag.plattformen === 'string' ? eintrag.plattformen : JSON.stringify(eintrag.plattformen ?? []),
           erscheinungsjahr: eintrag.erscheinungsjahr ?? null, hersteller: eintrag.hersteller ?? null,
-          cover_url: eintrag.cover_url ?? null, beschreibung: eintrag.beschreibung ?? null,
+          cover_url: eintrag.cover_url ?? null, beschreibung: eintrag.beschreibung ?? null, erstellt_von: req.benutzer.id,
         });
         katalogIds.set(eintrag.id, id);
       }
@@ -86,7 +90,8 @@ export function exportRouter({ db }) {
           const artikel = pruefeArtikel({ ...roh, katalog_id: null });
           const alteKatalogId = roh?.katalog_id;
           artikel.katalog_id = katalogIds.get(alteKatalogId) ?? (katalogVorhanden.get(alteKatalogId ?? -1)?.id ?? null);
-          einfuegen.run(artikel);
+          if (artikel.cover_url?.startsWith('/')) artikel.cover_url = null; // Fotos werden nicht mit exportiert
+          einfuegen.run({ ...artikel, benutzer_id: req.benutzer.id });
           importiert++;
         } catch (fehler) {
           if (!(fehler instanceof ValidierungsFehler)) throw fehler;

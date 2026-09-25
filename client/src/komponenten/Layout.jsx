@@ -3,14 +3,20 @@ import { navigiere } from '../router.js';
 
 const NAVIGATION = [
   { pfad: '/', label: 'Sammlung', symbol: 'sammlung' },
-  { pfad: '/statistik', label: 'Statistik', symbol: 'statistik' },
+  { pfad: '/wert', label: 'Wert', symbol: 'wert' },
   { pfad: '/neu', label: 'Hinzufügen', symbol: 'plus', hervorgehoben: true },
   { pfad: '/neu?scan=1', label: 'Scannen', symbol: 'scan' },
   { pfad: '/einstellungen', label: 'Mehr', symbol: 'einstellungen' },
 ];
 
+// Zusätzliche Einträge nur in der Desktop-Navigation
+const NUR_DESKTOP = [{ pfad: '/community', label: 'Community', symbol: 'community' }];
+
+const MEHR_PFADE = ['/einstellungen', '/konto', '/statistik', '/admin', '/druck'];
+
 function istAktiv(eintrag, route) {
   if (eintrag.pfad === '/') return route.pfad === '/' || route.pfad.startsWith('/artikel');
+  if (eintrag.pfad === '/einstellungen') return MEHR_PFADE.some((p) => route.pfad.startsWith(p));
   if (eintrag.pfad === '/neu?scan=1') return route.pfad === '/neu' && route.parameter.scan === '1';
   if (eintrag.pfad === '/neu') return route.pfad.startsWith('/neu') && route.parameter.scan !== '1';
   return route.pfad.startsWith(eintrag.pfad);
@@ -39,7 +45,7 @@ export default function Layout({ route, titel, zurueck, aktionen, children }) {
           <h1 className="min-w-0 flex-1 truncate text-lg font-bold sm:text-center md:text-left">{titel}</h1>
           {aktionen}
           <nav className="ml-4 hidden items-center gap-1 md:flex" aria-label="Hauptnavigation">
-            {NAVIGATION.map((eintrag) => (
+            {[...NAVIGATION.slice(0, 2), ...NUR_DESKTOP, ...NAVIGATION.slice(2)].map((eintrag) => (
               <a
                 key={eintrag.pfad}
                 href={`#${eintrag.pfad}`}
