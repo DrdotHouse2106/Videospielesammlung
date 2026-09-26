@@ -39,6 +39,13 @@ model revisions).
   API keys are stored AES-256-GCM-encrypted and never shown again in plain text, security-relevant changes need the
   admin's password (+ 2FA code), every change is logged. Paths, port, proxy/cookie settings and `APP_SECRET` stay `.env`-only
 
+- **Accounts & e-mail:** SMTP, confirmed e-mail addresses, password reset links, security notices, optional e-mail notifications
+- **Spam protection** for sign-up and password reset: self-hosted ALTCHA (default, no cookies) or Google reCAPTCHA v3 (loaded only after consent)
+- **Public start page and search** for visitors without an account (popular and newly added games), **share your collection** via a secret link
+- **Notifications** (bell) for moderation decisions, reports and role changes; **achievements** and per-platform collection goals
+- **CSV import** from CLZ Games, Excel/LibreOffice or the app's own export with automatic column mapping
+- **Automatic database backups** (7 daily, 12 monthly) and **cookie-less visitor statistics** without storing IP addresses
+
 **Stack:** Node.js 22 · Express 5 · SQLite (better-sqlite3) · sharp · React 19 · Vite · Tailwind CSS 4
 
 ## Quick start (Docker)

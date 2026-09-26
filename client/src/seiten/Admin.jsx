@@ -368,7 +368,7 @@ function Besucher() {
         </p>
       </section>
       <div className="grid gap-3 md:grid-cols-2">
-        <Liste titel="Beliebteste Seiten" zeilen={d.seiten} spalte="pfad" wert={(z) => anzahl(z.aufrufe)} leer="Noch keine Aufrufe." />
+        <Liste titel="Beliebteste Seiten" zeilen={d.seiten.filter((z) => z.aufrufe > 0)} spalte="pfad" wert={(z) => anzahl(z.aufrufe)} leer="Noch keine Aufrufe." />
         <Liste titel="Woher Besucher kommen" zeilen={d.verweise} spalte="domain" wert={(z) => anzahl(z.aufrufe)} leer="Noch keine Verweise von anderen Seiten." />
         <Liste titel="Suchbegriffe (öffentliche Suche)" zeilen={d.suchen} spalte="begriff"
           wert={(z) => `${anzahl(z.anzahl)}×${z.treffer === 0 ? ' · ohne Treffer' : ''}`} leer="Noch keine Suchen." />
