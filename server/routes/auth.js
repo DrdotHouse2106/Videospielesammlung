@@ -6,6 +6,7 @@ import { erstelleDrossel } from '../services/drossel.js';
 import { setzeSitzungsCookie, loescheSitzungsCookie, erfordereAnmeldung } from '../middleware/auth.js';
 import { ValidierungsFehler } from '../services/validierung.js';
 import { normalisiereEmail } from '../services/kontomail.js';
+import { zufallsToken } from '../services/sicherheit.js';
 
 const ZU_VIELE = 'Zu viele Fehlversuche. Bitte warte 15 Minuten und versuche es dann erneut.';
 
@@ -126,6 +127,7 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher, konto
       emailAktiv: kontoMail.bereit(),
       emailPflicht: emailPflicht(),
       benachrichtigung_email: Boolean(req.benutzer.benachrichtigung_email),
+      freigabe: freigabeInfo(req.benutzer),
       speicher: speicher.info(req.benutzer.id),
     });
   });
@@ -169,6 +171,24 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher, konto
       throw e;
     }
     res.json({ ok: true });
+  });
+
+  // ── Sammlung per geheimem Link teilen ─────────
+  function freigabeInfo(b) {
+    if (!b.freigabe_token) return { aktiv: false, wert_zeigen: Boolean(b.freigabe_wert) };
+    const pfad = `/sammlung/${b.freigabe_token}`;
+    return { aktiv: true, wert_zeigen: Boolean(b.freigabe_wert), pfad, url: konfiguration.oeffentlicheUrl ? `${konfiguration.oeffentlicheUrl}${pfad}` : null };
+  }
+  router.post('/konto/freigabe', angemeldet, (req, res) => {
+    const b = konten.holeBenutzer(req.benutzer.id);
+    const neu = req.body?.neu === true || !b.freigabe_token;
+    db.prepare('UPDATE benutzer SET freigabe_token = ?, freigabe_wert = ? WHERE id = ?')
+      .run(neu ? zufallsToken(18) : b.freigabe_token, req.body?.wert_zeigen === undefined ? b.freigabe_wert : (req.body.wert_zeigen ? 1 : 0), b.id);
+    res.json(freigabeInfo(konten.holeBenutzer(b.id)));
+  });
+  router.delete('/konto/freigabe', angemeldet, (req, res) => {
+    db.prepare('UPDATE benutzer SET freigabe_token = NULL WHERE id = ?').run(req.benutzer.id);
+    res.json(freigabeInfo(konten.holeBenutzer(req.benutzer.id)));
   });
 
   router.get('/konto/speicher', angemeldet, (req, res) => {

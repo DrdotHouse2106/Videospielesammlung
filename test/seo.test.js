@@ -159,3 +159,26 @@ test('Suche für alle: Treffer mit Sammleranzahl, nicht indexiert', async () => 
   assert.match(leer.text, /Keine Treffer/);
   assert.match((await seite('/suche?q=%25')).text, /Keine Treffer/, 'Platzhalter werden maskiert');
 });
+
+test('Sammlung per geheimem Link teilen: ohne Konto sichtbar, ohne private Angaben, widerrufbar', async () => {
+  await nutzer.api('/api/artikel', { methode: 'POST', daten: { typ: 'konsole', titel: 'Nintendo 64 Konsole', plattform: 'Nintendo 64', kaufpreis: 123.45, seriennummer: 'NUS-GEHEIM-1', notizen: 'Geheime Notiz', marktwert: 80 } });
+  const f = (await nutzer.api('/api/konto/freigabe', { methode: 'POST', daten: { wert_zeigen: true } })).json;
+  assert.equal(f.aktiv, true);
+  assert.match(f.url, /^https:\/\/sammlung\.example\.de\/sammlung\/[\w-]{20,}$/);
+  const s = await seite(f.pfad);
+  assert.equal(s.status, 200);
+  assert.match(s.text, /Die Sammlung von sammler/);
+  assert.match(s.text, /Nintendo 64 Konsole/);
+  assert.match(s.text, /geschätzter Wert/);
+  assert.match(s.text, /noindex/);
+  for (const privat of ['123,45', 'NUS-GEHEIM-1', 'Geheime Notiz']) assert.doesNotMatch(s.text, new RegExp(privat));
+  const r = await fetch(`${server.basis}${f.pfad}`);
+  assert.equal(r.headers.get('cache-control'), 'private, no-store');
+
+  const neu = (await nutzer.api('/api/konto/freigabe', { methode: 'POST', daten: { neu: true } })).json;
+  assert.notEqual(neu.pfad, f.pfad);
+  assert.equal((await seite(f.pfad)).status, 404, 'alter Link ungültig');
+  await nutzer.api('/api/konto/freigabe', { methode: 'DELETE' });
+  assert.equal((await seite(neu.pfad)).status, 404);
+  assert.equal((await seite('/sammlung/zu-kurz')).status, 404);
+});

@@ -109,6 +109,7 @@ function Sichtbarkeit({ konto, onSpeichern }) {
       {konto.sammlung_oeffentlich && (
         <a className="text-sm text-akzent-hell underline" href={`#/community/${encodeURIComponent(konto.benutzername)}`}>So sehen andere deine Sammlung</a>
       )}
+      <FreigabeLink konto={konto} />
     </section>
   );
 }
@@ -393,5 +394,48 @@ function EmailAdresse({ konto, onGeaendert, onSpeichern }) {
         </>
       )}
     </section>
+  );
+}
+
+function FreigabeLink({ konto }) {
+  const zeigeHinweis = useHinweis();
+  const [f, setF] = useState(konto.freigabe);
+  const url = f.aktiv ? (f.url ?? `${window.location.origin}${f.pfad}`) : null;
+  const aendern = async (daten) => {
+    try { setF(await api.freigabeSetzen(daten)); } catch (e) { zeigeHinweis(e.message, 'fehler'); }
+  };
+  const teilen = async () => {
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Meine Spielesammlung', url }); return; } catch { /* abgebrochen */ }
+    }
+    try { await navigator.clipboard.writeText(url); zeigeHinweis('Link kopiert.'); } catch { window.prompt('Link kopieren:', url); }
+  };
+  return (
+    <div className="space-y-2 border-t border-rand pt-3">
+      <p className="text-sm"><strong>Per Link teilen – auch mit Leuten ohne Konto</strong></p>
+      <p className="text-xs text-leise">
+        Wer den Link kennt, sieht deine Sammlung (ohne Kaufpreise, Seriennummern, Notizen und eigene Fotos). Der Link ist nicht erratbar
+        und erscheint nicht in Suchmaschinen. Du kannst ihn jederzeit ungültig machen.
+      </p>
+      {!f.aktiv ? (
+        <button type="button" className="knopf-sekundaer" onClick={() => aendern({})}>Link erstellen</button>
+      ) : (
+        <>
+          <div className="flex gap-2">
+            <input className="eingabe min-w-0 flex-1 font-mono text-xs" value={url} readOnly onFocus={(e) => e.target.select()} aria-label="Link zu deiner Sammlung" />
+            <button type="button" className="knopf-primaer px-3" onClick={teilen}>Teilen</button>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="size-4 accent-akzent" checked={f.wert_zeigen} onChange={(e) => aendern({ wert_zeigen: e.target.checked })} />
+            Geschätzten Gesamtwert anzeigen
+          </label>
+          <div className="flex flex-wrap gap-2 text-sm">
+            <a className="text-akzent-hell underline" href={f.pfad} target="_blank" rel="noreferrer">Ansehen</a>
+            <button type="button" className="underline" onClick={() => window.confirm('Neuen Link erstellen? Der bisherige funktioniert dann nicht mehr.') && aendern({ neu: true })}>Neuen Link erstellen</button>
+            <button type="button" className="text-gefahr underline" onClick={async () => { setF(await api.freigabeBeenden()); zeigeHinweis('Teilen beendet – der Link funktioniert nicht mehr.'); }}>Teilen beenden</button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }

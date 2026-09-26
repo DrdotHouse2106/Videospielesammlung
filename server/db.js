@@ -414,6 +414,12 @@ const MIGRATIONEN = [
   CREATE INDEX idx_benachrichtigungen ON benachrichtigungen (benutzer_id, gelesen, id);
   ALTER TABLE benutzer ADD COLUMN benachrichtigung_email INTEGER NOT NULL DEFAULT 0;
   `,
+  // 13: Sammlung per geheimem Link teilen (auch ohne Konto)
+  `
+  ALTER TABLE benutzer ADD COLUMN freigabe_token TEXT;
+  ALTER TABLE benutzer ADD COLUMN freigabe_wert INTEGER NOT NULL DEFAULT 0;
+  CREATE UNIQUE INDEX idx_benutzer_freigabe ON benutzer (freigabe_token) WHERE freigabe_token IS NOT NULL;
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

@@ -8,7 +8,7 @@
 // in seiner Sammlung hat oder die vom Moderationsteam gepflegt wurden – und die nicht „dünn“ sind.
 // Reine IGDB-Suchtreffer bleiben aufrufbar, sind aber für Suchmaschinen gesperrt.
 import { Router } from 'express';
-import { HERSTELLER_REIHENFOLGE, ARTIKELTYPEN, MEDIENARTEN, beschriftung } from '../../shared/konstanten.js';
+import { HERSTELLER_REIHENFOLGE, ARTIKELTYPEN, MEDIENARTEN, REGIONEN, ZUSTAENDE, VOLLSTAENDIGKEITEN, beschriftung } from '../../shared/konstanten.js';
 import { katalogPfad, plattformPfad, slug, KATALOG_PRAEFIXE, APP_START, appLink } from '../../shared/seo.js';
 import { leseCookies } from '../middleware/auth.js';
 import { COOKIE_NAME } from '../services/konten.js';
@@ -414,6 +414,66 @@ ${seiten > 1 ? `<nav class="seiten">${seiteNr > 1 ? `<a class="knopf zweit" href
       titel: q ? `Suche: ${q} | ${APP}` : `Suche | ${APP}`,
       beschreibung: 'Spiele, Konsolen und Zubehör im Katalog suchen – mit Wert, Varianten und Sammlerhinweisen.',
       pfad: '/suche', indexierbar: false, inhalt,
+    }));
+  });
+
+  // ── Geteilte Sammlung (geheimer Link, auch ohne Konto, nicht indexiert) ──────
+  const perFreigabe = db.prepare("SELECT id, benutzername, COALESCE(anzeigename, benutzername) AS name, freigabe_wert FROM benutzer WHERE freigabe_token = ? AND gesperrt = 0");
+  const geteilteArtikel = db.prepare(`SELECT a.id, a.typ, a.titel, a.plattform, a.region, a.zustand, a.vollstaendigkeit, a.farbe, a.edition,
+      a.anzahl, a.marktwert, a.katalog_id AS privat_katalog_id,
+      CASE WHEN k.status = 'freigegeben' THEN k.id END AS katalog_id,
+      CASE WHEN k.status = 'freigegeben' THEN k.titel END AS katalog_titel,
+      CASE WHEN k.status = 'freigegeben' THEN k.typ END AS katalog_typ,
+      CASE WHEN k.status = 'freigegeben' THEN k.cover_url END AS cover_url,
+      p.kurz AS plattform_kurz, p.name AS plattform_name, v.bezeichnung AS variante
+    FROM artikel a LEFT JOIN katalog k ON k.id = a.katalog_id LEFT JOIN plattformen p ON p.id = a.plattform_id
+    LEFT JOIN katalog_varianten v ON v.id = a.variante_id AND v.status = 'freigegeben'
+    WHERE a.benutzer_id = ? ORDER BY COALESCE(p.name, a.plattform, 'zzz') COLLATE NOCASE, a.titel COLLATE NOCASE LIMIT 5000`);
+
+  router.get('/sammlung/:token', (req, res) => {
+    const token = String(req.params.token);
+    const b = token.length >= 16 ? perFreigabe.get(token) : null;
+    res.set('X-Robots-Tag', 'noindex, nofollow');
+    if (!b) return nichtGefunden(req, res);
+    const artikel = geteilteArtikel.all(b.id);
+    const stueck = artikel.reduce((s, a) => s + (a.anzahl ?? 1), 0);
+    const jeTyp = Object.fromEntries(ARTIKELTYPEN.map((t) => [t.value, artikel.filter((a) => a.typ === t.value).reduce((s, a) => s + (a.anzahl ?? 1), 0)]));
+    let wert = 0;
+    if (b.freigabe_wert) {
+      for (const a of artikel) {
+        const w = preise.schaetze({ ...a, katalog_id: a.privat_katalog_id });
+        if (w) wert += w.wert * (a.anzahl ?? 1);
+      }
+    }
+    const gruppen = new Map();
+    for (const a of artikel) {
+      const name = a.plattform_name || a.plattform || 'Ohne Plattform';
+      if (!gruppen.has(name)) gruppen.set(name, []);
+      gruppen.get(name).push(a);
+    }
+    const eintrag = (a) => {
+      const details = [beschriftung(REGIONEN, a.region, 'kurz'), beschriftung(ZUSTAENDE, a.zustand), beschriftung(VOLLSTAENDIGKEITEN, a.vollstaendigkeit, 'kurz'),
+        a.variante, a.edition, a.farbe, (a.anzahl ?? 1) > 1 ? `${a.anzahl}×` : null].filter(Boolean);
+      const bild = a.cover_url ? `<img src="${esc(a.cover_url)}" alt="" loading="lazy" width="150" height="200">` : `<span class="platzhalter" aria-hidden="true">${symbol(a.typ)}</span>`;
+      const inhaltKachel = `${bild}<b>${esc(a.titel)}</b><br><span class="leise">${esc(details.join(' · '))}</span>`;
+      const ziel = a.katalog_id && sichtbarOeffentlich() ? katalogPfad({ id: a.katalog_id, titel: a.katalog_titel, typ: a.katalog_typ }, a.plattform_kurz) : null;
+      return `<li>${ziel ? `<a href="${ziel}">${inhaltKachel}</a>` : `<div>${inhaltKachel}</div>`}</li>`;
+    };
+    const inhalt = `<h1>Die Sammlung von ${esc(b.name)}</h1>
+<div class="zahlen">
+  <div class="zahl"><b>${zahl(stueck)}</b>Exemplare</div>
+  ${ARTIKELTYPEN.filter((t) => jeTyp[t.value]).map((t) => `<div class="zahl"><b>${zahl(jeTyp[t.value])}</b>${esc(t.mehrzahl)}</div>`).join('')}
+  <div class="zahl"><b>${zahl(gruppen.size)}</b>Plattformen</div>
+  ${b.freigabe_wert && wert > 0 ? `<div class="zahl"><b>${euro(Math.round(wert))}</b>geschätzter Wert</div>` : ''}
+</div>
+${artikel.length ? [...gruppen].map(([name, liste]) => `<section class="karte"><h2>${esc(name)} <span class="leise">(${liste.length})</span></h2><ul class="raster">${liste.map(eintrag).join('')}</ul></section>`).join('')
+    : '<p class="leise">Diese Sammlung ist noch leer.</p>'}
+<section class="karte"><h2>Deine eigene Sammlung</h2><p>Erfasse deine Spiele, Konsolen und dein Zubehör – kostenlos, mit Barcode-Scanner und Wertübersicht.</p><p><a class="knopf" href="${appLink('/?registrieren=1')}">Kostenlos registrieren</a></p></section>`;
+    // Nicht zwischenspeichern: Beim Widerrufen soll der Link sofort ungültig sein
+    res.type('html').set('Cache-Control', 'private, no-store').send(seite(req, {
+      titel: `Die Sammlung von ${b.name} | ${APP}`,
+      beschreibung: `${zahl(stueck)} Spiele, Konsolen und Zubehör in der Sammlung von ${b.name}.`,
+      pfad: `/sammlung/${token}`, indexierbar: false, inhalt,
     }));
   });
 

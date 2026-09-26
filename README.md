@@ -305,6 +305,15 @@ auch unter *Administration → Einstellungen*):
 
 Das allererste Konto (Administrator) wird ohne Prüfung angelegt, damit eine falsche Konfiguration nicht aussperrt.
 
+### Sammlung per Link teilen
+
+Unter *Konto → Sammlung teilen → Per Link teilen* erzeugt jeder Benutzer einen **geheimen Link** (`/sammlung/…`), über den
+auch Menschen **ohne Konto** die Sammlung ansehen können – gruppiert nach Plattform, mit Cover, Zustand und Vollständigkeit,
+optional mit geschätztem Gesamtwert. Kaufpreise, Seriennummern, Notizen, Barcodes und eigene Fotos bleiben privat.
+Der Link ist nicht erratbar, wird nicht von Suchmaschinen erfasst (`noindex`) und nicht zwischengespeichert. Mit
+„Neuen Link erstellen“ oder „Teilen beenden“ wird der bisherige Link sofort ungültig. Einträge aus dem öffentlichen
+Katalog verlinken auf ihre Spieleseite.
+
 ### Benachrichtigungen
 
 Die **Glocke** oben in der App zeigt neue Benachrichtigungen, z. B. wenn eine Einreichung (Katalogeintrag, Variante, Scan,
