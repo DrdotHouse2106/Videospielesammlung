@@ -91,3 +91,14 @@ test('Test-E-Mail aus der Administration', async () => {
   assert.equal(r.status, 200, r.text);
   assert.equal(letzteMail('test@example.org').subject, 'ZockDB: Test-E-Mail');
 });
+
+test('Bei einer Adressänderung wird die alte Adresse informiert', async () => {
+  const c = server.client();
+  await c.api('/api/auth/anmelden', { methode: 'POST', daten: { benutzername: 'mia', passwort: 'ein-ganz-neues-passwort' } });
+  await c.api('/api/konto/email', { methode: 'POST', daten: { email: 'mia.neu@example.org', passwort: 'ein-ganz-neues-passwort' } });
+  const token = tokenAus(letzteMail('mia.neu@example.org'), 'email-bestaetigen');
+  await server.client().api('/api/auth/email-bestaetigen', { methode: 'POST', daten: { token } });
+  const hinweis = letzteMail('mia@example.org');
+  assert.match(hinweis.subject, /E-Mail-Adresse wurde geändert/);
+  assert.match(hinweis.text, /m…@example\.org/);
+});

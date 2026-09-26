@@ -118,7 +118,9 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
     app.set('trust proxy', /^\d+$/.test(wert) ? Number(wert) : wert);
   }
 
-  app.use((_req, res, next) => {
+  app.use((req, res, next) => {
+    // Browser sollen die Seite nur noch per HTTPS aufrufen (nur wenn die Anfrage per HTTPS kam)
+    if (req.secure) res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     // reCAPTCHA (nur wenn gewählt) braucht Skripte und Frames von Google
     const google = captcha.anbieter === 'recaptcha' ? ' https://www.google.com https://www.gstatic.com https://www.recaptcha.net' : '';
     res.set({

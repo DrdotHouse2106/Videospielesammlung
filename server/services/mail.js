@@ -41,7 +41,8 @@ export function erstelleMailDienst(konfiguration, { transportFn } = {}) {
   /** Sendet eine E-Mail. `text` ist Pflicht, `html` optional. */
   async function sende({ an, betreff, text, html }) {
     if (!aktiv) throw new Error('Der E-Mail-Versand ist nicht eingerichtet (SMTP_HOST/SMTP_FROM).');
-    const nachricht = { from: m.absender || `${MARKE.name} <noreply@localhost>`, to: an, subject: betreff, text, html };
+    // Zeilenumbrüche im Betreff entfernen (Titel stammen teils von Benutzern)
+    const nachricht = { from: m.absender || `${MARKE.name} <noreply@localhost>`, to: an, subject: String(betreff).replace(/[\r\n]+/g, ' ').slice(0, 250), text, html };
     if (transportFn) return transportFn(nachricht);
     return transport.sendMail(nachricht);
   }

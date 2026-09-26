@@ -95,7 +95,12 @@ footer{max-width:860px;margin:24px auto;padding:16px;color:var(--leise);font-siz
 
 export function seoRouter({ db, konfiguration, preise, affiliate, preisimport, katalog, igdb, besucher }) {
   const router = Router();
-  const basis = (req) => konfiguration.oeffentlicheUrl || `${req.protocol}://${req.get('host')}`;
+  // Ohne PUBLIC_URL aus der Anfrage – aber nur mit gültigem Hostnamen (Schutz vor manipulierten Host-Headern)
+  const basis = (req) => {
+    if (konfiguration.oeffentlicheUrl) return konfiguration.oeffentlicheUrl;
+    const host = String(req.get('host') ?? '');
+    return `${req.protocol}://${/^[a-z0-9.-]+(:\d{1,5})?$|^\[[0-9a-f:]+\](:\d{1,5})?$/i.test(host) ? host : 'localhost'}`;
+  };
 
   const eintragPerId = db.prepare(`SELECT k.*, ${INDEXIERBAR_SQL} AS indexierbar FROM katalog k WHERE k.id = ?`);
   const plattformenVon = db.prepare(`SELECT p.id, p.name, p.kurz, p.hersteller FROM katalog_plattformen kp

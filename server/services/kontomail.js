@@ -111,7 +111,13 @@ export function erstelleKontoMailDienst(db, { mail, konfiguration, konten }) {
     if (belegt && belegt.id !== t.benutzer_id) {
       throw new KontoFehler('Diese E-Mail-Adresse wird bereits von einem anderen Konto verwendet.', 409);
     }
+    const vorher = konten.holeBenutzer(t.benutzer_id);
     q.emailSetzen.run(t.email, t.benutzer_id);
+    // Die bisherige Adresse erfährt von der Änderung – so fällt eine Kontoübernahme auf
+    if (vorher?.email && vorher.email !== t.email) {
+      sicherheitshinweis(vorher, 'Deine E-Mail-Adresse wurde geändert',
+        `Die E-Mail-Adresse deines Kontos wurde auf ${t.email.replace(/^(.).*(@.*)$/, '$1…$2')} geändert. Diese Adresse erhält keine Nachrichten mehr.`);
+    }
     return konten.holeBenutzer(t.benutzer_id);
   }
 

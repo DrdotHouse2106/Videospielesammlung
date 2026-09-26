@@ -27,7 +27,9 @@ const CSV_SPALTEN = [
 ];
 
 function csvFeld(wert) {
-  const text = wert == null ? '' : String(wert);
+  let text = wert == null ? '' : String(wert);
+  // Formel-Injektion in Excel/LibreOffice verhindern: Zellen, die mit = + - @ beginnen, als Text markieren
+  if (typeof wert === 'string' && /^[=+\-@\t\r]/.test(text)) text = `'${text}`;
   return /[";\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 

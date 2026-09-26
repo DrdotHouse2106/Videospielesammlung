@@ -113,9 +113,16 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher, konto
   // Ohne 2FA-Pflicht-Prüfung, damit man die 2FA hier überhaupt einrichten kann.
   const angemeldet = erfordereAnmeldung({ zweiFaktorPflicht: false });
 
+  // Passwortbestätigung (2FA, E-Mail, Konto löschen …) – mit Begrenzung der Fehlversuche je Konto
   async function bestaetigePasswort(req) {
+    const schluessel = `bestaetigen:${req.benutzer.id}`;
+    if (drossel.gesperrt(schluessel)) throw new KontoFehler(ZU_VIELE, 429);
     const benutzer = await konten.pruefeZugangsdaten(req.benutzer.benutzername, req.body?.passwort);
-    if (!benutzer) throw new ValidierungsFehler({ passwort: 'Das Passwort ist falsch.' });
+    if (!benutzer) {
+      drossel.fehlschlag(schluessel);
+      throw new ValidierungsFehler({ passwort: 'Das Passwort ist falsch.' });
+    }
+    drossel.zuruecksetzen(schluessel);
   }
 
   router.get('/konto', angemeldet, (req, res) => {

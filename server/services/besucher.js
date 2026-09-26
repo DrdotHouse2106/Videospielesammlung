@@ -10,6 +10,9 @@ import crypto from 'node:crypto';
 
 const BOT = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|embedly|preview|monitor|curl|wget|python|headless/i;
 const heute = () => new Date().toISOString().slice(0, 10);
+// Nur bekannte Seiten einzeln zählen – beliebige Adressen (die App liefert für alles index.html) würden sonst die Tabelle aufblähen
+const BEKANNT = /^\/(|plattformen|suche|(spiel|konsole|zubehoer)\/\d+[\w-]*|plattform\/[\w-]+)$/;
+const MAX_JE_PUFFER = 2000; // Schutz vor Flutung mit zufälligen Suchbegriffen oder Referern
 
 export function erstelleBesucherDienst(db) {
   const q = {
@@ -41,6 +44,7 @@ export function erstelleBesucherDienst(db) {
   }
 
   const erhoehe = (map, schluessel, feld = 'n', um = 1) => {
+    if (!map.has(schluessel) && map.size >= MAX_JE_PUFFER) return {};
     const e = map.get(schluessel) ?? {};
     e[feld] = (e[feld] ?? 0) + um;
     map.set(schluessel, e);
@@ -88,7 +92,7 @@ export function erstelleBesucherDienst(db) {
     res.on('finish', () => {
       if (res.statusCode !== 200 || !String(res.getHeader('content-type') ?? '').includes('text/html')) return;
       const pfad = req.path === '/' && (req.query.app !== undefined || /(^|;\s*)vss_sitzung=/.test(req.headers.cookie ?? '')) ? '/ (App)'
-        : req.path.startsWith('/sammlung/') ? '/sammlung/…' : req.path;
+        : req.path.startsWith('/sammlung/') ? '/sammlung/…' : BEKANNT.test(req.path) ? req.path : '(sonstige)';
       erfasse({ pfad, ip: req.ip, ua: req.headers['user-agent'] ?? '', referer: req.headers.referer ?? '', host: req.headers.host ?? '' });
     });
     next();
