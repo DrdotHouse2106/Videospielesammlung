@@ -1,6 +1,7 @@
 // Öffentliche, vom Server erzeugte Seiten für Suchmaschinen (ohne JavaScript-Bundle):
 //   /spiel/:id-slug, /konsole/:id-slug, /zubehoer/:id-slug – ein Katalogeintrag
 //   /plattformen, /plattform/:slug                          – Übersichten
+//   /preisindex, /preisindex/:plattform                     – Preisindex aus echten Börsen-Verkäufen
 //   /sitemap.xml, /sitemap-*.xml, /robots.txt
 //
 // Seiten werden erst beim Aufruf erzeugt, nichts wird vorab gespeichert.
@@ -15,6 +16,7 @@ import { COOKIE_NAME } from '../services/konten.js';
 import { erstelleDrossel } from '../services/drossel.js';
 import { MARKE } from '../../shared/marke.js';
 import { katalogZeileZuObjekt } from '../services/katalog.js';
+import { erstellePreisindexDienst, MIN_VERKAEUFE } from '../services/preisindex.js';
 
 const APP = MARKE.name;
 const PRO_SEITE = 60;
@@ -90,6 +92,9 @@ ul.liste{list-style:none;padding:0;margin:0}ul.liste li{padding:8px 0;border-top
 .raster .platzhalter{width:100%;aspect-ratio:3/4;border-radius:12px;background:var(--karte);border:1px solid var(--rand);display:grid;place-items:center;font-size:36px}
 .werbung{font-size:12px;color:var(--leise);border:1px solid var(--rand);border-radius:6px;padding:1px 6px;margin-left:6px}
 .seiten{display:flex;justify-content:space-between;gap:8px;margin-top:16px}
+ol.rang{list-style:none;padding:0;margin:0;counter-reset:r}ol.rang li{counter-increment:r;display:grid;grid-template-columns:2rem 1fr auto;gap:4px 10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--rand)}ol.rang li:first-child{border-top:0}ol.rang li::before{content:counter(r);color:var(--leise);font-weight:700;text-align:right}ol.rang .preis{font-weight:700;white-space:nowrap}ol.rang .unter{grid-column:2/4;color:var(--leise);font-size:14px}
+.balken{display:flex;align-items:flex-end;gap:3px;height:140px;border-bottom:1px solid var(--rand);margin-top:8px}.balken span{flex:1;min-width:0;background:var(--akzent);border-radius:4px 4px 0 0}.balken span.leer{background:var(--rand)}
+.achse{display:flex;justify-content:space-between;color:var(--leise);font-size:13px;margin-top:4px}.plus{color:#4ade80;font-weight:700}
 footer{max-width:860px;margin:24px auto;padding:16px;color:var(--leise);font-size:14px;display:flex;flex-wrap:wrap;gap:12px}footer a{color:var(--leise)}
 `;
 
@@ -119,6 +124,7 @@ export function seoRouter({ db, konfiguration, preise, affiliate, preisimport, k
     UNION ALL SELECT MAX(datum) FROM preis_historie WHERE katalog_id = @id)`);
 
   const sichtbarOeffentlich = () => konfiguration.oeffentlicherKatalog;
+  const preisindex = erstellePreisindexDienst(db);
 
   function seite(req, { titel, beschreibung, pfad, indexierbar = true, bild, inhalt, strukturiert = [], appZiel = APP_START }) {
     const url = `${basis(req)}${pfad}`;
@@ -157,6 +163,7 @@ ${inhalt}
 <footer>
   <a href="/plattformen">Alle Plattformen</a>
   <a href="/suche">Suche</a>
+  <a href="/preisindex">Preisindex</a>
   <a href="${appLink('/seite/impressum')}">Impressum</a>
   <a href="${appLink('/seite/datenschutz')}">Datenschutz</a>
   <a href="${appLink('/seite/nutzungsbedingungen')}">Nutzungsbedingungen</a>
@@ -261,6 +268,11 @@ ${inhalt}
     ];
 
     const wertText = [];
+    const verkauf = preisindex.fuerKatalog(e.id);
+    if (verkauf.median !== null) {
+      wertText.push(`In der ${APP}-Börse wurde es in den letzten 12 Monaten <b>${zahl(verkauf.verkaeufe)}×</b> verkauft – `
+        + `Median <b>${euro(verkauf.median)}</b> (Spanne ${euro(verkauf.min)} – ${euro(verkauf.max)}, echte Verkaufspreise${verkauf.bestaetigt ? `, ${zahl(verkauf.bestaetigt)} vom Käufer bestätigt` : ''}).`);
+    }
     if (wert) {
       wertText.push(`In den letzten 90 Tagen lag der Preis im Schnitt bei <b>${euro(wert.schnitt)}</b> `
         + `(Spanne ${euro(wert.min)} – ${euro(wert.max)}, ${zahl(wert.anzahl)} ${wert.anzahl === 1 ? 'Preisangabe' : 'Preisangaben'}).`);
@@ -535,6 +547,7 @@ ${liste.length ? '' : '<p class="leise">Noch keine Einträge vorhanden.</p>'}
     const inhalt = `<nav class="pfad" aria-label="Brotkrumen"><a href="/plattformen">Plattformen</a> › ${esc(p.name)}</nav>
 <h1>${esc(p.name)}${p.kurz && p.kurz !== p.name ? ` (${esc(p.kurz)})` : ''}</h1>
 <p>${zahl(p.anzahl)} Spiele, Konsolen und Zubehör für ${esc(p.name)}${p.erscheinungsjahr ? ` (erschienen ${p.erscheinungsjahr})` : ''} – sortiert danach, wie viele Sammler sie besitzen.</p>
+<p><a class="knopf zweit" href="/preisindex/${esc(req.params.slug)}">Preisindex ${esc(p.name)}: echte Verkaufspreise</a></p>
 ${kacheln(eintraege, p.kurz)}
 ${seiten > 1 ? `<nav class="seiten">${seiteNr > 1 ? `<a class="knopf zweit" href="${p.pfad}${seiteNr > 2 ? `?seite=${seiteNr - 1}` : ''}">← Zurück</a>` : '<span></span>'}<span class="leise">Seite ${seiteNr} von ${seiten}</span>${seiteNr < seiten ? `<a class="knopf zweit" href="${p.pfad}?seite=${seiteNr + 1}">Weiter →</a>` : '<span></span>'}</nav>` : ''}`;
     sende(res, seite(req, {
@@ -549,6 +562,85 @@ ${seiten > 1 ? `<nav class="seiten">${seiteNr > 1 ? `<a class="knopf zweit" href
         ],
       }],
     }));
+  });
+
+  // ── Preisindex ───────────────────────────────────────────────────────
+  const monatText = (m) => new Date(`${m}-15T12:00:00Z`).toLocaleDateString('de-DE', { month: 'short', year: '2-digit' });
+  const indexPlattformen = () => preisindex.plattformenMitDaten().map((p) => ({ ...p, pfad: `/preisindex/${slug(p.kurz || p.name)}` }));
+  const titelLink = (e) => `<a href="${katalogPfad(e, kurzVon.get(e.id))}">${esc(e.titel)}</a>`;
+
+  function preisindexInhalt(req, d, { plattform = null } = {}) {
+    const wo = plattform ? ` für ${esc(plattform.name)}` : '';
+    const maxVerkaeufe = Math.max(1, ...d.verlauf.map((m) => m.verkaeufe));
+    const letzteMediane = d.verlauf.filter((m) => m.median !== null);
+    return `${plattform ? `<nav class="pfad" aria-label="Brotkrumen"><a href="/preisindex">Preisindex</a> › ${esc(plattform.name)}</nav>` : ''}
+<h1>Preisindex${wo}: was Retro-Spiele wirklich kosten</h1>
+<p>Echte Verkaufspreise aus der ${APP}-Tauschbörse – keine Wunschpreise. Gezählt werden nur Verkäufe, die der Verkäufer gemeldet
+und idealerweise der Käufer bestätigt hat. Wir zeigen den <b>Median</b> (unempfindlich gegen Ausreißer) und Preise erst ab ${MIN_VERKAEUFE} Verkäufen.</p>
+<div class="zahlen">
+<div class="zahl"><b>${zahl(d.kennzahlen.verkaeufe)}</b><span class="leise">Verkäufe in 12 Monaten</span></div>
+<div class="zahl"><b>${d.kennzahlen.verkaeufe ? `${Math.round((d.kennzahlen.bestaetigt / d.kennzahlen.verkaeufe) * 100)} %` : '–'}</b><span class="leise">vom Käufer bestätigt</span></div>
+<div class="zahl"><b>${zahl(d.kennzahlen.titel)}</b><span class="leise">verschiedene Titel</span></div>
+<div class="zahl"><b>${zahl(d.kennzahlen.suchende)}</b><span class="leise">Sammler mit Wunschliste</span></div>
+</div>
+${d.kennzahlen.verkaeufe ? `<section class="karte"><h2>Verkäufe je Monat${wo}</h2>
+<div class="balken" role="img" aria-label="Verkäufe je Monat der letzten 24 Monate">${d.verlauf.map((m) => `<span class="${m.verkaeufe ? '' : 'leer'}" style="height:${m.verkaeufe ? Math.max(3, Math.round((m.verkaeufe / maxVerkaeufe) * 100)) : 2}%" title="${esc(monatText(m.monat))}: ${m.verkaeufe} Verkäufe${m.median !== null ? `, Median ${esc(euro(m.median))}` : ''}"></span>`).join('')}</div>
+<div class="achse"><span>${esc(monatText(d.verlauf[0].monat))}</span><span>${esc(monatText(d.verlauf.at(-1).monat))}</span></div>
+${letzteMediane.length ? `<p class="leise">Median-Verkaufspreis zuletzt: ${letzteMediane.slice(-3).map((m) => `${esc(monatText(m.monat))} <b>${euro(m.median)}</b>`).join(' · ')}</p>` : ''}
+</section>` : ''}
+<section class="karte"><h2>Meistverkaufte Spiele${wo} (12 Monate)</h2>
+${d.meistverkauft.length ? `<ol class="rang">${d.meistverkauft.map((e) => `<li>${titelLink(e)}<span class="preis">${euro(e.median)}</span>
+<span class="unter">${zahl(e.verkaeufe)} Verkäufe${e.bestaetigt ? ` (${zahl(e.bestaetigt)} bestätigt)` : ''} · Spanne ${euro(e.min)} – ${euro(e.max)}</span></li>`).join('')}</ol>`
+    : `<p class="leise">Noch zu wenige Verkäufe für eine Rangliste – Titel erscheinen ab ${MIN_VERKAEUFE} Verkäufen.</p>`}
+</section>
+${d.aufsteiger.length ? `<section class="karte"><h2>Preisaufsteiger${wo}</h2><p class="leise">Median der letzten 6 Monate gegenüber den 6 Monaten davor.</p>
+<ol class="rang">${d.aufsteiger.map((e) => `<li>${titelLink(e)}<span class="preis plus">+${zahl(e.prozent)} %</span><span class="unter">${euro(e.alt)} → ${euro(e.neu)}</span></li>`).join('')}</ol></section>` : ''}
+<section class="karte"><h2>Meistgesuchte Spiele${wo}</h2>
+${d.gesucht.length ? `<ol class="rang">${d.gesucht.map((e) => `<li>${titelLink(e)}<span class="preis">${zahl(e.suchende)} ${e.suchende === 1 ? 'sucht' : 'suchen'}</span>
+<span class="unter">${[e.preisvorstellung != null ? `Preisvorstellung Ø ${euro(e.preisvorstellung)}` : null,
+    e.angebote ? `${zahl(e.angebote)} ${e.angebote === 1 ? 'Angebot' : 'Angebote'}${e.ab_preis != null ? ` ab ${euro(e.ab_preis)}` : ''}` : 'derzeit kein Angebot'].filter(Boolean).join(' · ')}</span></li>`).join('')}</ol>`
+    : '<p class="leise">Noch keine Wunschlisten.</p>'}
+</section>`;
+  }
+
+  function preisindexSeite(req, res, plattform) {
+    const d = preisindex.uebersicht({ plattformId: plattform?.id ?? null });
+    const plattformen = indexPlattformen();
+    const hatInhalt = d.meistverkauft.length > 0 || d.gesucht.length > 0;
+    const pfad = plattform ? plattform.pfad : '/preisindex';
+    const inhalt = `${preisindexInhalt(req, d, { plattform })}
+${plattformen.length ? `<section class="karte"><h2>Preisindex nach Plattform</h2><div class="chips">${plattformen.map((p) => `<a class="chip" href="${p.pfad}">${esc(p.name)}</a>`).join('')}</div></section>` : ''}
+<section class="karte"><h2>Selbst verkaufen oder suchen</h2><p>Stell Spiele kostenlos in die Tauschbörse, setz gesuchte Titel auf deine Wunschliste und werde benachrichtigt, sobald jemand sie anbietet.</p><p><a class="knopf" href="${appLink('/boerse')}">Zur Tauschbörse</a></p></section>`;
+    const name = plattform ? plattform.name : 'Retro- und Videospiele';
+    sende(res, seite(req, {
+      titel: `Preisindex ${name} – echte Verkaufspreise & gesuchte Spiele | ${APP}`,
+      beschreibung: `Was ${plattform ? `${plattform.name}-Spiele` : 'Retro-Spiele'} wirklich kosten: Median-Verkaufspreise aus ${zahl(d.kennzahlen.verkaeufe)} echten Verkäufen, Preisaufsteiger und die meistgesuchten Titel.`,
+      pfad, indexierbar: hatInhalt, inhalt,
+      strukturiert: [
+        {
+          '@context': 'https://schema.org', '@type': 'ItemList', name: `Meistverkaufte Spiele – ${name}`,
+          itemListElement: d.meistverkauft.slice(0, 20).map((e, i) => ({ '@type': 'ListItem', position: i + 1, name: e.titel, url: `${basis(req)}${katalogPfad(e, kurzVon.get(e.id))}` })),
+        },
+        {
+          '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Preisindex', item: `${basis(req)}/preisindex` },
+            ...(plattform ? [{ '@type': 'ListItem', position: 2, name: plattform.name, item: `${basis(req)}${plattform.pfad}` }] : []),
+          ],
+        },
+      ],
+    }));
+  }
+
+  router.get('/preisindex', (req, res) => {
+    if (!sichtbarOeffentlich()) return res.redirect(302, APP_START);
+    preisindexSeite(req, res, null);
+  });
+  router.get('/preisindex/:slug', (req, res) => {
+    if (!sichtbarOeffentlich()) return res.redirect(302, APP_START);
+    const p = allePlattformen().find((x) => slug(x.kurz || x.name) === req.params.slug);
+    if (!p) return nichtGefunden(req, res);
+    preisindexSeite(req, res, { ...p, pfad: `/preisindex/${req.params.slug}` });
   });
 
   // ── Sitemap & robots.txt ─────────────────────────────────────────────
@@ -580,6 +672,7 @@ ${Array.from({ length: teile }, (_, i) => `<sitemap><loc>${esc(b)}/sitemap-katal
 ${urlEintrag(`${b}/`)}
 ${liste.length ? urlEintrag(`${b}/plattformen`) : ''}
 ${liste.map((p) => urlEintrag(`${b}${p.pfad}`)).join('\n')}
+${sichtbarOeffentlich() ? [urlEintrag(`${b}/preisindex`), ...indexPlattformen().map((p) => urlEintrag(`${b}${p.pfad}`))].join('\n') : ''}
 </urlset>`);
   });
 

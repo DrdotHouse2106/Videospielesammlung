@@ -296,6 +296,12 @@ export function BoerseBox({ katalog, info, plattformen, varianten, angemeldet, o
         <strong>{info.angebote}</strong> {info.angebote === 1 ? 'Angebot' : 'Angebote'}{info.ab_preis != null && <> ab <strong>{euro(info.ab_preis)}</strong></>}
         {' · '}<strong>{info.gesucht}</strong> {info.gesucht === 1 ? 'Sammler sucht' : 'Sammler suchen'} das
       </p>
+      {info.verkauf && (
+        <p className="text-leise">
+          Tatsächlich verkauft (12 Monate): <strong className="text-text">{info.verkauf.verkaeufe}×</strong>, Median <strong className="text-text">{euro(info.verkauf.median)}</strong>
+          {' '}(Spanne {euro(info.verkauf.min)} – {euro(info.verkauf.max)}{info.verkauf.bestaetigt ? `, ${info.verkauf.bestaetigt} bestätigt` : ''})
+        </p>
+      )}
       {angemeldet ? (
         <>
           <div className="flex flex-wrap gap-2">

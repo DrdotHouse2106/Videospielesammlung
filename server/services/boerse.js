@@ -13,6 +13,7 @@ import { leseEuro, ValidierungsFehler } from './validierung.js';
 import { KontoFehler } from './konten.js';
 import { erstelleDrossel } from './drossel.js';
 import { erstelleBoersenStatistik } from './boersenstatistik.js';
+import { erstellePreisindexDienst } from './preisindex.js';
 
 const ARTEN = ANGEBOTSARTEN.map((a) => a.value);
 const EIGENE_STATUS = ['aktiv', 'reserviert', 'verkauft', 'beendet'];
@@ -143,6 +144,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
   const nachrichtenDrossel = erstelleDrossel({ maxVersuche: 60, fensterMs: 60 * 60 * 1000 });
   const neueAnfragenDrossel = erstelleDrossel({ maxVersuche: 20, fensterMs: TAG_MS });
   const statistik = erstelleBoersenStatistik(db);
+  const preisindex = erstellePreisindexDienst(db);
 
   // ── Gemeinsame Abfrageteile ───────────────────────────────────
   // Anbieter-Infos und Katalogdaten zu einem Angebot (Alias a)
@@ -578,7 +580,8 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     const s = db.prepare(`SELECT COUNT(*) AS angebote, MIN(a.preis) AS ab_preis FROM angebote a JOIN benutzer b ON b.id = a.benutzer_id
       WHERE a.katalog_id = ? AND a.status = 'aktiv' AND b.gesperrt = 0`).get(katalogId);
     const gesucht = db.prepare('SELECT COUNT(*) AS n FROM wunschliste WHERE katalog_id = ?').get(katalogId).n;
-    const ergebnis = { angebote: s.angebote, ab_preis: s.ab_preis, gesucht };
+    const verkauf = preisindex.fuerKatalog(katalogId);
+    const ergebnis = { angebote: s.angebote, ab_preis: s.ab_preis, gesucht, verkauf: verkauf.median !== null ? verkauf : null };
     if (benutzer) {
       const w = q.wunsch.get(benutzer.id, katalogId);
       ergebnis.mein_wunsch = w ? { ...w, nur_cib: Boolean(w.nur_cib) } : null;

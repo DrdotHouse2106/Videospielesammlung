@@ -352,6 +352,10 @@ Bezahlung und Versand vereinbaren die Beteiligten direkt miteinander.
   Preisvorstellung, Angebote, Preise). Datenbank-Trigger erfassen dabei jeden Weg – auch CSV-Import, Ablauf und Konto-Löschung.
   Administratoren sehen unter *Administration → Marktdaten* eine Übersicht und laden die Daten als CSV herunter
   (Grundlage für Preisentwicklungen und Marktberichte). Rechtstexte weisen auf die Nutzung hin.
+- **Preisindex** (öffentlich, für Suchmaschinen): `/preisindex` und `/preisindex/<plattform>` zeigen meistverkaufte Spiele mit
+  Median-Verkaufspreis, Preisaufsteiger (6 Monate gegenüber den 6 davor), meistgesuchte Titel und die Verkäufe je Monat –
+  nur aus echten, gemeldeten bzw. bestätigten Verkäufen und erst ab drei Verkäufen je Titel. Die Spieleseiten zeigen den
+  Median ebenfalls („Tatsächlich verkauft“).
 - **Tauschvorschläge:** Die App findet Sammler, die haben, was du suchst, und gleichzeitig suchen, was du tauschen möchtest.
 - **Nachrichten** zu Angeboten innerhalb der App (E-Mail-Adressen bleiben verborgen), danach gegenseitige **Bewertungen**.
 - **Verkaufsbestätigung:** Beim Markieren als verkauft fragt die App nach dem tatsächlichen Preis und dem Käufer (einer der
