@@ -26,3 +26,7 @@ Thumbs.db
 .idea/
 .vscode/
 coverage/
+
+# Playwright
+/test-results/
+/playwright-report/

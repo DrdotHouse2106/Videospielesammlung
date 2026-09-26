@@ -734,6 +734,16 @@ strikte Trennung der Benutzerdaten, Dateiauslieferung nur mit Berechtigungsprüf
 Beiträge sind herzlich willkommen! Lies dazu bitte die [Beitragsrichtlinien (CONTRIBUTING.md)](CONTRIBUTING.md).
 Kurz gesagt: Forken, Branch anlegen, `npm test` und `npm run build` grün halten, Pull Request öffnen.
 
+Browser-Tests auf Handy-Größe (Playwright, startet eine eigene Instanz mit leerer Datenbank):
+
+```bash
+npm run build
+npx playwright install chromium   # einmalig
+npm run test:e2e
+```
+
+Sie laufen zusätzlich in GitHub Actions; das Docker-Image wird nur veröffentlicht, wenn sie grün sind.
+
 ---
 
 ## Lizenz

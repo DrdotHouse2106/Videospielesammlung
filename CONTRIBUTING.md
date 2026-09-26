@@ -40,6 +40,7 @@ npm run dev              # Server (Port 3000) + Oberfläche mit Hot-Reload (Port
 | ----------------- | ------------------------------------------------- |
 | `npm run dev`     | Server und Vite-Entwicklungsserver gleichzeitig   |
 | `npm test`        | Automatische Tests (Node-Testrunner)              |
+| `npm run test:e2e` | Browser-Tests auf Handy-Größe (Playwright, vorher `npm run build`) |
 | `npm run build`   | Oberfläche für den Produktivbetrieb bauen (`dist/`) |
 | `npm start`       | Produktivserver starten (liefert `dist/` aus)     |
 

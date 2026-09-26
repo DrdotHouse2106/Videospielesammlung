@@ -94,6 +94,7 @@ npm install
 npm run dev     # API on :3000, UI with hot reload on :5173
 npm test
 npm run build
+npm run test:e2e   # browser tests (Playwright, mobile viewport)
 ```
 
 Contributions are welcome – see [CONTRIBUTING.md](CONTRIBUTING.md) (German).

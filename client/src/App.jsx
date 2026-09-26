@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { api, leereZwischenspeicher } from './api.js';
 import { useRoute, passt, navigiere } from './router.js';
 import { SitzungKontext } from './sitzung.js';
@@ -6,31 +6,90 @@ import { HinweisAnbieter } from './komponenten/Hinweise.jsx';
 import Layout from './komponenten/Layout.jsx';
 import Anmelden from './seiten/Anmelden.jsx';
 import Sammlung from './seiten/Sammlung.jsx';
-import Hinzufuegen from './seiten/Hinzufuegen.jsx';
-import ArtikelFormular from './seiten/ArtikelFormular.jsx';
-import ArtikelDetail from './seiten/ArtikelDetail.jsx';
-import Statistik from './seiten/Statistik.jsx';
-import Einstellungen from './seiten/Einstellungen.jsx';
-import Wert from './seiten/Wert.jsx';
-import Konto from './seiten/Konto.jsx';
-import Benachrichtigungen from './seiten/Benachrichtigungen.jsx';
-import Erfolge from './seiten/Erfolge.jsx';
-import Import from './seiten/Import.jsx';
-import Community from './seiten/Community.jsx';
-import CommunitySammlung from './seiten/CommunitySammlung.jsx';
-import Admin from './seiten/Admin.jsx';
-import Druck from './seiten/Druck.jsx';
-import Katalog from './seiten/Katalog.jsx';
-import KatalogSeite from './seiten/KatalogSeite.jsx';
-import Moderation from './seiten/Moderation.jsx';
-import RechtlicheSeite from './seiten/RechtlicheSeite.jsx';
-import { PasswortVergessen, PasswortNeu, EmailBestaetigen } from './seiten/KontoLinks.jsx';
-import Boerse from './seiten/Boerse.jsx';
-import BoerseAngebot from './seiten/BoerseAngebot.jsx';
-import BoerseMeine from './seiten/BoerseMeine.jsx';
-import BoerseAnbieter from './seiten/BoerseAnbieter.jsx';
-import Haendler from './seiten/Haendler.jsx';
-import Nachrichten, { Unterhaltung } from './seiten/Nachrichten.jsx';
+
+// ── Code-Splitting ─────────────────────────────────────────────
+// Die Sammlung und die Anmeldung stecken im Start-Bundle, alle anderen Seiten werden erst bei Bedarf geladen.
+// Nach dem Start werden sie im Leerlauf vorgeladen, damit sie der Service-Worker auch offline bereithält.
+const MODULE = {
+  hinzufuegen: () => import('./seiten/Hinzufuegen.jsx'),
+  artikelFormular: () => import('./seiten/ArtikelFormular.jsx'),
+  artikelDetail: () => import('./seiten/ArtikelDetail.jsx'),
+  statistik: () => import('./seiten/Statistik.jsx'),
+  einstellungen: () => import('./seiten/Einstellungen.jsx'),
+  wert: () => import('./seiten/Wert.jsx'),
+  konto: () => import('./seiten/Konto.jsx'),
+  benachrichtigungen: () => import('./seiten/Benachrichtigungen.jsx'),
+  erfolge: () => import('./seiten/Erfolge.jsx'),
+  import: () => import('./seiten/Import.jsx'),
+  community: () => import('./seiten/Community.jsx'),
+  communitySammlung: () => import('./seiten/CommunitySammlung.jsx'),
+  admin: () => import('./seiten/Admin.jsx'),
+  druck: () => import('./seiten/Druck.jsx'),
+  katalog: () => import('./seiten/Katalog.jsx'),
+  katalogSeite: () => import('./seiten/KatalogSeite.jsx'),
+  moderation: () => import('./seiten/Moderation.jsx'),
+  rechtlicheSeite: () => import('./seiten/RechtlicheSeite.jsx'),
+  kontoLinks: () => import('./seiten/KontoLinks.jsx'),
+  boerse: () => import('./seiten/Boerse.jsx'),
+  boerseAngebot: () => import('./seiten/BoerseAngebot.jsx'),
+  boerseMeine: () => import('./seiten/BoerseMeine.jsx'),
+  boerseAnbieter: () => import('./seiten/BoerseAnbieter.jsx'),
+  haendler: () => import('./seiten/Haendler.jsx'),
+  nachrichten: () => import('./seiten/Nachrichten.jsx'),
+};
+
+/**
+ * Lädt eine Seite bei Bedarf. Schlägt das Laden fehl, weil nach einem Update die alten Dateien nicht mehr existieren,
+ * wird die App einmalig neu geladen.
+ */
+function spaeter(modul, exportName = 'default') {
+  return lazy(() => MODULE[modul]().then((m) => {
+    try { sessionStorage.removeItem('zockdb-neu-geladen'); } catch { /* egal */ }
+    return { default: m[exportName] };
+  }).catch((fehler) => {
+    let schonVersucht = false;
+    try { schonVersucht = sessionStorage.getItem('zockdb-neu-geladen') === '1'; sessionStorage.setItem('zockdb-neu-geladen', '1'); } catch { /* egal */ }
+    if (navigator.onLine && !schonVersucht) window.location.reload();
+    throw fehler;
+  }));
+}
+
+function vorladen() {
+  const alle = () => Object.values(MODULE).reduce((kette, laden) => kette.then(() => laden().catch(() => {})), Promise.resolve());
+  if ('requestIdleCallback' in window) window.requestIdleCallback(alle, { timeout: 8000 });
+  else setTimeout(alle, 3000);
+}
+
+const Hinzufuegen = spaeter('hinzufuegen');
+const ArtikelFormular = spaeter('artikelFormular');
+const ArtikelDetail = spaeter('artikelDetail');
+const Statistik = spaeter('statistik');
+const Einstellungen = spaeter('einstellungen');
+const Wert = spaeter('wert');
+const Konto = spaeter('konto');
+const Benachrichtigungen = spaeter('benachrichtigungen');
+const Erfolge = spaeter('erfolge');
+const Import = spaeter('import');
+const Community = spaeter('community');
+const CommunitySammlung = spaeter('communitySammlung');
+const Admin = spaeter('admin');
+const Druck = spaeter('druck');
+const Katalog = spaeter('katalog');
+const KatalogSeite = spaeter('katalogSeite');
+const Moderation = spaeter('moderation');
+const RechtlicheSeite = spaeter('rechtlicheSeite');
+const PasswortVergessen = spaeter('kontoLinks', 'PasswortVergessen');
+const PasswortNeu = spaeter('kontoLinks', 'PasswortNeu');
+const EmailBestaetigen = spaeter('kontoLinks', 'EmailBestaetigen');
+const Boerse = spaeter('boerse');
+const BoerseAngebot = spaeter('boerseAngebot');
+const BoerseMeine = spaeter('boerseMeine');
+const BoerseAnbieter = spaeter('boerseAnbieter');
+const Haendler = spaeter('haendler');
+const Nachrichten = spaeter('nachrichten');
+const Unterhaltung = spaeter('nachrichten', 'Unterhaltung');
+
+const Laden = () => <div className="flex min-h-dvh items-center justify-center p-6 text-leise">Wird geladen …</div>;
 
 function Seite({ route }) {
   const { pfad } = route;
@@ -107,6 +166,7 @@ export default function App() {
 
   useEffect(() => {
     aktualisiere();
+    vorladen();
     const an = () => setOffline(false);
     const aus = () => setOffline(true);
     const abgemeldet = () => setAuth((a) => (a ? { ...a, angemeldet: false, benutzer: null } : a));
@@ -165,7 +225,7 @@ export default function App() {
             Offline – du siehst die zuletzt geladenen Daten. Änderungen sind erst wieder mit Verbindung möglich.
           </div>
         )}
-        {inhalt}
+        <Suspense fallback={<Laden />}>{inhalt}</Suspense>
       </HinweisAnbieter>
     </SitzungKontext.Provider>
   );
