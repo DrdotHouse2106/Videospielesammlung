@@ -22,6 +22,7 @@ import { erstellePreisImport } from './services/preisimport.js';
 import { erstelleKiDienst } from './services/ki.js';
 import { erstelleEinstellungsDienst } from './services/einstellungen.js';
 import { erstelleSicherungsDienst } from './services/sicherung.js';
+import { erstelleExterneSicherung } from './services/externesicherung.js';
 import { erstelleMailDienst } from './services/mail.js';
 import { erstelleCaptchaDienst } from './services/captcha.js';
 import { erstelleKontoMailDienst } from './services/kontomail.js';
@@ -90,6 +91,7 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const kontoMail = erstelleKontoMailDienst(db, { mail, konfiguration, konten });
   const benachrichtigungen = erstelleBenachrichtigungsDienst(db, { mail, konfiguration });
   const erfolge = erstelleErfolgeDienst(db, { benachrichtigungen });
+  const externeSicherung = erstelleExterneSicherung(db, konfiguration, { sicherung, benachrichtigungen, fetchFn });
   const besucher = erstelleBesucherDienst(db);
   const boerse = erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, katalog });
   const boersenImport = erstelleBoersenImport(db, { boerse, plattformen, konfiguration });
@@ -100,7 +102,7 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const neueKi = () => erstelleKiDienst(db, konfiguration.ki ?? { anbieter: 'aus' }, { katalog, fetchFn, anbieterFn: konfiguration.kiAnbieterFn, benachrichtigungen });
   const ki = neueKi();
   const kontext = {
-    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, mail, kontoMail, benachrichtigungen, erfolge, besucher, captcha, boerse, boersenImport, anbindungen, angebotFotos, erpnext, zahlung, konfiguration, version,
+    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, externeSicherung, mail, kontoMail, benachrichtigungen, erfolge, besucher, captcha, boerse, boersenImport, anbindungen, angebotFotos, erpnext, zahlung, konfiguration, version,
   };
 
   /**

@@ -213,6 +213,7 @@ Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 | `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET` / `RECAPTCHA_MIN_SCORE` | – / – / `0.5` | Nur für Google reCAPTCHA v3 |
 | `BACKUP_ENABLED`       | `true`                    | Automatische Datenbank-Sicherung im Datenordner (`sicherungen/`) |
 | `BACKUP_DAYS` / `BACKUP_MONTHS` | `7` / `12`       | Aufbewahrung der täglichen bzw. monatlichen Sicherungen |
+| `BACKUP_REMOTE`        | `aus`                     | Externe, verschlüsselte Sicherung: `s3`, `webdav` oder `sftp` (Details unter [Datensicherung](#datensicherung--updates); weitere `BACKUP_REMOTE_*`-Werte am einfachsten in der Oberfläche) |
 | `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` | –    | Zugang für die Online-Suche über IGDB (siehe unten) |
 | `BARCODE_PROVIDERS`    | `opengtindb,upcitemdb`    | Reihenfolge der Barcode-Datenbanken; leer = nur lokal gelernte Barcodes |
 | `OPENGTINDB_QUERYID`   | –                         | Zugangsnummer für [opengtindb.org](https://opengtindb.org) (deutsche EAN-Datenbank) |
@@ -666,6 +667,35 @@ unter *Administration → Einstellungen*). Die Dateien liegen im Datenordner unt
 Zum Wiederherstellen den Container stoppen, die gewünschte Datei als `sammlung.db` in den Datenordner kopieren
 (die Dateien `sammlung.db-wal` und `sammlung.db-shm` vorher löschen) und neu starten.
 Die Sicherungen liegen auf demselben Datenträger – bewahre zusätzlich eine Kopie **außer Haus** auf.
+
+**Externe Sicherung (empfohlen):** Unter *Administration → Einstellungen → Externe Sicherung* einen Anbieter deiner
+Wahl eintragen – ZockDB überträgt dann täglich eine **verschlüsselte** Kopie dorthin:
+
+| Ziel | Beispiele | Adresse |
+| ---- | --------- | ------- |
+| S3-kompatibel | Hetzner Object Storage, Backblaze B2, AWS S3, IONOS, Wasabi, Cloudflare R2, eigener MinIO | Endpunkt, z. B. `https://fsn1.your-objectstorage.com` + Bucket |
+| WebDAV | Nextcloud, Hetzner Storage Box, Synology/QNAP, viele Cloud-Speicher | Ordner-Adresse, z. B. `https://u12345.your-storagebox.de` |
+| SFTP | Hetzner Storage Box, NAS, eigener Server | `sftp://u12345.your-storagebox.de:23/ordner` |
+
+- Verschlüsselt wird mit AES-256-GCM und deinem **Sicherungs-Passwort** (mindestens 12 Zeichen) – der Anbieter sieht nur
+  unlesbare Dateien. **Bewahre das Passwort außerhalb des Servers auf** (Passwort-Manager): Ohne es ist keine Wiederherstellung möglich.
+- Übertragen werden die Datenbank (täglich, Standard 14 Stände; monatlich unbegrenzt), `geheimnis.key` und – einstellbar –
+  alle Fotos und Scans (jede Datei nur einmal). Nutzt du `APP_SECRET` statt `geheimnis.key`, bewahre diesen Wert ebenfalls sicher auf.
+- *Administration → Sicherungen* zeigt den Status, testet die Verbindung und startet eine Übertragung von Hand. Schlägt
+  die Sicherung fehl oder ist sie älter als 48 Stunden, warnt die Admin-Übersicht, und Administratoren erhalten eine Benachrichtigung.
+- Bei SFTP wird der Host-Schlüssel beim ersten Kontakt gemerkt und danach geprüft (optional fest vorgeben).
+
+Wiederherstellen: Dateien beim Anbieter herunterladen und entschlüsseln – einzeln oder einen ganzen Ordner:
+
+```bash
+node scripts/sicherung-entschluesseln.js zockdb-2026-09-26.db.zdbk sammlung.db
+node scripts/sicherung-entschluesseln.js ./uploads-heruntergeladen/        # alle *.zdbk im Ordner
+# im Docker-Container:
+docker exec -it zockdb node scripts/sicherung-entschluesseln.js /app/data/zockdb-2026-09-26.db.zdbk /app/data/wiederhergestellt.db
+```
+
+Danach wie oben beschrieben `sammlung.db` ersetzen, `geheimnis.key` in den Datenordner legen und die Uploads nach
+`/app/data/uploads` kopieren.
 
 **Sicherung der Datenbank von Hand (Docker):**
 

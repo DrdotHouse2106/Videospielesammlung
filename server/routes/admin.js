@@ -6,7 +6,7 @@ import { erstelleMarktdatenDienst } from '../services/marktdaten.js';
 // Nur über die .env änderbar – zur Information in der Oberfläche
 const NUR_ENV = ['APP_SECRET', 'DATABASE_PATH', 'UPLOAD_DIR', 'PORT', 'HOST', 'TRUST_PROXY', 'COOKIE_SECURE', 'SESSION_DAYS', 'REGISTRATIONS_PER_HOUR'];
 
-export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, benachrichtigungen, besucher, preisimport, igdb, ebay, preise, affiliate, ki, einstellungen, boerse, zahlung, konfiguration }) {
+export function adminRouter({ db, konten, dateien, speicher, sicherung, externeSicherung, mail, benachrichtigungen, besucher, preisimport, igdb, ebay, preise, affiliate, ki, einstellungen, boerse, zahlung, konfiguration }) {
   const router = Router();
   const bestaetigungsDrossel = erstelleDrossel({ maxVersuche: 5 });
   const anzahlAdmins = () => db.prepare("SELECT COUNT(*) AS n FROM benutzer WHERE rolle = 'admin' AND gesperrt = 0").get().n;
@@ -43,6 +43,7 @@ export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, be
         standardMb: speicher.standardMb,
       },
       preisdaten: zahl('SELECT COUNT(*) AS n FROM preis_historie'),
+      externeSicherung: (({ eingerichtet, veraltet, letzter_erfolg: erfolg, letzter_fehler: fehler }) => ({ eingerichtet, veraltet, erfolg, fehler }))(externeSicherung.status()),
       dienste: {
         igdb: igdb.konfiguriert,
         ebay: ebay.konfiguriert,
@@ -133,11 +134,23 @@ export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, be
   }
 
   // ── Datenbank-Sicherungen ─────────
-  router.get('/sicherungen', (_req, res) => res.json(sicherung.status()));
+  router.get('/sicherungen', (_req, res) => res.json({ ...sicherung.status(), extern: externeSicherung.status() }));
+  router.post('/sicherungen/extern', async (_req, res) => {
+    const s = await externeSicherung.lauf({ erzwingen: true });
+    if (s.letzter_fehler) return res.status(502).json({ fehler: `Externe Sicherung fehlgeschlagen: ${s.letzter_fehler}` });
+    res.json(s);
+  });
+  router.post('/sicherungen/extern/test', async (_req, res) => {
+    try {
+      res.json(await externeSicherung.teste());
+    } catch (e) {
+      res.status(502).json({ fehler: `Verbindungstest fehlgeschlagen: ${e.message}` });
+    }
+  });
   router.post('/sicherungen', async (_req, res) => {
     const s = await sicherung.lauf({ erzwingen: true });
     if (s.letzterFehler) return res.status(500).json({ fehler: `Sicherung fehlgeschlagen: ${s.letzterFehler}` });
-    res.json(s);
+    res.json({ ...s, extern: externeSicherung.status() });
   });
 
   router.get('/benutzer', (_req, res) => {

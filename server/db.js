@@ -757,6 +757,15 @@ const MIGRATIONEN = [
     CASE WHEN a.status IN ('aktiv', 'reserviert') THEN NULL ELSE a.status END
   FROM angebote a JOIN benutzer b ON b.id = a.benutzer_id;
   `,
+  // 27: Externe Sicherung – Zustand und bereits übertragene Uploads
+  `
+  CREATE TABLE system_werte (schluessel TEXT PRIMARY KEY, wert TEXT);
+  CREATE TABLE extern_gesichert (
+    datei        TEXT    PRIMARY KEY,
+    groesse      INTEGER NOT NULL,
+    gesichert_am TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

@@ -60,8 +60,19 @@ function Uebersicht({ d }) {
     ['Affiliate-Links', d.dienste.affiliate], ['Öffentlicher Katalog', d.dienste.oeffentlicherKatalog],
     ['Registrierung offen', d.dienste.registrierungOffen], ['2FA-Pflicht', d.dienste.zweiFaktorPflicht], ['Scans teilen erlaubt', d.dienste.medienTeilen],
   ];
+  const ext = d.externeSicherung;
   return (
     <div className="space-y-4">
+      {ext && (!ext.eingerichtet || ext.veraltet) && (
+        <a href="#/admin?reiter=sicherungen" className={`karte block p-4 text-sm ${ext.eingerichtet ? 'border-gefahr/60' : 'border-warnung/60'}`}>
+          <strong>{ext.eingerichtet ? '⚠ Externe Sicherung überfällig' : 'Externe Sicherung noch nicht eingerichtet'}</strong>
+          <span className="block text-leise">
+            {ext.eingerichtet
+              ? `Letzte erfolgreiche Übertragung: ${ext.erfolg ? new Date(ext.erfolg).toLocaleString('de-DE') : 'noch nie'}${ext.fehler ? ` · Fehler: ${ext.fehler}` : ''}`
+              : 'Ohne Kopie außer Haus gehen bei einem Ausfall des Servers alle Daten verloren – jetzt einrichten.'}
+          </span>
+        </a>
+      )}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kachel titel="Benutzer" wert={anzahl(d.benutzer)} hinweis={`+${d.neueBenutzer7Tage} in 7 Tagen`} href="#/admin?reiter=benutzer" />
         <Kachel titel="Moderationsteam" wert={anzahl(d.moderatoren)} hinweis="Admins & Moderatoren" href="#/admin?reiter=benutzer" />
@@ -457,6 +468,7 @@ function Sicherungen() {
           </>
         )}
       </section>
+      <ExterneSicherung s={s.extern} onNeu={(extern) => setS((alt) => ({ ...alt, extern }))} />
       <Liste titel="Tägliche Sicherungen" eintraege={s.taeglich} />
       <Liste titel="Monatliche Sicherungen" eintraege={s.monatlich} />
     </div>
@@ -597,5 +609,54 @@ function Marktdaten() {
         </p>
       </section>
     </div>
+  );
+}
+
+const ZIEL_TEXT = { aus: 'nicht eingerichtet', s3: 'S3-kompatibel', webdav: 'WebDAV', sftp: 'SFTP' };
+
+function ExterneSicherung({ s, onNeu }) {
+  const zeigeHinweis = useHinweis();
+  const [laeuft, setLaeuft] = useState(null);
+  const aktion = async (art) => {
+    setLaeuft(art);
+    try {
+      if (art === 'test') { await api.adminSicherungExternTest(); zeigeHinweis('Verbindung in Ordnung – Schreiben, Auflisten und Löschen funktionieren.'); }
+      else { onNeu(await api.adminSicherungExtern()); zeigeHinweis('Externe Sicherung übertragen.'); }
+    } catch (e) { zeigeHinweis(e.message, 'fehler'); }
+    setLaeuft(null);
+  };
+  const zeit = (iso) => (iso ? new Date(iso).toLocaleString('de-DE') : 'noch nie');
+  return (
+    <section className={`karte space-y-2 p-4 text-sm ${s.veraltet ? 'border-gefahr/60' : ''}`}>
+      <h2 className="font-semibold">Externe Sicherung (verschlüsselt)</h2>
+      {!s.eingerichtet ? (
+        <p className="text-leise">
+          Noch nicht eingerichtet. Unter <a className="underline" href="#/admin?reiter=einstellungen">Einstellungen → Externe Sicherung</a> einen
+          Anbieter deiner Wahl eintragen (S3-kompatibel, WebDAV oder SFTP) und ein Sicherungs-Passwort festlegen. Die Daten werden vor dem
+          Hochladen verschlüsselt – der Anbieter sieht nur unlesbare Dateien.
+        </p>
+      ) : (
+        <>
+          <p className="text-leise">
+            Ziel: <strong className="text-text">{ZIEL_TEXT[s.ziel]}</strong> · Ordner <code>{s.pfad}</code> · täglich {s.tage} Stände,
+            monatlich {s.monate ? `${s.monate} Monate` : 'unbegrenzt'} · Uploads {s.uploads ? `mitgesichert (${anzahl(s.uploads_gesichert)} Dateien)` : 'nicht mitgesichert'}
+          </p>
+          <p>
+            Letzte erfolgreiche Übertragung: <strong>{zeit(s.letzter_erfolg)}</strong>
+            {s.ergebnis?.uploads ? ` · ${anzahl(s.ergebnis.uploads)} neue Uploads` : ''}
+          </p>
+          {s.letzter_fehler && <p className="text-gefahr">Letzter Fehler: {s.letzter_fehler}</p>}
+          {s.hostschluessel && <p className="text-xs text-leise break-all">SFTP-Host-Schlüssel: <code>{s.hostschluessel}</code></p>}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="knopf-primaer" disabled={Boolean(laeuft)} onClick={() => aktion('lauf')}>{laeuft === 'lauf' ? 'Wird übertragen …' : 'Jetzt extern sichern'}</button>
+            <button type="button" className="knopf-sekundaer" disabled={Boolean(laeuft)} onClick={() => aktion('test')}>{laeuft === 'test' ? 'Wird geprüft …' : 'Verbindung testen'}</button>
+          </div>
+          <p className="text-xs text-leise">
+            Wiederherstellen: Datei beim Anbieter herunterladen und mit <code>node scripts/sicherung-entschluesseln.js datei.zdbk</code> entschlüsseln
+            (im Docker-Container: <code>docker exec -it zockdb node scripts/sicherung-entschluesseln.js …</code>). Ohne das Sicherungs-Passwort ist keine Wiederherstellung möglich.
+          </p>
+        </>
+      )}
+    </section>
   );
 }

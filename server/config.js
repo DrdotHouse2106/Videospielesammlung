@@ -74,6 +74,21 @@ export function ladeKonfiguration(env = process.env) {
       tage: Math.max(1, zahl(env.BACKUP_DAYS, 7)),
       monate: Math.max(0, zahl(env.BACKUP_MONTHS, 12)),
       verzeichnis: env.BACKUP_DIR ? pfad(env.BACKUP_DIR, '') : '',
+      // Externe, verschlüsselte Sicherung bei einem frei wählbaren Anbieter
+      extern: {
+        ziel: ['s3', 'webdav', 'sftp'].includes(env.BACKUP_REMOTE) ? env.BACKUP_REMOTE : 'aus',
+        url: (env.BACKUP_REMOTE_URL || '').trim(),
+        bucket: (env.BACKUP_REMOTE_BUCKET || '').trim(),
+        region: (env.BACKUP_REMOTE_REGION || '').trim() || 'us-east-1',
+        benutzer: (env.BACKUP_REMOTE_USER || '').trim(),
+        geheimnis: env.BACKUP_REMOTE_SECRET || '',
+        pfad: (env.BACKUP_REMOTE_PATH || '').trim() || 'zockdb',
+        passwort: env.BACKUP_REMOTE_PASSWORD || '',
+        hostschluessel: (env.BACKUP_REMOTE_HOSTKEY || '').trim(),
+        tage: Math.max(1, zahl(env.BACKUP_REMOTE_DAYS, 14)),
+        monate: Math.max(0, zahl(env.BACKUP_REMOTE_MONTHS, 0)),
+        uploads: jaNein(env.BACKUP_REMOTE_UPLOADS, true),
+      },
     },
     igdb: {
       clientId: (env.TWITCH_CLIENT_ID || '').trim(),

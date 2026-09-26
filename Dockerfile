@@ -25,6 +25,7 @@ COPY --from=build /app/dist ./dist
 COPY package.json ./
 COPY server ./server
 COPY shared ./shared
+COPY scripts ./scripts
 
 RUN mkdir -p /app/data/uploads && chown -R node:node /app/data
 USER node

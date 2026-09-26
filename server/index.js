@@ -53,10 +53,13 @@ if (konfiguration.preisimportStunden > 0 && kontext.preisimport.aktiv()) {
 }
 
 // Datenbank-Sicherung: kurz nach dem Start und danach stündlich prüfen, ob die Tagessicherung fehlt
-const sichern = () => {
-  if (kontext.sicherung.status().aktiv) kontext.sicherung.lauf().catch((e) => console.warn('[sicherung]', e.message));
+// Danach die externe, verschlüsselte Kopie (einmal täglich, bei Fehlern stündlich neuer Versuch)
+const sichern = async () => {
+  if (kontext.sicherung.status().aktiv) await kontext.sicherung.lauf().catch((e) => console.warn('[sicherung]', e.message));
+  if (kontext.externeSicherung.eingerichtet()) await kontext.externeSicherung.lauf().catch((e) => console.warn('[externe sicherung]', e.message));
 };
 setTimeout(sichern, 60_000).unref();
+setInterval(sichern, 60 * 60 * 1000).unref();
 
 // Tauschbörse: abgelaufene Angebote stündlich beenden
 setInterval(() => {
