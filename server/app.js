@@ -29,6 +29,7 @@ import { erstelleBenachrichtigungsDienst } from './services/benachrichtigungen.j
 import { benachrichtigungenRouter } from './routes/benachrichtigungen.js';
 import { erstelleErfolgeDienst } from './services/erfolge.js';
 import { importCsvRouter } from './routes/importcsv.js';
+import { erstelleBesucherDienst } from './services/besucher.js';
 import { seoRouter } from './routes/seo.js';
 import { seitenRouter, seitenAdminRouter } from './routes/seiten.js';
 import { meldenRouter, meldungenModerationRouter } from './routes/meldungen.js';
@@ -81,10 +82,11 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const kontoMail = erstelleKontoMailDienst(db, { mail, konfiguration, konten });
   const benachrichtigungen = erstelleBenachrichtigungsDienst(db, { mail, konfiguration });
   const erfolge = erstelleErfolgeDienst(db, { benachrichtigungen });
+  const besucher = erstelleBesucherDienst(db);
   const neueKi = () => erstelleKiDienst(db, konfiguration.ki ?? { anbieter: 'aus' }, { katalog, fetchFn, anbieterFn: konfiguration.kiAnbieterFn, benachrichtigungen });
   const ki = neueKi();
   const kontext = {
-    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, mail, kontoMail, benachrichtigungen, erfolge, captcha, konfiguration, version,
+    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, mail, kontoMail, benachrichtigungen, erfolge, besucher, captcha, konfiguration, version,
   };
 
   /**
@@ -146,6 +148,8 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   // Ohne Anmeldung erreichbar, damit Docker-Healthchecks funktionieren.
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
+  // Anonyme Besucherstatistik (ohne Cookies) für HTML-Seiten
+  app.use(besucher.middleware);
   // Öffentliche Seiten für Suchmaschinen (server-gerendert), Sitemap und robots.txt
   app.use(seoRouter(kontext));
   app.use('/api', pruefeHerkunft, express.json({ limit: '20mb' }), ladeSitzung(konten));

@@ -10,7 +10,7 @@ import SpeicherAnzeige from '../komponenten/SpeicherAnzeige.jsx';
 import AdminEinstellungen from './AdminEinstellungen.jsx';
 import { useHinweis } from '../komponenten/Hinweise.jsx';
 
-const REITER = [['uebersicht', 'Übersicht'], ['benutzer', 'Benutzer & Rollen'], ['einstellungen', 'Einstellungen'], ['rechtliches', 'Rechtliches'], ['preise', 'Preisimport'], ['sicherungen', 'Sicherungen']];
+const REITER = [['uebersicht', 'Übersicht'], ['benutzer', 'Benutzer & Rollen'], ['einstellungen', 'Einstellungen'], ['rechtliches', 'Rechtliches'], ['besucher', 'Besucher'], ['preise', 'Preisimport'], ['sicherungen', 'Sicherungen']];
 
 export default function Admin({ route }) {
   const reiter = route.parameter.reiter ?? 'uebersicht';
@@ -34,6 +34,7 @@ export default function Admin({ route }) {
         {reiter === 'rechtliches' && <Rechtliches />}
         {reiter === 'preise' && daten && <Preisimport d={daten} onNeu={laden} />}
         {reiter === 'sicherungen' && <Sicherungen />}
+        {reiter === 'besucher' && <Besucher />}
       </div>
     </Layout>
   );
@@ -305,6 +306,73 @@ function Sicherungen() {
       </section>
       <Liste titel="Tägliche Sicherungen" eintraege={s.taeglich} />
       <Liste titel="Monatliche Sicherungen" eintraege={s.monatlich} />
+    </div>
+  );
+}
+
+function Besucher() {
+  const zeigeHinweis = useHinweis();
+  const [tage, setTage] = useState(30);
+  const [d, setD] = useState(null);
+  const [aktiv, setAktiv] = useState(null);
+  useEffect(() => { api.adminBesucher(tage).then(setD).catch((e) => zeigeHinweis(e.message, 'fehler')); }, [tage]);
+  if (!d) return <p className="text-leise">Wird geladen …</p>;
+  const max = Math.max(1, ...d.verlauf.map((t) => t.aufrufe));
+  const tagText = (t) => new Date(`${t.tag}T12:00:00`).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+  const gezeigt = aktiv ?? d.verlauf.at(-1);
+  const Liste = ({ titel, zeilen, spalte, wert, leer }) => (
+    <section className="karte space-y-2 p-4 text-sm">
+      <h2 className="font-semibold">{titel}</h2>
+      {zeilen.length === 0 ? <p className="text-leise">{leer}</p> : (
+        <table className="w-full">
+          <tbody className="divide-y divide-rand">
+            {zeilen.map((z) => (
+              <tr key={z[spalte]}><td className="py-1 pr-2 break-all">{z[spalte]}</td><td className="py-1 text-right tabular-nums text-leise">{wert(z)}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {[7, 30, 90, 365].map((t) => (
+          <button key={t} type="button" className={tage === t ? 'chip-aktiv' : 'chip'} onClick={() => { setTage(t); setAktiv(null); }}>{t === 365 ? '1 Jahr' : `${t} Tage`}</button>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kachel titel="Seitenaufrufe" wert={anzahl(d.summe.aufrufe)} />
+        <Kachel titel="Besucher (je Tag gezählt)" wert={anzahl(d.summe.besucher)} />
+        <Kachel titel="Registrierungen" wert={anzahl(d.summe.registrierungen)} />
+        <Kachel titel="Suchmaschinen-Bots" wert={anzahl(d.summe.bots)} hinweis="Aufrufe durch Googlebot & Co." />
+      </div>
+      <section className="karte space-y-2 p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-semibold">Seitenaufrufe pro Tag</h2>
+          <p className="text-sm text-leise">{tagText(gezeigt)}: <strong className="text-text">{anzahl(gezeigt.aufrufe)}</strong> Aufrufe · {anzahl(gezeigt.besucher)} Besucher{gezeigt.registrierungen ? ` · ${gezeigt.registrierungen} Registrierungen` : ''}</p>
+        </div>
+        <div className="flex h-40 items-end gap-[2px] border-b border-rand" onMouseLeave={() => setAktiv(null)}>
+          {d.verlauf.map((t) => (
+            <button key={t.tag} type="button" className="group flex h-full min-w-0 flex-1 items-end" aria-label={`${tagText(t)}: ${t.aufrufe} Aufrufe, ${t.besucher} Besucher`}
+              onMouseEnter={() => setAktiv(t)} onFocus={() => setAktiv(t)} onClick={() => setAktiv(t)}>
+              <span className={`block w-full rounded-t-[4px] ${gezeigt.tag === t.tag ? 'bg-akzent-hell' : 'bg-akzent group-hover:bg-akzent-hell'}`}
+                style={{ height: `${t.aufrufe ? Math.max(2, (t.aufrufe / max) * 100) : 0}%` }} />
+            </button>
+          ))}
+        </div>
+        <div className="flex justify-between text-xs text-leise"><span>{tagText(d.verlauf[0])}</span><span>heute</span></div>
+        <p className="text-xs text-leise">
+          Ohne Cookies und ohne gespeicherte IP-Adressen: Besucher werden nur innerhalb eines Tages über einen täglich wechselnden,
+          nie gespeicherten Zufallswert unterschieden. Bots werden getrennt gezählt. Aufrufe innerhalb der App (nach dem Start) werden nicht erfasst.
+        </p>
+      </section>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Liste titel="Beliebteste Seiten" zeilen={d.seiten} spalte="pfad" wert={(z) => anzahl(z.aufrufe)} leer="Noch keine Aufrufe." />
+        <Liste titel="Woher Besucher kommen" zeilen={d.verweise} spalte="domain" wert={(z) => anzahl(z.aufrufe)} leer="Noch keine Verweise von anderen Seiten." />
+        <Liste titel="Suchbegriffe (öffentliche Suche)" zeilen={d.suchen} spalte="begriff"
+          wert={(z) => `${anzahl(z.anzahl)}×${z.treffer === 0 ? ' · ohne Treffer' : ''}`} leer="Noch keine Suchen." />
+      </div>
     </div>
   );
 }

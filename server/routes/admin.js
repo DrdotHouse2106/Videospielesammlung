@@ -5,7 +5,7 @@ import { erstelleDrossel } from '../services/drossel.js';
 // Nur über die .env änderbar – zur Information in der Oberfläche
 const NUR_ENV = ['APP_SECRET', 'DATABASE_PATH', 'UPLOAD_DIR', 'PORT', 'HOST', 'TRUST_PROXY', 'COOKIE_SECURE', 'SESSION_DAYS', 'REGISTRATIONS_PER_HOUR'];
 
-export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, benachrichtigungen, preisimport, igdb, ebay, preise, affiliate, ki, einstellungen, konfiguration }) {
+export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, benachrichtigungen, besucher, preisimport, igdb, ebay, preise, affiliate, ki, einstellungen, konfiguration }) {
   const router = Router();
   const bestaetigungsDrossel = erstelleDrossel({ maxVersuche: 5 });
   const anzahlAdmins = () => db.prepare("SELECT COUNT(*) AS n FROM benutzer WHERE rolle = 'admin' AND gesperrt = 0").get().n;
@@ -117,6 +117,9 @@ export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, be
     }
     res.json({ ok: true, an });
   });
+
+  // Besucherstatistik (anonym, ohne Cookies)
+  router.get('/besucher', (req, res) => res.json(besucher.auswertung(Number(req.query.tage) || 30)));
 
   // ── Datenbank-Sicherungen ─────────
   router.get('/sicherungen', (_req, res) => res.json(sicherung.status()));

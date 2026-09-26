@@ -182,3 +182,27 @@ test('Sammlung per geheimem Link teilen: ohne Konto sichtbar, ohne private Angab
   assert.equal((await seite(neu.pfad)).status, 404);
   assert.equal((await seite('/sammlung/zu-kurz')).status, 404);
 });
+
+test('Besucherstatistik: Aufrufe, eindeutige Besucher, Bots, Verweise und Suchbegriffe – ohne Cookies', async () => {
+  const hole = (pfad, headers = {}) => fetch(`${server.basis}${pfad}`, { headers: { 'User-Agent': 'Mozilla/5.0 Test', ...headers } });
+  const vorher = (await moderator.api('/api/admin/besucher?tage=7')).json;
+  const v = vorher.verlauf.at(-1);
+  const startSeite = vorher.seiten.find((z) => z.pfad === '/')?.aufrufe ?? 0;
+  await hole('/');
+  await hole('/', { Referer: 'https://www.google.com/search?q=zockdb' });
+  await hole('/plattformen', { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1)' });
+  await hole('/suche?q=Castlevania');
+  const antwort = await hole('/');
+  assert.equal(antwort.headers.get('set-cookie'), null, 'keine Cookies');
+
+  const s = (await moderator.api('/api/admin/besucher?tage=7')).json;
+  const heute = s.verlauf.at(-1);
+  assert.equal(heute.aufrufe - v.aufrufe, 4);
+  assert.equal(heute.besucher - v.besucher, 1, 'derselbe Browser zählt einmal');
+  assert.equal(heute.bots - v.bots, 1);
+  assert.equal(s.seiten.find((z) => z.pfad === '/').aufrufe - startSeite, 3);
+  assert.deepEqual(s.verweise[0], { domain: 'google.com', aufrufe: 1 });
+  assert.deepEqual(s.suchen.find((z) => z.begriff === 'castlevania'), { begriff: 'castlevania', anzahl: 1, treffer: 0 });
+  assert.equal((await nutzer.api('/api/admin/besucher')).status, 403);
+  assert.equal(server.db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE sql LIKE '%ip%' AND name LIKE 'statistik%'").get().n, 0);
+});

@@ -93,7 +93,7 @@ ul.liste{list-style:none;padding:0;margin:0}ul.liste li{padding:8px 0;border-top
 footer{max-width:860px;margin:24px auto;padding:16px;color:var(--leise);font-size:14px;display:flex;flex-wrap:wrap;gap:12px}footer a{color:var(--leise)}
 `;
 
-export function seoRouter({ db, konfiguration, preise, affiliate, preisimport, katalog, igdb }) {
+export function seoRouter({ db, konfiguration, preise, affiliate, preisimport, katalog, igdb, besucher }) {
   const router = Router();
   const basis = (req) => konfiguration.oeffentlicheUrl || `${req.protocol}://${req.get('host')}`;
 
@@ -400,6 +400,7 @@ ${plattformListe.length ? `<section class="karte"><h2>Nach Plattform stöbern</h
         console.warn('[suche]', e.message);
       }
     }
+    if (q && seiteNr === 1) besucher?.erfasseSuche(q, gesamt);
     const seiten = Math.max(1, Math.ceil(gesamt / PRO_SEITE));
     const treffer = q ? abfrage(PRO_SEITE, (seiteNr - 1) * PRO_SEITE) : [];
     const link = (n) => `/suche?q=${encodeURIComponent(q)}${typ ? `&typ=${typ}` : ''}${n > 1 ? `&seite=${n}` : ''}`;

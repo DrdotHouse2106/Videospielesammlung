@@ -74,6 +74,10 @@ Für Statistiken (z. B. „12 Sammler besitzen dieses Spiel“, Median-Preise) w
 
 Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
 
+### Besucherstatistik
+
+Um zu sehen, welche Seiten genutzt werden, zählen wir Seitenaufrufe **ohne Cookies und ohne Speicherung deiner IP-Adresse**. Zur Unterscheidung von Besuchern innerhalb eines Tages wird aus IP-Adresse und Browserkennung zusammen mit einem täglich neu erzeugten Zufallswert ein Hash gebildet, der nur im Arbeitsspeicher liegt und nicht gespeichert wird; gespeichert werden ausschließlich Summen je Tag (Aufrufe je Seite, Anzahl Besucher, verweisende Domains und anonyme Suchbegriffe der öffentlichen Suche). Rückschlüsse auf einzelne Personen sind nicht möglich. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer bedarfsgerechten Gestaltung). Die Tageswerte werden nach 400 Tagen gelöscht.
+
 ## 6. Cookies und lokale Speicherung
 
 Wir setzen ausschließlich ein **technisch notwendiges Sitzungs-Cookie** für die Anmeldung. Zusätzlich speichert die App (Service Worker) Seiten und zuletzt geladene Daten auf deinem Gerät, damit sie offline funktioniert; beim Abmelden werden diese Daten gelöscht.

@@ -433,6 +433,14 @@ So funktioniert es:
 > **Hinweis:** Wird `APP_SECRET` geändert (oder `data/geheimnis.key` gelöscht), können in der Oberfläche gespeicherte
 > Schlüssel nicht mehr entschlüsselt werden – dann gilt wieder der Wert aus der `.env`, und die Schlüssel müssen neu eingegeben werden.
 
+### Besucherstatistik (ohne Cookies)
+
+*Administration → Besucher* zeigt Seitenaufrufe pro Tag, Besucher, Registrierungen, Aufrufe durch Suchmaschinen-Bots, die
+beliebtesten Seiten, verweisende Websites und die Suchbegriffe der öffentlichen Suche – inklusive der Begriffe **ohne
+Treffer** (so siehst du, welche Spiele im Katalog fehlen). Es werden **keine Cookies** gesetzt und **keine IP-Adressen
+gespeichert**: Besucher werden nur innerhalb eines Tages über einen täglich neu erzeugten, nie gespeicherten Zufallswert
+unterschieden; in der Datenbank landen nur Tagessummen, die nach 400 Tagen gelöscht werden. Ein Cookie-Banner ist dafür nicht nötig.
+
 ### Meldungen (Notice-and-Takedown)
 
 Jeder – auch ohne Konto – kann öffentliche Inhalte über **„Melden“** melden (z. B. Urheberrechtsverletzung, falsche Angaben);

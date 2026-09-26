@@ -429,6 +429,13 @@ const MIGRATIONEN = [
     PRIMARY KEY (benutzer_id, schluessel)
   );
   `,
+  // 15: Besucherstatistik ohne Cookies (nur Summen je Tag, keine IP-Adressen)
+  `
+  CREATE TABLE statistik_seiten (tag TEXT NOT NULL, pfad TEXT NOT NULL, aufrufe INTEGER NOT NULL DEFAULT 0, bots INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (tag, pfad));
+  CREATE TABLE statistik_tage (tag TEXT PRIMARY KEY, besucher INTEGER NOT NULL DEFAULT 0);
+  CREATE TABLE statistik_verweise (tag TEXT NOT NULL, domain TEXT NOT NULL, aufrufe INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (tag, domain));
+  CREATE TABLE statistik_suchen (tag TEXT NOT NULL, begriff TEXT NOT NULL, anzahl INTEGER NOT NULL DEFAULT 0, treffer INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (tag, begriff));
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {
