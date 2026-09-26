@@ -28,23 +28,16 @@ model revisions).
 - **Moderated global catalogue**: only moderators/admins publish directly; users keep entries private or submit them for review; merge duplicates
 - Fixed **platform taxonomy** (PS5, Switch, N64 …), **known variants/revisions** as a collecting checklist, multiple copies per item
 - Private comments per item, **price history** (automatic market prices + user-reported offers/sales)
-- Public catalogue pages with clearly marked **affiliate “buy here” links** (defaults in `server/affiliate-konfiguration.js`)
-- **Admin dashboard**: statistics, users & roles, editable legal pages (imprint, privacy policy, terms, security), price import
-- **Automatic price import** of current offers via the official eBay Browse API; content reporting (notice-and-takedown)
-- **Search-engine friendly public pages** rendered on the server (`/spiel/42-super-mario-64-n64`, `/plattform/n64`) with
-  automatic meta tags, Open Graph, JSON-LD (`VideoGame`, `BreadcrumbList`, `AggregateOffer`), sitemap and robots.txt.
-  Only games that someone collects (or that moderators curated) are indexable – plain IGDB search hits stay `noindex`.
-  Each page shows how many collectors own the game, a 90-day value summary and moderator-curated **collector notes**
-- **Settings in the web UI** (Admin → Settings): most `.env` values can be changed live; they override the `.env`,
-  API keys are stored AES-256-GCM-encrypted and never shown again in plain text, security-relevant changes need the
-  admin's password (+ 2FA code), every change is logged. Paths, port, proxy/cookie settings and `APP_SECRET` stay `.env`-only
+- **Admin dashboard**: users & roles, editable legal pages (imprint, privacy policy, terms), optional price import via the official eBay API
+- Simple **public pages** (start page, search, game and platform pages) – switch off with `PUBLIC_CATALOG=false`
+- **Settings in the web UI** (Admin → Settings): most `.env` values can be changed live; API keys are stored encrypted
 
 - **Accounts & e-mail:** SMTP, confirmed e-mail addresses, password reset links, security notices, optional e-mail notifications
 - **Spam protection** for sign-up and password reset: self-hosted ALTCHA (default, no cookies) or Google reCAPTCHA v3 (loaded only after consent)
-- **Public start page and search** for visitors without an account (popular and newly added games), **share your collection** via a secret link
+- **Share your collection** via a secret link, also with people without an account
 - **Notifications** (bell) for moderation decisions, reports and role changes; **achievements** and per-platform collection goals
 - **CSV import** from CLZ Games, Excel/LibreOffice or the app's own export with automatic column mapping
-- **Automatic database backups** (7 daily, 12 monthly) and **cookie-less visitor statistics** without storing IP addresses
+- **Automatic database backups** (7 daily, 12 monthly)
 
 **Stack:** Node.js 22 · Express 5 · SQLite (better-sqlite3) · sharp · React 19 · Vite · Tailwind CSS 4
 
@@ -67,7 +60,7 @@ You only need the file `docker-compose.yml` – no `git clone`, no build. It pul
 Update with `docker compose pull && docker compose up -d`. Data (SQLite database, uploads, `geheimnis.key`) lives in
 the named volume `sammlung-daten` – `docker compose down -v` deletes it. Behind a reverse proxy bind to localhost only
 (`"127.0.0.1:3000:3000"`) and set `TRUST_PROXY: "1"`. Clone the repository only if you want to change the code
-(replace `image:` with `build: .`). The image is built and published by GitHub Actions on every push to `main`.
+(replace `image:` with `build: .`).
 
 ## Configuration
 
@@ -83,7 +76,8 @@ The most important ones:
 | `PRICECHARTING_TOKEN` | Optional market prices |
 | `MEDIA_SHARING`, `MEDIA_MAX_MB` | Allow sharing scans, max. scan size |
 | `STORAGE_QUOTA_MB` | Per-user storage for own photos and scans in MB (default 1024, `0` = unlimited; approved scans don't count, admins can override per user) |
-| `PUBLIC_CATALOG`, `PUBLIC_URL` | Public catalogue without login; public base URL for canonical links and the sitemap |
+| `PUBLIC_CATALOG`, `PUBLIC_URL` | Public pages without login (`false` = login required); public base URL for links in e-mails |
+| `SMTP_*`, `CAPTCHA_PROVIDER` | E-mail (password reset, notifications) and spam protection (ALTCHA by default) |
 | `TRUST_PROXY` | Set to `1` behind a reverse proxy |
 
 The camera (barcode scanner) only works over **HTTPS** or on `localhost` – use a reverse proxy such as Caddy.

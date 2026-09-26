@@ -5,8 +5,8 @@
 <p><img src="client/public/icons/icon.svg" alt="ZockDB-Logo" width="96"></p>
 
 ZockDB (vormals „Videospielesammlung“) ist eine quelloffene Progressive Web App (PWA) zur Verwaltung von
-**Spielen, Konsolen und Zubehör** – für dich allein oder als öffentlich gehostete Plattform
-mit vielen Benutzerkonten. Sie ist für Sammler im deutschsprachigen
+**Spielen, Konsolen und Zubehör** – für dich allein oder zusammen mit Familie und Freunden
+auf deinem eigenen Server. Sie ist für Sammler im deutschsprachigen
 Raum gemacht: PAL-/USK-Regionen, CIB-Status, Sonderfarben, Editionen und Modellrevisionen
 lassen sich sauber erfassen – per Titelsuche, **Barcode-Scan mit der Handykamera** oder als
 eigener Eintrag für Raritäten, die in keiner Datenbank stehen.
@@ -37,26 +37,19 @@ eigener Eintrag für Raritäten, die in keiner Datenbank stehen.
 - [Schnellstart mit Docker](#schnellstart-mit-docker)
 - [Konfiguration (.env)](#konfiguration-env)
 - [Benutzerkonten & Zwei-Faktor-Anmeldung](#benutzerkonten--zwei-faktor-anmeldung)
-- [Wert & Marktpreise](#wert--marktpreise)
-- [Scans, Handbücher & Cover nachdrucken](#scans-handbücher--cover-nachdrucken)
-- [Globaler Katalog, Moderation & Rollen](#globaler-katalog-moderation--rollen)
+- [Katalog, Moderation & Rollen](#katalog-moderation--rollen)
 - [Plattformen, Varianten & Exemplare](#plattformen-varianten--exemplare)
-- [Preis-Historie](#preis-historie)
-- [Affiliate-Links („Hier kaufen“)](#affiliate-links-hier-kaufen)
-- [Administration & rechtliche Seiten](#administration--rechtliche-seiten)
-- [Einstellungen über die Weboberfläche](#einstellungen-über-die-weboberfläche)
-- [Suchmaschinen (SEO) & öffentliche Seiten](#suchmaschinen-seo--öffentliche-seiten)
-- [Automatischer Preisimport (eBay)](#automatischer-preisimport-ebay)
-- [KI-Vorprüfung (optional)](#ki-vorprüfung-optional)
-- [Öffentlich hosten – Checkliste](#öffentlich-hosten--checkliste)
-- [Sicherheit](#sicherheit)
+- [Administration & Einstellungen](#administration--einstellungen)
+- [Wert, Marktpreise & Preis-Historie](#wert-marktpreise--preis-historie)
+- [Scans, Handbücher & Cover nachdrucken](#scans-handbücher--cover-nachdrucken)
+- [Öffentliche Seiten](#öffentliche-seiten)
 - [IGDB-Zugang einrichten](#igdb-zugang-einrichten)
 - [Barcode-Scanner & HTTPS](#barcode-scanner--https)
 - [Betrieb im Internet (Reverse-Proxy)](#betrieb-im-internet-reverse-proxy)
 - [Installation ohne Docker](#installation-ohne-docker)
 - [Datensicherung & Updates](#datensicherung--updates)
 - [Datenfelder](#datenfelder)
-- [API-Überblick](#api-überblick)
+- [Sicherheit](#sicherheit)
 - [Mitwirken](#mitwirken)
 - [Lizenz](#lizenz)
 
@@ -81,7 +74,6 @@ eigener Eintrag für Raritäten, die in keiner Datenbank stehen.
   mehrere Exemplare pro Spiel/Konsole, gruppierte Ansicht
 - **Private Kommentare** zu jedem Spiel/Gerät
 - **Preis-Historie:** automatischer Marktpreis-Verlauf und gemeldete Angebote/Verkäufe (wo, wann, wie viel)
-- **Öffentliche Katalogseiten** mit „Hier kaufen“-Affiliate-Links (auch ohne Anmeldung)
 - **Drei Artikeltypen:** Spiele, Konsolen/Systeme und Zubehör (Controller, Kabel, Memory Cards …)
 - **Varianten:** Farbe/Sonderfarbe (z. B. „Clear Red“, „Atomic Purple“), Edition (z. B. „Zelda 25th Anniversary“),
   Modellnummer/Revision (z. B. „SCPH-1002“, „OLED“) und Seriennummer
@@ -93,7 +85,10 @@ eigener Eintrag für Raritäten, die in keiner Datenbank stehen.
 - **Eigene Fotos** pro Artikel (z. B. vom Modul oder der OVP)
 - **Filter & Suche** nach Typ, Plattform, Region, Zustand und Vollständigkeit
 - **Statistik:** Anzahl, Kaufwert, Verteilung nach Plattform, Region, Zustand
-- **Export/Import:** JSON (vollständige Sicherung) und CSV im deutschen Excel-Format
+- **Export/Import:** JSON (vollständige Sicherung), CSV im deutschen Excel-Format und **Import aus CLZ Games/Excel**
+- **Sammlung per Link teilen** – auch mit Menschen ohne Konto, Preise und Notizen bleiben privat
+- **Erfolge & Sammlungsziele** je Plattform, **Benachrichtigungen** und E-Mail für „Passwort vergessen“
+- **Automatische Datensicherung** (7 Tage täglich, 12 Monate monatlich)
 - **PWA:** Installierbar auf Android, iOS und Desktop; zuletzt geladene Daten auch offline sichtbar
 - **Hell & dunkel:** folgt automatisch dem Farbschema des Geräts
 - **Administration:** Benutzer sperren, Rollen vergeben, 2FA zurücksetzen, Registrierung schließen
@@ -160,7 +155,7 @@ liegen (`env_file: .env`). Für Portainer & Co. sind die Einträge in der yml ab
 | `restart: unless-stopped` | Startet den Container nach einem Absturz oder Neustart des Servers automatisch wieder – außer du hast ihn bewusst angehalten. |
 | `ports: "3000:3000"` | Host-Port links, Port im Container rechts (immer 3000). Für Port 8080: `"8080:3000"`. |
 | `volumes: sammlung-daten:/app/data` | Speichert Datenbank, Fotos, Scans und `geheimnis.key` dauerhaft im Docker-Volume. |
-| `environment` | **Alle Einstellungen** als Einträge – gruppiert nach Konten & Sicherheit, öffentlichem Katalog, Uploads, IGDB, Preisen, Affiliate-Links und KI. Die Bedeutung jedes Werts steht als Kommentar darüber und in der Tabelle unter [Konfiguration](#konfiguration-env). |
+| `environment` | **Alle Einstellungen** als Einträge – gruppiert nach Themen (Konten, E-Mail, Uploads, IGDB, Preise …). Die Bedeutung jedes Werts steht als Kommentar darüber und in der Tabelle unter [Konfiguration](#konfiguration-env). |
 
 Datenbankpfad, Upload-Ordner und interner Port sind im Image fest eingestellt und müssen nicht angegeben werden.
 Ein **Healthcheck** (`GET /api/health`) ist ebenfalls im Image hinterlegt – `docker compose ps` bzw. Portainer
@@ -184,18 +179,13 @@ zeigen `healthy`, sobald die App bereit ist.
 > `docker compose down -v` löscht das Volume samt **allen Daten**. Wie du es sicherst, steht unter
 > [Datensicherung & Updates](#datensicherung--updates).
 
-> **Für den Betreiber des Repositorys:** Das Image wird bei jedem Push auf `main` (und bei Tags `v*`) von
-> GitHub Actions gebaut und veröffentlicht. Nach dem ersten Lauf das Paket einmalig unter
-> *GitHub → Profil → Packages → zockdb → Package settings → Change visibility* auf **Public** stellen,
-> damit es ohne Anmeldung heruntergeladen werden kann.
-
 ---
 
 ## Konfiguration (.env)
 
 Die Grundkonfiguration erfolgt über Umgebungsvariablen – mit Docker als Einträge unter `environment:` in der
 `docker-compose.yml`, ohne Docker in der Datei `.env`. Viele Werte können Administratoren zusätzlich unter
-*Administration → Einstellungen* ändern (siehe [Einstellungen über die Weboberfläche](#einstellungen-über-die-weboberfläche)). Vorlage ist die Datei
+*Administration → Einstellungen* ändern (siehe [Administration & Einstellungen](#administration--einstellungen)). Vorlage ist die Datei
 [`.env.example`](.env.example) – kopiere sie nach `.env`. **Die `.env`-Datei enthält
 Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 
@@ -210,20 +200,17 @@ Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 | `MAX_UPLOAD_MB`        | `8`                       | Maximale Dateigröße für Artikelfotos |
 | `MEDIA_MAX_MB`         | `200`                     | Maximale Dateigröße für Scans und PDF-Handbücher |
 | `MEDIA_SHARING`        | `true`                    | Dürfen Scans mit anderen Benutzern geteilt werden? |
+| `STORAGE_QUOTA_MB`     | `1024`                    | Speicherplatz je Benutzer für eigene Fotos und Scans in MB (`0` = unbegrenzt) |
 | `SMTP_HOST` / `SMTP_PORT` | – / `587`             | SMTP-Server für E-Mails (Passwort vergessen, Bestätigung, Benachrichtigungen) |
 | `SMTP_SECURE`          | `auto`                    | `auto` (Port 465 = TLS, sonst STARTTLS), `true` oder `false` |
 | `SMTP_USER` / `SMTP_PASSWORD` | –                  | Zugangsdaten des Postfachs |
-| `SMTP_FROM`            | –                         | Absender, z. B. `ZockDB <noreply@zockdb.de>` |
-| `CAPTCHA_PROVIDER`     | `altcha`                  | Spam-Schutz für Registrierung und „Passwort vergessen“: `altcha`, `recaptcha` oder `aus` |
-| `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET` | –      | Schlüssel für Google reCAPTCHA v3 |
-| `RECAPTCHA_MIN_SCORE`  | `0.5`                     | Mindestscore für reCAPTCHA (0,1–0,9) |
+| `SMTP_FROM`            | –                         | Absender, z. B. `ZockDB <noreply@example.de>` |
 | `REQUIRE_EMAIL`        | `false`                   | E-Mail-Adresse bei der Registrierung verpflichtend |
+| `CAPTCHA_PROVIDER`     | `altcha`                  | Spam-Schutz für Registrierung und „Passwort vergessen“: `altcha`, `recaptcha` oder `aus` |
+| `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET` / `RECAPTCHA_MIN_SCORE` | – / – / `0.5` | Nur für Google reCAPTCHA v3 |
 | `BACKUP_ENABLED`       | `true`                    | Automatische Datenbank-Sicherung im Datenordner (`sicherungen/`) |
 | `BACKUP_DAYS` / `BACKUP_MONTHS` | `7` / `12`       | Aufbewahrung der täglichen bzw. monatlichen Sicherungen |
-| `STORAGE_QUOTA_MB`     | `1024`                    | Speicherplatz je Benutzer für eigene Fotos und Scans in MB (`0` = unbegrenzt) |
-| `CACHE_TTL_HOURS`      | `168`                     | Gültigkeit zwischengespeicherter Online-Suchen (Stunden) |
-| `TWITCH_CLIENT_ID`     | –                         | Client-ID für IGDB (siehe unten) |
-| `TWITCH_CLIENT_SECRET` | –                         | Client-Secret für IGDB |
+| `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` | –    | Zugang für die Online-Suche über IGDB (siehe unten) |
 | `BARCODE_PROVIDERS`    | `opengtindb,upcitemdb`    | Reihenfolge der Barcode-Datenbanken; leer = nur lokal gelernte Barcodes |
 | `OPENGTINDB_QUERYID`   | –                         | Zugangsnummer für [opengtindb.org](https://opengtindb.org) (deutsche EAN-Datenbank) |
 | `REGISTRATION_OPEN`    | `true`                    | Dürfen sich neue Benutzer selbst registrieren? |
@@ -231,29 +218,19 @@ Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 | `REQUIRE_2FA`          | `false`                   | Zwei-Faktor-Anmeldung für alle Benutzer verpflichtend |
 | `SESSION_DAYS`         | `30`                      | Gültigkeit einer Anmeldung in Tagen (verlängert sich bei Nutzung) |
 | `COOKIE_SECURE`        | `auto`                    | Sitzungs-Cookie nur über HTTPS (`auto`, `true`, `false`) |
-| `APP_SECRET`           | automatisch               | Schlüssel zum Verschlüsseln der 2FA-Geheimnisse; leer = wird erzeugt und in `data/geheimnis.key` gespeichert |
-| `PRICECHARTING_TOKEN`  | –                         | API-Token für Marktpreise von [PriceCharting](https://www.pricecharting.com) |
-| `USD_EUR_RATE`         | EZB-Tageskurs             | Fester Umrechnungskurs USD → EUR |
-| `PRICE_CACHE_HOURS`    | `72`                      | Gültigkeit abgerufener Marktpreise |
+| `APP_SECRET`           | automatisch               | Schlüssel zum Verschlüsseln von 2FA-Geheimnissen und API-Schlüsseln; leer = wird erzeugt und in `data/geheimnis.key` gespeichert |
 | `TRUST_PROXY`          | –                         | Hinter einem Reverse-Proxy `1` setzen (für HTTPS-Cookies und IP-basierte Sperren) |
-| `PUBLIC_CATALOG`       | `true`                    | Katalogseiten ohne Anmeldung zeigen (Sammlungen bleiben privat) – Voraussetzung für Suchmaschinen |
-| `PUBLIC_URL`           | –                         | Öffentliche Adresse, z. B. `https://sammlung.example.de` (Canonical-Links, Sitemap) |
+| `PUBLIC_URL`           | –                         | Öffentliche Adresse, z. B. `https://sammlung.example.de` – nötig für Links in E-Mails |
+| `PUBLIC_CATALOG`       | `true`                    | Katalogseiten und Suche ohne Anmeldung zeigen (Sammlungen bleiben privat); `false` = alles nur nach Anmeldung |
 | `LINK_DOMAINS`         | –                         | Links zu Cover-/Handbuch-Seiten nur zu diesen Domains erlauben (kommagetrennt) |
-| `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` | –        | Zugang zur offiziellen eBay Browse API für den automatischen Preisimport |
-| `EBAY_MARKETPLACE` / `EBAY_ITEM_LOCATION` | `EBAY_DE` / `DE` | Marktplatz und Artikelstandort der eBay-Suche |
-| `EBAY_CATEGORY_IDS`    | –                         | Optional: eBay-Kategorien eingrenzen (kommagetrennt) |
+| `PRICECHARTING_TOKEN`  | –                         | API-Token für Marktpreise von [PriceCharting](https://www.pricecharting.com) |
+| `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` | –        | Zugang zur offiziellen eBay-API für den automatischen Preisimport |
 | `PRICE_IMPORT_HOURS`   | `24`                      | Automatischer Preisimport alle X Stunden (`0` = aus) |
-| `PRICE_IMPORT_MAX`     | `150`                     | Max. Katalogeinträge pro Import-Durchlauf |
-| `AI_PROVIDER`          | `aus`                     | KI-Vorprüfung: `anthropic`, `gemini`, `openai` (auch kompatible/lokale Modelle) oder `aus` |
-| `AI_API_KEY` / `AI_MODEL` / `AI_BASE_URL` | –       | Zugangsdaten, Modell und (für OpenAI-kompatible Dienste) Adresse |
-| `AI_AUTO_APPROVE` / `AI_AUTO_REJECT` | `true`       | Darf die KI selbst freigeben bzw. ablehnen? |
-| `AI_MIN_CONFIDENCE`    | `0.85`                    | Mindest-Sicherheit für automatische Entscheidungen |
-| `AFFILIATE_LINKS`      | `true`                    | „Hier kaufen“-Links anzeigen |
-| `AFFILIATE_AMAZON_TAG` | aus dem Code              | Amazon-PartnerNet-ID (überschreibt `server/affiliate-konfiguration.js`) |
-| `AFFILIATE_EBAY_CAMPID`| aus dem Code              | eBay-Partner-Network-Kampagnen-ID |
+| `AFFILIATE_LINKS`      | `true`                    | „Hier kaufen“-Links anzeigen (`false` = ausblenden) |
 
 Ohne IGDB-Zugangsdaten funktioniert die App vollständig – die Online-Suche entfällt dann,
-und du legst Artikel als eigene Einträge an.
+und du legst Artikel als eigene Einträge an. Alle weiteren Einträge sind in der
+[`docker-compose.yml`](docker-compose.yml) bzw. [`.env.example`](.env.example) kommentiert.
 
 ---
 
@@ -271,7 +248,7 @@ und du legst Artikel als eigene Einträge an.
   Prüfung der Herkunft bei ändernden Anfragen (CSRF-Schutz), Content-Security-Policy, verschlüsselt gespeicherte 2FA-Geheimnisse.
 - **Administration** (*Mehr → Benutzerverwaltung*): Konten sperren, Admin-Rechte vergeben, Passwort neu setzen,
   2FA zurücksetzen (z. B. wenn jemand Handy und Wiederherstellungscodes verloren hat) und Konten löschen.
-- **Passwort vergessen?** Es gibt bewusst keinen E-Mail-Versand. Ein Administrator kann ein neues Passwort setzen.
+- **Passwort vergessen?** Mit eingerichtetem E-Mail-Versand per Link (siehe unten), sonst setzt ein Administrator ein neues Passwort.
 
 > **Upgrade von Version 1:** Bestehende Artikel werden beim ersten Registrieren automatisch dem ersten
 > (Administrator-)Konto zugeordnet. Die alten Variablen `AUTH_USER`/`AUTH_PASSWORD` entfallen.
@@ -280,30 +257,23 @@ und du legst Artikel als eigene Einträge an.
 
 ### E-Mail & „Passwort vergessen“
 
-Mit einem SMTP-Postfach (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` – auch unter
-*Administration → Einstellungen → E-Mail*, dort gibt es eine **Test-E-Mail**) schaltet ZockDB E-Mail-Funktionen frei:
+Mit einem SMTP-Postfach (`SMTP_*` – auch unter *Administration → Einstellungen → E-Mail*, dort gibt es eine
+**Test-E-Mail**) und gesetzter `PUBLIC_URL` schaltet ZockDB E-Mail-Funktionen frei:
 
-- **E-Mail-Adresse im Konto** (freiwillig, mit `REQUIRE_EMAIL=true` Pflicht bei der Registrierung). Die Adresse gilt erst,
-  wenn der Bestätigungslink geöffnet wurde (24 Stunden gültig).
-- **Passwort vergessen** auf der Anmeldeseite: Link per E-Mail, 60 Minuten gültig, nur einmal verwendbar. Danach werden alle
-  Geräte abgemeldet. Eine aktive Zwei-Faktor-Anmeldung bleibt bestehen – der Link allein reicht also nicht für den Zugriff.
+- **E-Mail-Adresse im Konto** (freiwillig, mit `REQUIRE_EMAIL=true` Pflicht bei der Registrierung) – gilt erst nach Bestätigung.
+- **Passwort vergessen** auf der Anmeldeseite: Link per E-Mail, 60 Minuten gültig, nur einmal verwendbar. Eine aktive
+  Zwei-Faktor-Anmeldung bleibt bestehen.
 - **Sicherheitshinweise** bei Passwortänderung, Passwort-Reset und abgeschalteter 2FA.
 
-Datenschutz & Sicherheit: Links enthalten einen Zufallswert, gespeichert wird nur dessen Hash. Links werden **nur** mit
-`PUBLIC_URL` gebaut (nie aus dem Host-Header), ohne `PUBLIC_URL` bleiben die E-Mail-Funktionen aus. Die Antworten verraten
-nicht, ob ein Benutzername oder eine Adresse existiert. Adressen sind für andere Benutzer nie sichtbar.
+E-Mail-Adressen sind für andere Benutzer nie sichtbar.
 
 ### Spam-Schutz bei der Registrierung
 
-Registrierung und „Passwort vergessen“ sind zusätzlich zur Begrenzung je IP-Adresse geschützt (`CAPTCHA_PROVIDER`,
-auch unter *Administration → Einstellungen*):
+Registrierung und „Passwort vergessen“ sind zusätzlich geschützt (`CAPTCHA_PROVIDER`):
 
-| Anbieter | Funktionsweise | Datenschutz |
-| --- | --- | --- |
-| **ALTCHA** (Standard) | Der Browser löst beim Absenden unsichtbar eine kleine Rechenaufgabe (ca. 1 Sekunde). Bots müssen dafür echte Rechenzeit aufwenden. | Selbst gehostet, keine Cookies, keine Daten an Dritte – **keine Einwilligung nötig**. |
-| **Google reCAPTCHA v3** | Unsichtbare Bewertung des Verhaltens mit einem Score; Einrichtung unter <https://www.google.com/recaptcha/admin> (Typ „v3“, Domain eintragen). | Überträgt Daten (u. a. IP, Browser-/Nutzungsdaten) an Google, auch in die USA, und setzt Cookies. Wird deshalb **erst nach ausdrücklicher Einwilligung** im Formular geladen; Datenschutzerklärung entsprechend ergänzen. |
-
-Das allererste Konto (Administrator) wird ohne Prüfung angelegt, damit eine falsche Konfiguration nicht aussperrt.
+- **ALTCHA** (Standard): unsichtbare Rechenaufgabe im Browser, selbst gehostet, ohne Cookies und ohne Daten an Dritte.
+- **Google reCAPTCHA v3**: überträgt Daten an Google und wird deshalb erst nach Einwilligung geladen.
+- **aus**: z. B. wenn die Registrierung ohnehin geschlossen ist.
 
 ### Sammlung per Link teilen
 
@@ -320,8 +290,7 @@ Unter *Mehr → Erfolge & Sammlungsziele* schalten Sammler **Abzeichen** frei �
 Sammler“ (100 Exemplare), „Komplettist“ (25 CIB-Spiele), „Zeitreisender“ (Spiel vor 1990), „Regionen-Jäger“, „Scanner-Profi“,
 „Helfer“/„Kurator“ für freigegebene Beiträge oder „Sicher ist sicher“ für aktivierte 2FA. Beim Freischalten gibt es eine
 Benachrichtigung. Offene Erfolge zeigen ihren Fortschritt. Dazu kommen **Sammlungsziele je Plattform**: eigene Spiele im
-Vergleich zu allen in der Datenbank bekannten Spielen der Plattform. Neue Erfolge lassen sich in
-`server/services/erfolge.js` ergänzen.
+Vergleich zu allen in der Datenbank bekannten Spielen der Plattform.
 
 ### Import aus CLZ Games, Excel & Co.
 
@@ -340,32 +309,22 @@ Bis zu 5.000 Zeilen pro Datei; fehlerhafte Zeilen werden mit Zeilennummer und Gr
 ### Benachrichtigungen
 
 Die **Glocke** oben in der App zeigt neue Benachrichtigungen, z. B. wenn eine Einreichung (Katalogeintrag, Variante, Scan,
-Link) freigegeben oder abgelehnt wurde – auch bei Entscheidungen der KI-Vorprüfung –, wenn eine Meldung oder ein Vorschlag
+Link) freigegeben oder abgelehnt wurde, wenn eine Meldung oder ein Vorschlag
 bearbeitet wurde oder sich die eigene Rolle geändert hat. Wer eine bestätigte E-Mail-Adresse hat, kann unter *Konto*
 zusätzlich **E-Mail-Benachrichtigungen** einschalten (standardmäßig aus). Je Benutzer werden die letzten 200 gespeichert.
 
-## Globaler Katalog, Moderation & Rollen
+---
+
+## Katalog, Moderation & Rollen
 
 Jeder Artikel in einer Sammlung gehört zu einem **Katalogeintrag** (das „Spiel“ bzw. „Gerät“ an sich).
+Eigene Einträge sind zunächst **privat**. Wer möchte, **reicht sie ein**; nach Freigabe durch einen Moderator oder
+Administrator stehen sie allen Benutzern des Servers zur Verfügung. IGDB-Treffer sind automatisch freigegeben.
 
-| Status | Wer sieht ihn? |
-| --- | --- |
-| **Privat** | Nur der Ersteller – Standard für eigene Einträge |
-| **Eingereicht** | Ersteller + Moderationsteam (wartet auf Prüfung) |
-| **Freigegeben** | Alle – Teil der globalen Datenbank |
-| **Abgelehnt** | Nur der Ersteller, mit Begründung; kann überarbeitet und erneut eingereicht werden |
-
-- **Rollen:** *Nutzer*, *Moderator*, *Administrator* (Rollen vergibt der Admin unter *Mehr → Benutzerverwaltung*).
-- **Nur Moderatoren und Admins** können Einträge direkt im globalen Katalog veröffentlichen, freigegebene Einträge
-  bearbeiten, Plattformen pflegen und Kauflinks hinterlegen.
-- **Nutzer** legen Einträge privat an oder reichen sie ein (beim Hinzufügen oder später über „Einreichen“).
-- **Moderation** (*Mehr → Moderation*): Einreichungen von Katalogeinträgen, Varianten und Scans freigeben oder mit Begründung
-  ablehnen. **Duplikate zusammenführen** übernimmt alle Artikel, Scans, Kommentare und Preisdaten in den bestehenden Eintrag.
-- IGDB-Treffer gelten als geprüfte Quelle und sind automatisch freigegeben.
+- **Rollen:** *Nutzer*, *Moderator*, *Administrator* (vergibt der Admin unter *Mehr → Benutzerverwaltung*).
+- **Moderation** (*Mehr → Moderation*): Einreichungen freigeben oder mit Begründung ablehnen, Duplikate zusammenführen,
+  gemeldete Inhalte bearbeiten.
 - **Barcodes** werden je Benutzer gelernt – ein Barcode verrät nie einen privaten Eintrag eines anderen.
-
-> **Upgrade:** Bestehende eigene Katalogeinträge von Nicht-Admins landen einmalig in der Moderations-Warteschlange,
-> bisher „geteilte“ Scans ebenfalls.
 
 ---
 
@@ -384,172 +343,26 @@ Jeder Artikel in einer Sammlung gehört zu einem **Katalogeintrag** (das „Spie
 
 ---
 
-## Administration & rechtliche Seiten
+## Administration & Einstellungen
 
-Administratoren finden unter **Mehr → Administration**:
+Administratoren finden unter **Mehr → Administration** eine Übersicht, die Benutzerverwaltung, die Sicherungen und:
 
-- **Übersicht:** Benutzer, Moderationsteam, 2FA-Quote, offene Prüfungen und Meldungen, Katalog- und Preisdaten, Status aller Dienste.
-- **Benutzer & Rollen:** Suchen, nach Rolle filtern, **„Zum Moderator machen“**, Rollen ändern, sperren, 2FA zurücksetzen, Passwort setzen, löschen.
-- **Rechtliches:** **Impressum, Datenschutzerklärung, Nutzungsbedingungen und Sicherheit** direkt in der App bearbeiten
-  (einfaches Markdown mit Vorschau). Die Seiten sind ohne Anmeldung erreichbar und auf jeder Seite in der Fußzeile verlinkt.
-  Mitgeliefert werden **Vorlagen** passend zu den Funktionen der App – bitte alle Angaben in [eckigen Klammern] ersetzen
-  (die Vorlagen sind keine Rechtsberatung).
-- **Einstellungen:** Server-Einstellungen (Registrierung, 2FA-Pflicht, Speicher, KI, Preisimport, API-Schlüssel …) ohne Neustart ändern – siehe unten.
-- **Preisimport:** Status und manueller Start des automatischen Preisimports.
-
-Bei der Registrierung bestätigen neue Benutzer die Nutzungsbedingungen und die Kenntnisnahme der Datenschutzerklärung.
-
-**Moderatoren** bearbeiten unter *Mehr → Moderation* bzw. direkt auf jeder Katalogseite (Stift-Symbol) alle Katalogeinträge –
-auch aus IGDB übernommene (diese werden dann bei späteren Importen nicht mehr überschrieben) – sowie Varianten, Plattformen und Kauflinks.
-
-### Einstellungen über die Weboberfläche
-
-Unter *Administration → Einstellungen* ändern Administratoren viele Werte der `.env` direkt in der App:
-
-- **Konten & Sicherheit:** Registrierung offen, 2FA-Pflicht
-- **Uploads & Speicher:** Speicherkontingent, maximale Dateigrößen, Teilen von Scans
-- **Öffentlicher Katalog & Suchmaschinen:** öffentlicher Katalog, `PUBLIC_URL`, erlaubte Link-Domains
-- **KI-Vorprüfung:** Anbieter, Modell, Basis-URL, API-Schlüssel, Schwellwert, automatische Freigabe/Ablehnung
-- **Preise & Angebote:** Importintervall, Einträge pro Lauf, eBay- und PriceCharting-Zugangsdaten
-- **Spieledaten & Barcodes:** IGDB-/Twitch-Zugangsdaten, Barcode-Dienste, OpenGTINDB-Query-ID
-
-So funktioniert es:
-
-- Die `.env` bleibt die **Grundeinstellung**. In der Oberfläche gesetzte Werte werden in der Datenbank gespeichert und
-  haben **Vorrang**. Bei jedem Wert steht, woher er stammt (*Standard*, *.env* oder *Weboberfläche*);
-  „Auf .env-Wert zurücksetzen“ entfernt den Wert wieder aus der Datenbank.
-- Änderungen wirken **sofort** – betroffene Dienste (IGDB, eBay, PriceCharting, KI, Barcode-Suche, Preisimport) werden
-  automatisch neu gestartet.
-- **API-Schlüssel** werden mit AES-256-GCM verschlüsselt gespeichert (Schlüssel aus `APP_SECRET` bzw. `data/geheimnis.key`)
-  und nie wieder im Klartext angezeigt – nur gekürzt als `••••1234`. Ein leeres Feld lässt den Schlüssel unverändert,
-  „Schlüssel entfernen“ löscht ihn.
-- **Sicherheitsrelevante Änderungen** (Schlüssel, Registrierung, 2FA-Pflicht, KI-Anbieter und -Adresse) erfordern das eigene
-  **Passwort** und – falls aktiviert – einen **2FA-Code**. Fehlversuche werden begrenzt.
-- Jede Änderung landet im **Änderungsprotokoll** (wer, wann, alter → neuer Wert; Schlüssel nur gekürzt).
-- **Nur über die `.env`** änderbar bleiben `APP_SECRET`, `DATABASE_PATH`, `UPLOAD_DIR`, `PORT`, `HOST`, `TRUST_PROXY`,
-  `COOKIE_SECURE`, `SESSION_DAYS` und `REGISTRATIONS_PER_HOUR` – eine Fehleinstellung dort könnte den Server aussperren
-  oder unsicher machen.
+- **Rechtliches:** Impressum, Datenschutzerklärung, Nutzungsbedingungen und Sicherheit direkt in der App bearbeiten
+  (einfaches Markdown mit Vorschau). Vorlagen sind enthalten – alle Angaben in [eckigen Klammern] ersetzen
+  (die Vorlagen sind keine Rechtsberatung). Nur nötig, wenn dein Server öffentlich erreichbar ist.
+- **Einstellungen:** Viele Werte der `.env` (Registrierung, 2FA-Pflicht, Speicher, E-Mail, Spam-Schutz, Sicherungen,
+  IGDB-, eBay- und PriceCharting-Zugang …) lassen sich hier **ohne Neustart** ändern. Sie haben Vorrang vor der `.env`;
+  „Auf .env-Wert zurücksetzen“ entfernt sie wieder. API-Schlüssel werden verschlüsselt gespeichert und nie wieder im
+  Klartext angezeigt. Sicherheitsrelevante Änderungen erfordern dein Passwort (und ggf. einen 2FA-Code).
+- **Nur über die `.env`** änderbar bleiben `APP_SECRET`, Pfade, Port, `TRUST_PROXY`, `COOKIE_SECURE`, `SESSION_DAYS`
+  und `REGISTRATIONS_PER_HOUR` – eine Fehleinstellung dort könnte dich aussperren.
 
 > **Hinweis:** Wird `APP_SECRET` geändert (oder `data/geheimnis.key` gelöscht), können in der Oberfläche gespeicherte
-> Schlüssel nicht mehr entschlüsselt werden – dann gilt wieder der Wert aus der `.env`, und die Schlüssel müssen neu eingegeben werden.
-
-### Besucherstatistik (ohne Cookies)
-
-*Administration → Besucher* zeigt Seitenaufrufe pro Tag, Besucher, Registrierungen, Aufrufe durch Suchmaschinen-Bots, die
-beliebtesten Seiten, verweisende Websites und die Suchbegriffe der öffentlichen Suche – inklusive der Begriffe **ohne
-Treffer** (so siehst du, welche Spiele im Katalog fehlen). Es werden **keine Cookies** gesetzt und **keine IP-Adressen
-gespeichert**: Besucher werden nur innerhalb eines Tages über einen täglich neu erzeugten, nie gespeicherten Zufallswert
-unterschieden; in der Datenbank landen nur Tagessummen, die nach 400 Tagen gelöscht werden. Ein Cookie-Banner ist dafür nicht nötig.
-
-### Meldungen (Notice-and-Takedown)
-
-Jeder – auch ohne Konto – kann öffentliche Inhalte über **„Melden“** melden (z. B. Urheberrechtsverletzung, falsche Angaben);
-angemeldete Benutzer können zusätzlich freigegebene Scans melden. Meldungen erscheinen im Moderationsbereich unter **„Meldungen“**
-und können mit „Inhalt entfernen“ oder „Kein Verstoß“ abgeschlossen werden. Entfernte Scans sind für andere sofort gesperrt;
-der Uploader behält sie privat.
+> Schlüssel nicht mehr entschlüsselt werden und müssen neu eingegeben werden.
 
 ---
 
-## Automatischer Preisimport (eBay)
-
-Mit einem **kostenlosen eBay-Developer-Zugang** holt die App regelmäßig automatisch aktuelle Angebote:
-
-1. Unter <https://developer.ebay.com> registrieren → *Application Keys* → Keyset für **Production** erzeugen.
-2. `EBAY_CLIENT_ID` (App ID) und `EBAY_CLIENT_SECRET` (Cert ID) in die `.env` eintragen.
-3. Optional die eBay-Partner-Kampagnen-ID (`AFFILIATE_EBAY_CAMPID` bzw. im Code) setzen – dann liefert eBay die
-   Angebotslinks direkt als **Affiliate-Links**.
-
-Der Import läuft alle `PRICE_IMPORT_HOURS` Stunden (erstmals 5 Minuten nach dem Start) für alle freigegebenen Katalogeinträge,
-die jemand sammelt – zuerst die am längsten nicht aktualisierten. Pro Eintrag werden die aktuellen Festpreis-Angebote aus Deutschland
-gesucht, unpassende Treffer (anderer Titel, „nur Hülle“, Repros) und Preis-Ausreißer verworfen und der **Median** mit Datum in der
-Preis-Historie gespeichert. Die günstigsten Angebote erscheinen auf der öffentlichen Katalogseite unter „Hier zum Kauf verfügbar“.
-Ist `PRICECHARTING_TOKEN` gesetzt, werden im selben Durchlauf auch die Marktpreise aktualisiert.
-
-> **Warum nur eBay?** eBay bietet eine offizielle, kostenlose API. Kleinanzeigen, Vinted und die meisten Händler bieten keine
-> öffentliche Schnittstelle; automatisches Auslesen ihrer Seiten („Scraping“) verstößt in der Regel gegen deren Nutzungsbedingungen
-> und ist deshalb nicht eingebaut. Solche Angebote können Nutzer weiterhin manuell melden. Verkaufte (statt angebotene) Artikel liefert
-> eBay nur über die zugangsbeschränkte „Marketplace Insights API“.
-
----
-
-## KI-Vorprüfung (optional)
-
-Wenn viele Einreichungen anfallen, kann eine KI **eingereichte Katalogeinträge und Varianten vorprüfen**. Der Anbieter ist frei wählbar:
-**Claude** (Anthropic), **Gemini** (Google) oder jeder **OpenAI-kompatible** Dienst – z. B. OpenAI, Mistral, OpenRouter oder ein
-**lokales Modell** über Ollama/LM Studio (dann verlassen keine Daten deinen Server).
-
-```env
-AI_PROVIDER=anthropic          # oder gemini / openai
-AI_API_KEY=...
-AI_MODEL=                      # bei anthropic optional (Standard: claude-opus-5; günstiger z. B. claude-haiku-4-5)
-# AI_BASE_URL=http://ollama:11434/v1   # nur für OpenAI-kompatible/lokale Dienste
-```
-
-**So funktioniert es:**
-
-1. Die KI erhält nur die Daten der Einreichung (Titel, Plattform, Jahr, Beschreibung …) und ähnliche vorhandene Einträge –
-   **keine Benutzernamen oder sonstigen Kontodaten**.
-2. Sie schlägt *freigeben*, *ablehnen* oder *unklar* samt Begründung und Sicherheit vor.
-3. **Nur bei ausreichender Sicherheit** (`AI_MIN_CONFIDENCE`) wird automatisch entschieden. Unsichere Fälle, mögliche Duplikate,
-   Einreichungen mit Links oder Anweisungen an die KI sowie alle Fehler landen beim Moderationsteam – mit der Einschätzung der KI als Hinweis.
-4. Automatische Entscheidungen sind für den Einreicher **klar gekennzeichnet** („Automatisch durch KI abgelehnt: …“ mit Begründung).
-   Er kann jederzeit eine **menschliche Überprüfung anfordern**; danach entscheidet ausschließlich ein Moderator.
-5. Jede Prüfung steht im **KI-Protokoll** (*Moderation → KI-Protokoll*); Moderatoren können automatische Entscheidungen zurücknehmen.
-6. **Scans und Dokumente werden nie automatisch freigegeben** – die Rechtelage kann eine KI nicht zuverlässig beurteilen.
-
-**Rechtliche Hinweise für Betreiber** (keine Rechtsberatung):
-
-- **Datenschutz:** Mit einem externen KI-Anbieter einen Auftragsverarbeitungsvertrag (AVV/DPA) abschließen, die Übermittlung
-  (z. B. in die USA) in der Datenschutzerklärung nennen und keine kostenlosen Tarife nutzen, die Eingaben zum Training verwenden.
-  Mit einem lokalen Modell entfällt die Übermittlung.
-- **Digital Services Act:** In den Nutzungsbedingungen offenlegen, dass automatisierte Werkzeuge zur Moderation eingesetzt werden
-  (Art. 14 DSA), und bei Ablehnungen die Begründung inkl. Hinweis auf die automatisierte Entscheidung sowie den Weg zur
-  Überprüfung nennen (Art. 17 DSA) – beides ist eingebaut bzw. in den Vorlagen enthalten.
-- **Haftung:** Eine KI-Freigabe gilt rechtlich wie eine Freigabe durch das Moderationsteam.
-
----
-
-## Preis-Historie
-
-Die Katalogseite jedes Spiels zeigt einen **Preisverlauf**:
-
-- **Marktpreise** (lose/CIB/neu) werden bei jedem Abruf von PriceCharting automatisch mit Datum gespeichert – so entsteht mit der Zeit ein Verlauf.
-- **eBay-Angebote:** Der automatische Preisimport speichert täglich den Median der aktuellen Angebote.
-- **Meldungen:** Angemeldete Nutzer melden, **wo** (eBay, Kleinanzeigen, Vinted, Händler, Börse …), **wann** und **für wie viel** ein
-  Artikel **angeboten** oder **verkauft** wurde – optional mit Link, Zustand, Vollständigkeit und Region.
-- Meldungen sind für andere **anonym**; eigene Meldungen kann man löschen, Moderatoren alle.
-
----
-
-## Affiliate-Links („Hier kaufen“)
-
-Auf Katalogseiten erscheint – deutlich als **Anzeige** gekennzeichnet – ein Bereich „Hier zum Kauf verfügbar“:
-
-1. **Suchlinks** zu Amazon und eBay mit Partner-ID, automatisch für jedes Spiel.
-2. **Direktlinks**, die Moderatoren je Spiel hinterlegen (beliebiger Shop, z. B. mit eigenem Partnerlink).
-
-**Welche Partner-IDs gelten?**
-
-1. **Eigene IDs des Betreibers** – `AFFILIATE_AMAZON_TAG` und `AFFILIATE_EBAY_CAMPID` in der `docker-compose.yml`/`.env`
-   oder unter *Administration → Einstellungen*. Sie haben immer Vorrang.
-2. **Standard-IDs aus dem Code** in [`server/affiliate-konfiguration.js`](server/affiliate-konfiguration.js) – aber
-   **nur**, wenn `PUBLIC_URL` auf eine dort unter `domains` eingetragene Website zeigt (Subdomains inklusive).
-3. Sonst: Kauflinks **ohne** Partnerkennung. Mit `AFFILIATE_LINKS=false` verschwinden sie ganz.
-
-Hintergrund: Partnerprogramme wie das Amazon-PartnerNet erlauben Links mit einer Partner-ID nur auf Websites, die
-im Partnerkonto des ID-Inhabers angemeldet sind. Würden fremde Installationen dieses Projekts die Standard-IDs
-verwenden, käme der Verkehr von nicht angemeldeten Websites – das kann zur Sperrung des Partnerkontos führen.
-Eine Weiterleitung über die eigene Website ist **keine** Lösung: Sie würde die tatsächliche Herkunft der Klicks
-verschleiern, was die Programmrichtlinien ebenfalls verbieten. Unter *Administration → Einstellungen* ist zu sehen,
-welche IDs gerade gelten und woher sie stammen.
-
-> **Wichtig für Betreiber:** Affiliate-Links sind Werbung und werden in der Oberfläche als „Anzeige“ markiert
-> (Kennzeichnungspflicht nach UWG). Prüfe außerdem die Teilnahmebedingungen deines Partnerprogramms –
-> manche Programme erlauben Links nur auf Websites, die im Partnerkonto angemeldet sind.
-
----
-
-## Wert & Marktpreise
+## Wert, Marktpreise & Preis-Historie
 
 Die Seite **Wert** zeigt den geschätzten Wert deiner Sammlung, die Summe der Kaufpreise und die
 Wertentwicklung. Jeder Artikel bekommt seinen Schätzwert aus der ersten verfügbaren Quelle:
@@ -566,6 +379,16 @@ Schätzpreisen.
 
 > Hinweis: Es gibt keine kostenlose, offizielle Preisdatenbank für den deutschen Markt. Alle Werte sind Schätzungen
 > ohne Gewähr.
+
+**Preis-Historie:** Die Katalogseite jedes Spiels zeigt einen Preisverlauf aus gespeicherten Marktpreisen,
+automatisch importierten eBay-Angeboten und von Benutzern gemeldeten Angeboten/Verkäufen (wo, wann, wie viel – für andere anonym).
+
+**Automatischer Preisimport (optional):** Mit einem kostenlosen Zugang unter <https://developer.ebay.com>
+(*Application Keys* → Keyset für **Production**) `EBAY_CLIENT_ID` (App ID) und `EBAY_CLIENT_SECRET` (Cert ID) eintragen.
+Die App holt dann regelmäßig (`PRICE_IMPORT_HOURS`) aktuelle Angebote für die gesammelten Spiele.
+
+**„Hier kaufen“-Links:** Katalogseiten zeigen – als **Anzeige** gekennzeichnet – Suchlinks zu Shops.
+Mit `AFFILIATE_LINKS=false` werden sie ausgeblendet.
 
 ---
 
@@ -611,10 +434,7 @@ Nutzer hinterlegen dort Links **direkt zum Cover oder Handbuch** auf anderen Web
 - Nur sichere `https://`-Adressen; optional nur freigegebene Domains (`LINK_DOMAINS`).
 - Links öffnen die fremde Seite in einem neuen Tab (kein Einbetten), jeder freigegebene Link kann gemeldet werden.
 
-> ⚖️ Nach der Rechtsprechung des EuGH ist das Verlinken frei zugänglicher Inhalte grundsätzlich zulässig – **nicht** aber,
-> wenn man weiß oder wissen muss, dass die verlinkte Seite Inhalte ohne Erlaubnis anbietet. Bei Seiten mit Gewinnerzielungsabsicht
-> (z. B. mit Affiliate-Links) wird diese Kenntnis sogar vermutet. Deshalb gibt es die Moderation und optional `LINK_DOMAINS`:
-> Nur Links zu Quellen freigeben, die die Inhalte rechtmäßig anbieten.
+> ⚖️ Nur Links zu Quellen freigeben, die die Inhalte rechtmäßig anbieten (optional erzwingbar mit `LINK_DOMAINS`).
 
 **Tipp zum Scannen:** Mindestens 600 dpi, Farbmodus 24 Bit, als TIFF oder PNG speichern (verlustfrei).
 Für ein DVD-Inlay reicht ein A4-Scanner; größere Einleger in zwei Teilen scannen.
@@ -626,70 +446,11 @@ Für ein DVD-Inlay reicht ein A4-Scanner; größere Einleger in zwei Teilen scan
 
 ---
 
-## Suchmaschinen (SEO) & öffentliche Seiten
+## Öffentliche Seiten
 
-Die App selbst nutzt Adressen mit `#` (z. B. `/#/katalog/42`) – diese sieht Google nicht als eigene Seiten. Deshalb erzeugt
-der Server für den öffentlichen Katalog **eigene, schnelle HTML-Seiten ohne JavaScript**:
-
-| Adresse | Inhalt |
-| --- | --- |
-| `/` | **Startseite für Besucher:** beliebte und neu hinzugefügte Spiele, Suche, Plattformen, Registrierung. Angemeldete Benutzer und die installierte App (`/?app=1`) bekommen direkt die App. |
-| `/suche?q=…` | **Suche für alle** – auch ohne Konto (nicht indexiert). Bei wenigen Treffern wird einmal bei IGDB nachgeschlagen (max. 30 Online-Suchen je Stunde und IP). |
-| `/spiel/42-super-mario-64-n64` | Spieleseite (Konsolen: `/konsole/…`, Zubehör: `/zubehoer/…`) |
-| `/plattform/n64` | Alle Einträge einer Plattform, sortiert nach Anzahl der Sammler |
-| `/plattformen` | Übersicht aller Plattformen |
-| `/sitemap.xml` | Sitemap-Index (Plattformen + Katalogseiten, je 40.000 Adressen) |
-| `/robots.txt` | Erlaubt alles außer `/api/`, verweist auf die Sitemap |
-
-**Welche Spiele bekommen eine Seite?** Seiten werden erst beim Aufruf erzeugt – es wird nichts vorab gespeichert.
-Treffer aus der IGDB-Suche landen zwar im Katalog, sind für Suchmaschinen aber **gesperrt** (`noindex`, nicht in der Sitemap).
-**Indexierbar** ist ein Eintrag nur, wenn er freigegeben ist **und**
-
-- mindestens ein Benutzer ihn in seiner Sammlung hat **oder** das Moderationsteam ihn gepflegt hat
-  (eigener freigegebener Eintrag, Sammlerhinweise, freigegebene Scans oder Links), **und**
-- er nicht „dünn“ ist (Beschreibung, Sammlerhinweise, Cover oder Preisdaten vorhanden).
-
-So wächst die Zahl der Seiten nur mit den echten Sammlungen – leere Seiten schaden sonst dem Ranking der ganzen Domain.
-
-**Was steht auf einer Spieleseite?** Cover, Plattformen, Jahr, Hersteller, **wie viele Sammler das Spiel besitzen**
-(anonym), ein **Wert-Abschnitt** aus den Preisdaten der letzten 90 Tagen („im Schnitt 38 €, Spanne 25–60 €“),
-Beschreibung, **Sammlerhinweise**, Varianten, Links zu Cover/Handbüchern, Anzahl der Scans (sichtbar nach Anmeldung) und
-„Hier kaufen“ (als **Anzeige** gekennzeichnet, Links mit `rel="sponsored"`). Der Knopf „In meine Sammlung“ führt in die App.
-
-**Automatische Metadaten:** Seitentitel, Beschreibung, Canonical-Link, Open Graph (Vorschau beim Teilen) und strukturierte
-Daten (`VideoGame` bzw. `Product`, `BreadcrumbList`, `AggregateOffer` nur aus echten aktuellen Angeboten) entstehen
-automatisch aus der Datenbank. Moderatoren können Titel und Beschreibung im Bearbeiten-Formular unter
-*Suchmaschinen* überschreiben.
-
-**Sammlerhinweise** (Markdown) pflegt das Moderationsteam am Katalogeintrag – z. B. PAL-/USK-Versionen, Lieferumfang,
-Revisionen, Fälschungsmerkmale. Eigene Worte statt kopierter Texte sind der wichtigste Faktor für ein gutes Ranking.
-Benutzer schlagen Ergänzungen über „Sammlerhinweis oder Korrektur vorschlagen“ vor; die Vorschläge erscheinen im
-Moderationsbereich unter *Meldungen*.
-
-**Einrichten:**
-
-1. `PUBLIC_CATALOG=true` und `PUBLIC_URL=https://deine-domain.de` setzen (auch unter *Administration → Einstellungen*).
-2. Domain in der [Google Search Console](https://search.google.com/search-console) und bei
-   [Bing Webmaster Tools](https://www.bing.com/webmasters) bestätigen und `https://deine-domain.de/sitemap.xml` einreichen.
-3. Sammlerhinweise für beliebte Spiele pflegen und die Seite in Retro-Communitys bekannt machen.
-
-Alte Links auf `/#/katalog/42` leiten Besucher ohne Anmeldung automatisch auf die öffentliche Seite weiter.
-
-## Öffentlich hosten – Checkliste
-
-1. Reverse-Proxy mit **HTTPS** einrichten (siehe unten) und `TRUST_PROXY=1` setzen.
-2. Zuerst selbst registrieren → du wirst Administrator.
-3. Entscheiden: `REGISTRATION_OPEN` (offen für alle) und `REQUIRE_2FA` (2FA-Pflicht, empfohlen).
-4. Rollen vergeben: vertrauenswürdige Nutzer zu **Moderatoren** machen.
-5. Optional `APP_SECRET` setzen (`openssl rand -base64 32`) – sonst unbedingt `data/geheimnis.key` mitsichern.
-6. `MEDIA_SHARING` bewusst wählen (siehe Urheberrecht oben).
-7. **Regelmäßige Backups** des Datenverzeichnisses einrichten.
-8. Affiliate-IDs in `server/affiliate-konfiguration.js` eintragen (oder per `.env`).
-9. Unter *Administration → Rechtliches* **Impressum, Datenschutzerklärung, Nutzungsbedingungen und Sicherheit** ausfüllen.
-10. Meldungen im Moderationsbereich regelmäßig und zeitnah bearbeiten.
-11. Für Suchmaschinen `PUBLIC_URL` setzen und die Sitemap einreichen (siehe [SEO](#suchmaschinen-seo--öffentliche-seiten)).
-12. Impressum/Datenschutzerklärung: Bei einem öffentlich erreichbaren Angebot in Deutschland in der Regel Pflicht –
-   z. B. als eigene Seite über den Reverse-Proxy bereitstellen.
+Neben der App (`/?app=1`) liefert der Server einfache Seiten ohne Anmeldung aus: eine **Startseite** mit beliebten und
+neuen Spielen, eine **Suche** sowie Seiten je Spiel und Plattform. Private Sammlungen erscheinen dort nie.
+Wer das nicht möchte, setzt `PUBLIC_CATALOG=false` – dann ist alles nur nach Anmeldung sichtbar.
 
 ---
 
@@ -765,8 +526,11 @@ Setze außerdem in der `.env`:
 
 ```env
 TRUST_PROXY=1
-REQUIRE_2FA=true        # empfohlen für öffentliche Server
+REQUIRE_2FA=true        # empfohlen, wenn der Server aus dem Internet erreichbar ist
 ```
+
+Ist dein Server aus dem Internet erreichbar, schließe nach dem Anlegen der eigenen Konten die Registrierung
+(`REGISTRATION_OPEN=false`) und fülle unter *Administration → Rechtliches* die nötigen Seiten aus.
 
 Für den Zugriff nur im Heimnetz eignen sich auch [Tailscale](https://tailscale.com) (mit `tailscale serve`)
 oder ein vorhandener Proxy auf dem NAS (Synology, Unraid, Nginx Proxy Manager).
@@ -855,54 +619,6 @@ Datenbank-Migrationen laufen beim Start automatisch.
 | Eigene Notizen    | freier Text |
 | Foto              | JPG, PNG, WebP oder GIF |
 | Scans/Dokumente   | Cover vorne/hinten/komplett, Handbuch, Label – JPG, PNG, WebP, TIFF, PDF |
-
----
-
-## API-Überblick
-
-Die Oberfläche nutzt eine JSON-API, die du auch für eigene Skripte verwenden kannst. Alle Endpunkte
-außer `/api/health` und `/api/auth/*` erfordern eine Anmeldung (Sitzungs-Cookie).
-
-| Methode | Pfad                              | Beschreibung |
-| ------- | --------------------------------- | ------------ |
-| GET     | `/api/health`                     | Gesundheitsprüfung (ohne Anmeldung) |
-| GET     | `/api/auth/status`                | Anmeldestatus |
-| POST    | `/api/auth/registrieren` · `anmelden` · `2fa` · `abmelden` | Registrierung und Anmeldung (ggf. mit zweitem Faktor) |
-| GET/PUT/DELETE | `/api/konto`               | Eigenes Konto; 2FA unter `/api/konto/2fa/*` |
-| GET     | `/api/status`                     | Konfigurationsstatus |
-| GET     | `/api/meta`                       | Wertelisten (Zustände, Regionen …) |
-| GET     | `/api/artikel`                    | Sammlung; Filter: `typ`, `q`, `plattform`, `region`, `zustand`, `vollstaendigkeit`, `sortierung` |
-| POST    | `/api/artikel`                    | Artikel anlegen |
-| GET/PUT/DELETE | `/api/artikel/:id`         | Artikel lesen, ändern, löschen |
-| POST/DELETE | `/api/artikel/:id/bild`       | Foto hochladen (Feld `bild`) bzw. entfernen |
-| GET     | `/api/katalog/suche?q=&typ=`      | Suche im lokalen Katalog und bei IGDB |
-| GET     | `/api/katalog/barcode/:code`      | Barcode auflösen |
-| POST    | `/api/katalog`                    | Eigenen Katalogeintrag anlegen |
-| GET     | `/api/statistik`                  | Auswertungen |
-| GET     | `/api/werte`                      | Wert der eigenen Sammlung |
-| POST    | `/api/werte/aktualisieren`        | Marktpreise abrufen (in Etappen) |
-| GET     | `/api/katalog/:id/wert`           | Marktpreise & Community-Werte eines Spiels |
-| GET     | `/api/katalog/:id/medien`         | Sichtbare Scans eines Spiels |
-| POST    | `/api/artikel/:id/medien`         | Scan hochladen (Felder `datei`, `art`, `sichtbarkeit`, `titel`, `dpi`) |
-| GET/PUT/DELETE | `/api/medien/:id`          | Scan lesen, ändern, löschen |
-| GET     | `/api/dateien/:datei`             | Datei mit Berechtigungsprüfung (`?download=1` für das Original) |
-| GET     | `/api/community`                  | Öffentliche Sammlungen |
-| GET     | `/api/community/:name`            | Eine öffentliche Sammlung |
-| GET/PUT/DELETE | `/api/admin/benutzer/…`    | Benutzerverwaltung (nur Admins) |
-| GET/PUT | `/api/admin/einstellungen` | Server-Einstellungen (nur Admins, sicherheitsrelevante Änderungen mit Passwort) |
-| GET | `/spiel/…`, `/plattform/…`, `/sitemap.xml`, `/robots.txt` | Öffentliche, server-gerenderte Seiten für Suchmaschinen |
-| GET     | `/api/plattformen`                | Plattformen (öffentlich, falls `PUBLIC_CATALOG`) |
-| GET     | `/api/katalog-liste?plattform=&typ=&q=&seite=` | Globaler Katalog (öffentlich) |
-| GET     | `/api/katalog-seite/:id`          | Katalogseite inkl. Varianten, Preisverlauf, Kauflinks (öffentlich) |
-| POST    | `/api/katalog/:id/einreichen` · `zurueckziehen` | Eigenen Eintrag zur Prüfung einreichen |
-| GET/POST | `/api/katalog/:id/varianten`     | Varianten; `PUT/DELETE /api/varianten/:id` |
-| GET/POST | `/api/katalog/:id/kommentare`    | Private Kommentare; `PUT/DELETE /api/kommentare/:id` |
-| POST    | `/api/katalog/:id/historie`       | Preis melden; `DELETE /api/historie/:id` |
-| GET/POST | `/api/moderation/…`              | Warteschlange, Freigeben/Ablehnen/Zusammenführen, Kauflinks, Plattformen |
-| GET     | `/api/export.json` / `export.csv` | Export |
-| POST    | `/api/import`                     | JSON-Import |
-
-Fehlermeldungen kommen immer auf Deutsch im Feld `fehler`, bei Validierungsfehlern zusätzlich je Feld in `felder`.
 
 ---
 
