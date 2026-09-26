@@ -90,7 +90,9 @@ export function erstelleErpNextDienst(db, { konfiguration, fetchFn = globalThis.
       const heute = new Date().toISOString().slice(0, 10);
       // Leistungszeitraum (§ 14 UStG): in den Feldern „Von/Bis“ der Rechnung und im Positionstext
       const zeitraum = z.zeitraum_von && z.zeitraum_bis ? `Leistungszeitraum: ${deDatum(z.zeitraum_von)} – ${deDatum(z.zeitraum_bis)}` : '';
-      const zahlweg = perRechnung ? `Zahlbar bis ${deDatum(z.faellig_am)} ohne Abzug.`
+      const verrechnet = Number(z.verrechnet) > 0 ? Number(z.verrechnet) : 0;
+      const verrechnungText = verrechnet ? `Verrechnung Guthaben aus Abowechsel (nicht genutzter Zeitraum): ${betrag(verrechnet)} netto` : '';
+      const zahlweg = perRechnung ? (z.brutto > 0 ? `Zahlbar bis ${deDatum(z.faellig_am)} ohne Abzug.` : 'Vollständig mit Guthaben verrechnet – kein Zahlbetrag.')
         : `Bezahlt über ${z.anbieter === 'paypal' ? 'PayPal' : 'Stripe'} (${z.extern_id}).`;
       const rechnung = await anfrage('POST', ressource('Sales Invoice'), {
         customer: kundenname,
@@ -102,7 +104,9 @@ export function erstelleErpNextDienst(db, { konfiguration, fetchFn = globalThis.
         to_date: z.zeitraum_bis || undefined,
         currency: 'EUR',
         address_display: kennzeichnung ? [kennzeichnung.firma, kennzeichnung.anschrift].filter(Boolean).join('\n') : undefined,
-        remarks: [z.beschreibung, zeitraum, zahlweg].filter(Boolean).join('\n'),
+        remarks: [z.beschreibung, zeitraum, verrechnungText, zahlweg].filter(Boolean).join('\n'),
+        // Verrechnung als ausgewiesener Abzug vom Nettobetrag (vor Steuer)
+        ...(verrechnet ? { apply_discount_on: 'Net Total', discount_amount: verrechnet } : {}),
         items: [{
           item_code: k().artikel, item_name: z.beschreibung.slice(0, 140), description: [z.beschreibung, zeitraum].filter(Boolean).join('<br>'),
           qty: 1, rate: z.netto, uom: 'Nos',
@@ -119,7 +123,7 @@ export function erstelleErpNextDienst(db, { konfiguration, fetchFn = globalThis.
 
       // Zahlung gleich verbuchen, wenn ein Konto für den Anbieter eingestellt ist
       const konto = z.anbieter === 'paypal' ? k().kontoPaypal : k().kontoStripe;
-      if (konto) {
+      if (konto && (rechnung.grand_total ?? z.brutto) > 0) {
         const betrag = rechnung.grand_total ?? z.brutto;
         const zahlung = await anfrage('POST', ressource('Payment Entry'), {
           payment_type: 'Receive', company: k().firma, posting_date: heute,
@@ -151,7 +155,10 @@ export function erstelleErpNextDienst(db, { konfiguration, fetchFn = globalThis.
         'Guten Tag,',
         `anbei erhalten Sie die Rechnung ${rechnung.name} über ${betrag(rechnung.grand_total ?? z.brutto)} für ${z.beschreibung}.`,
         zeitraum,
-        `Bitte überweisen Sie den Betrag bis zum ${deDatum(z.faellig_am)} unter Angabe der Rechnungsnummer.`,
+        Number(z.verrechnet) > 0 ? `Darin verrechnet: Guthaben aus Ihrem bisherigen Abo über ${betrag(z.verrechnet)} netto.` : '',
+        (rechnung.grand_total ?? z.brutto) > 0
+          ? `Bitte überweisen Sie den Betrag bis zum ${deDatum(z.faellig_am)} unter Angabe der Rechnungsnummer.`
+          : 'Der Betrag ist vollständig mit Ihrem Guthaben verrechnet – es ist keine Zahlung nötig.',
         'Vielen Dank!',
       ].filter(Boolean).map((zeile) => `<p>${zeile}</p>`).join(''),
       send_email: 1,

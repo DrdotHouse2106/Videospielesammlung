@@ -105,7 +105,7 @@ export const EINSTELLUNGEN = [
   { schluessel: 'PAYMENT_PAYPAL_MODE', gruppe: 'Zahlungen (Stripe, PayPal)', titel: 'PayPal-Modus', typ: 'auswahl', sicher: true,
     optionen: [['live', 'Live'], ['sandbox', 'Sandbox (Test)']] },
   { schluessel: 'PAYMENT_INVOICE_ENABLED', gruppe: 'Zahlungen (Stripe, PayPal)', titel: 'Zahlung per Rechnung anbieten', ...JA_NEIN,
-    hinweis: 'Braucht ERPNext: Die Rechnung wird dort angelegt und per E-Mail verschickt. Den Zahlungseingang buchst du in ERPNext – ZockDB erkennt ihn automatisch.' },
+    hinweis: 'Standard: an. Braucht ERPNext: Die Rechnung wird dort angelegt und per E-Mail verschickt. Den Zahlungseingang buchst du in ERPNext – ZockDB erkennt ihn automatisch.' },
   { schluessel: 'PAYMENT_INVOICE_DAYS', gruppe: 'Zahlungen (Stripe, PayPal)', titel: 'Zahlungsziel bei Rechnung (Tage)', typ: 'zahl', min: 1, max: 60 },
   { schluessel: 'PAYMENT_PAYPAL_FEE', gruppe: 'Zahlungen (Stripe, PayPal)', titel: 'PayPal: Zahlungsgebühr je Monat (€, netto)', typ: 'text', platzhalter: '1,00' },
   // ERPNext

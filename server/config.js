@@ -170,7 +170,7 @@ export function ladeKonfiguration(env = process.env) {
       paypalSandbox: (env.PAYMENT_PAYPAL_MODE || 'live').trim().toLowerCase() === 'sandbox',
       paypalGebuehr: preis(env.PAYMENT_PAYPAL_FEE ?? '1,00') ?? 1, // netto je Monat
       // Zahlung per Rechnung: ERPNext verschickt die Rechnung, Zahlungseingang wird in ERPNext gebucht
-      rechnung: jaNein(env.PAYMENT_INVOICE_ENABLED, false),
+      rechnung: jaNein(env.PAYMENT_INVOICE_ENABLED, true),
       zahlungszielTage: Math.min(60, Math.max(1, zahl(env.PAYMENT_INVOICE_DAYS, 7))),
     },
     // Rechnungen in ERPNext (REST-API mit API-Schlüssel eines Benutzers mit Rechten für Kunden, Rechnungen und Zahlungen)

@@ -146,7 +146,7 @@ services:
       PAYMENT_PAYPAL_WEBHOOK_ID: ""
       PAYMENT_PAYPAL_MODE: "live"     # oder sandbox zum Testen
       PAYMENT_PAYPAL_FEE: "1,00"      # Zahlungsgebühr je Monat (netto)
-      PAYMENT_INVOICE_ENABLED: "false" # Zahlung per Rechnung (verschickt über ERPNext)
+      PAYMENT_INVOICE_ENABLED: "true" # Auf Rechnung kaufen (Standard, verschickt über ERPNext)
       PAYMENT_INVOICE_DAYS: "7"       # Zahlungsziel in Tagen
 
       # ── Rechnungen in ERPNext (optional) ────────────────────────

@@ -284,13 +284,20 @@ const datum = (iso) => iso.split('-').reverse().join('.');
 const euro = (n) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 
 /** Buchen über Stripe (Karte, SEPA-Lastschrift) oder PayPal (zzgl. Zahlungsgebühr). */
-function BuchenKnoepfe({ profil, zahlung, produkt, angebote, onGebucht }) {
+function BuchenKnoepfe({ profil, zahlung, produkt, angebote, preis, onGebucht }) {
   const zeigeHinweis = useHinweis();
   const [laeuft, setLaeuft] = useState(false);
   const a = zahlung?.anbieter;
   if (profil.status !== 'verifiziert' || !a || (!a.stripe && !a.paypal && !a.rechnung)) return null;
+  // Verrechnet wird höchstens der Monatspreis – ein Rest bleibt als Guthaben
+  const verrechnung = Math.min(zahlung.verrechenbar?.[produkt] ?? 0, preis ?? Infinity);
+  const wechsel = zahlung.abos.some((x) => x.produkt === produkt && ['aktiv', 'gekuendigt', 'pausiert'].includes(x.status));
   const buchen = async (anbieter) => {
-    if (anbieter === 'rechnung' && !window.confirm(`Per Rechnung buchen? Die Rechnung kommt per E-Mail (Zahlungsziel ${zahlung.zahlungsziel} Tage). Das Paket ist sofort aktiv und verlängert sich monatlich, bis du kündigst.`)) return;
+    const hinweisVerrechnung = verrechnung > 0
+      ? `\n\n${wechsel ? 'Dein bisheriges Abo wird beendet und der nicht genutzte Rest gutgeschrieben. ' : ''}Mit der ersten Zahlung werden ${euro(verrechnung)} netto verrechnet.`
+      : '';
+    if (anbieter === 'rechnung' && !window.confirm(`Auf Rechnung kaufen? Die Rechnung kommt per E-Mail (Zahlungsziel ${zahlung.zahlungsziel} Tage). Das Paket ist sofort aktiv und verlängert sich monatlich, bis du kündigst.${hinweisVerrechnung}`)) return;
+    if (anbieter !== 'rechnung' && hinweisVerrechnung && !window.confirm(`Weiter zur Bezahlung?${hinweisVerrechnung}`)) return;
     setLaeuft(true);
     try {
       const r = await api.zahlungCheckout({ produkt, angebote, anbieter });
@@ -305,21 +312,22 @@ function BuchenKnoepfe({ profil, zahlung, produkt, angebote, onGebucht }) {
   };
   return (
     <div className="mt-2 flex flex-wrap gap-1.5">
-      {zahlung.anbieter.stripe && (
-        <button type="button" className="knopf-primaer px-2.5 py-1 text-xs" disabled={laeuft} onClick={() => buchen('stripe')}>Buchen: Karte/SEPA</button>
+      {a.rechnung && (
+        <button type="button" className="knopf-primaer px-2.5 py-1 text-xs" disabled={laeuft} onClick={() => buchen('rechnung')}
+          title={`Rechnung per E-Mail, zahlbar innerhalb von ${zahlung.zahlungsziel} Tagen`}>
+          Auf Rechnung kaufen
+        </button>
       )}
-      {zahlung.anbieter.paypal && (
+      {a.stripe && (
+        <button type="button" className={`${a.rechnung ? 'knopf-sekundaer' : 'knopf-primaer'} px-2.5 py-1 text-xs`} disabled={laeuft} onClick={() => buchen('stripe')}>Karte/SEPA</button>
+      )}
+      {a.paypal && (
         <button type="button" className="knopf-sekundaer px-2.5 py-1 text-xs" disabled={laeuft} onClick={() => buchen('paypal')}
           title={`PayPal kostet ${euro(zahlung.paypal_gebuehr)} netto Zahlungsgebühr im Monat zusätzlich.`}>
           PayPal (+{euro(zahlung.paypal_gebuehr)})
         </button>
       )}
-      {zahlung.anbieter.rechnung && (
-        <button type="button" className="knopf-sekundaer px-2.5 py-1 text-xs" disabled={laeuft} onClick={() => buchen('rechnung')}
-          title={`Rechnung per E-Mail, zahlbar innerhalb von ${zahlung.zahlungsziel} Tagen`}>
-          Rechnung ({zahlung.zahlungsziel} Tage)
-        </button>
-      )}
+      {verrechnung > 0 && <p className="w-full text-[11px] text-erfolg">{wechsel ? 'Wechsel: ' : ''}{euro(verrechnung)} netto werden verrechnet.</p>}
     </div>
   );
 }
@@ -340,6 +348,11 @@ function AbosUndRechnungen({ zahlung, onGeaendert }) {
   return (
     <section className="karte space-y-3 p-4 text-sm">
       <h2 className="flex items-center gap-2 font-semibold"><Symbol name="dokument" className="size-5 text-akzent-hell" />Abos & Rechnungen</h2>
+      {zahlung.guthaben > 0 && (
+        <p className="rounded-xl border border-erfolg/50 bg-erfolg/10 p-3">
+          Guthaben: <strong>{euro(zahlung.guthaben)}</strong> netto – wird mit deinen nächsten Rechnungen verrechnet.
+        </p>
+      )}
       {zahlung.abos.length > 0 && (
         <ul className="divide-y divide-rand rounded-xl border border-rand">
           {zahlung.abos.map((a) => (
@@ -368,6 +381,7 @@ function AbosUndRechnungen({ zahlung, onGeaendert }) {
                 <td className="py-1.5">
                   {r.beschreibung}
                   {r.zeitraum_von && <span className="block text-leise">{datum(r.zeitraum_von)} – {datum(r.zeitraum_bis)}</span>}
+                  {r.verrechnet > 0 && <span className="block text-erfolg">abzgl. Verrechnung {euro(r.verrechnet)} netto</span>}
                   {!r.bezahlt_am && r.faellig_am && <span className="block text-warnung">offen, fällig am {datum(r.faellig_am)}</span>}
                 </td>
                 <td className="py-1.5 pl-3 text-right tabular-nums whitespace-nowrap">{euro(r.brutto)}</td>
@@ -416,7 +430,7 @@ function Pakete({ profil, zahlung, onGeaendert, onGebucht }) {
               <p className="text-xs text-leise">bis {anzahl(s.angebote)} aktive Angebote{s.preis ? ' · volle Nachfrage-Auswertung' : ' · auch per CSV-Upload'}</p>
               {s.preis > 0 && zahlung?.steuersatz > 0 && <p className="text-xs text-leise">zzgl. {zahlung.steuersatz.toLocaleString('de-DE')} % MwSt.</p>}
               {gewaehlt && <p className="mt-1 text-xs font-semibold text-akzent-hell">{s.preis ? `${profil.test_bis ? 'Test' : 'Gebucht'} bis ${datum(profil.paket_bis)}` : 'Aktuell'}</p>}
-              {s.preis > 0 && !gewaehlt && <BuchenKnoepfe profil={profil} zahlung={zahlung} produkt="paket" angebote={s.angebote} onGebucht={onGebucht} />}
+              {s.preis > 0 && !gewaehlt && <BuchenKnoepfe profil={profil} zahlung={zahlung} produkt="paket" angebote={s.angebote} preis={s.preis} onGebucht={onGebucht} />}
             </div>
           );
         })}
@@ -498,7 +512,7 @@ function ApiBereich({ profil, zahlung, onGebucht }) {
           <li>Andere Systeme binden wir auf Wunsch individuell an (siehe unten).</li>
         </ul>
         {profil.preis_hinweis && <p className="text-xs text-leise">{profil.preis_hinweis}</p>}
-        <BuchenKnoepfe profil={profil} zahlung={zahlung} produkt="api" onGebucht={onGebucht} />
+        <BuchenKnoepfe profil={profil} zahlung={zahlung} produkt="api" preis={profil.api_preis} onGebucht={onGebucht} />
         <p>
           {profil.status !== 'verifiziert' ? 'Verfügbar nach der Verifizierung deines Händlerkontos. ' : ''}
           {zahlung?.anbieter?.stripe || zahlung?.anbieter?.paypal ? 'Fragen: ' : 'Buchen: '}<KontaktLink kontakt={profil.kontakt} betreff={`${MARKE.name}: Zusatzpaket API-Anbindung`} />

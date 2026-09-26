@@ -10,6 +10,11 @@
 // des bezahlten Zeitraums (plus drei Tage Puffer) freigeschaltet, eine Rechnung in ERPNext angelegt. Verlängerungen
 // laufen genauso; nach Kündigung oder fehlgeschlagener Zahlung läuft das Paket einfach aus.
 //
+// Verrechnung beim Wechsel: Der nicht genutzte Rest des bisherigen Abos wird tagesgenau gutgeschrieben (netto) und mit
+// der neuen Zahlung verrechnet – bei Rechnung als Abzug auf der ERPNext-Rechnung, bei Stripe als Rabatt auf die erste
+// Rechnung (ein Rest als Kundenguthaben für die Verlängerungen), bei PayPal als günstigerer erster Monat. Was übrig bleibt
+// (z. B. beim Wechsel auf ein kleineres Paket), bleibt als Guthaben stehen und wird mit späteren Rechnungen verrechnet.
+//
 // Sicherheit: Webhooks werden geprüft (Stripe: HMAC-Signatur, PayPal: Prüfung über die PayPal-API). Zahlungen und Abos
 // werden nur über ihre IDs beim Anbieter zugeordnet und doppelt eintreffende Meldungen ignoriert.
 import crypto from 'node:crypto';
@@ -93,12 +98,44 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
       zahlungsziel: z().zahlungszielTage,
       steuersatz: z().steuersatz,
       paypal_gebuehr: z().paypalGebuehr,
+      guthaben: q.benutzer.get(benutzerId)?.guthaben ?? 0,
+      // Was bei einer neuen Buchung verrechnet würde (Rest des laufenden Abos + Guthaben), netto
+      verrechenbar: { paket: verfuegbar(q.benutzer.get(benutzerId), 'paket'), api: verfuegbar(q.benutzer.get(benutzerId), 'api') },
       abos: db.prepare(`SELECT id, anbieter, produkt, angebote, netto, status, laeuft_bis, erstellt_am FROM abos
         WHERE benutzer_id = ? AND status != 'offen' ORDER BY id DESC`).all(benutzerId),
-      zahlungen: db.prepare(`SELECT id, anbieter, beschreibung, netto, brutto, erstellt_am, zeitraum_von, zeitraum_bis, bezahlt_am, faellig_am,
+      zahlungen: db.prepare(`SELECT id, anbieter, beschreibung, netto, verrechnet, brutto, erstellt_am, zeitraum_von, zeitraum_bis, bezahlt_am, faellig_am,
           erpnext_rechnung IS NOT NULL AS rechnung
         FROM zahlungen WHERE benutzer_id = ? ORDER BY id DESC LIMIT 100`).all(benutzerId).map((r) => ({ ...r, rechnung: Boolean(r.rechnung) })),
     };
+  }
+
+  // ── Verrechnung ───────────────────────────────────────────────
+  /**
+   * Nicht genutzter Wert (netto) eines laufenden Abos: bezahlter bzw. in Rechnung gestellter Betrag des aktuellen
+   * Zeitraums, anteilig für die Tage ab morgen bis zum Ende des Zeitraums.
+   */
+  function restwert(abo) {
+    // Alle noch nicht abgelaufenen Zeiträume zählen – auch eine vorab gestellte Folgerechnung
+    const zeitraeume = db.prepare('SELECT * FROM zahlungen WHERE abo_id = ? AND zeitraum_von IS NOT NULL AND zeitraum_bis >= ?').all(abo.id, heute());
+    const tage = (von, bis) => Math.round((Date.parse(`${bis}T12:00:00Z`) - Date.parse(`${von}T12:00:00Z`)) / TAG_MS) + 1;
+    const morgen = plusTage(heute(), 1);
+    let summe = 0;
+    for (const z0 of zeitraeume) {
+      const gesamt = tage(z0.zeitraum_von, z0.zeitraum_bis);
+      const rest = Math.min(gesamt, Math.max(0, tage(spaeter(morgen, z0.zeitraum_von), z0.zeitraum_bis)));
+      const bezahlt = Math.max(0, z0.netto - (z0.verrechnet ?? 0));
+      if (gesamt > 0) summe += (bezahlt * rest) / gesamt;
+    }
+    return runde(summe);
+  }
+
+  /** Abos derselben Art, die ein neues Abo ersetzen würde. */
+  const ersetzbare = (benutzerId, produkt, ausserId = -1) => db.prepare(`SELECT * FROM abos WHERE benutzer_id = ? AND produkt = ? AND id != ?
+    AND status IN ('aktiv', 'gekuendigt', 'pausiert')`).all(benutzerId, produkt, ausserId);
+
+  /** Verfügbares Guthaben (netto) für eine neue Buchung: Rest des bisherigen Abos plus vorhandenes Guthaben. */
+  function verfuegbar(b, produkt) {
+    return runde(ersetzbare(b.id, produkt).reduce((s, a) => s + restwert(a), 0) + (b.guthaben ?? 0));
   }
 
   // ── Freischalten und Verbuchen ────────────────────────────────
@@ -124,11 +161,16 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
         text: 'Vielen Dank! Das Abo verlängert sich monatlich und ist jederzeit zum Ende des Zeitraums kündbar.',
         link: '#/boerse/haendler',
       });
-      // Ein neues Paket ersetzt ein bisheriges Abo derselben Art (z. B. Wechsel von 500 auf 1.000)
-      for (const alt of db.prepare("SELECT * FROM abos WHERE benutzer_id = ? AND produkt = ? AND id != ? AND status IN ('aktiv', 'gekuendigt')").all(b.id, abo.produkt, abo.id)) {
+      // Ein neues Paket ersetzt ein bisheriges Abo derselben Art (z. B. Wechsel von 500 auf 1.000). Der nicht genutzte
+      // Rest wird gutgeschrieben; die bei der Buchung bereits eingeplante Verrechnung ist davon abgezogen.
+      let gutschrift = 0;
+      for (const alt of ersetzbare(b.id, abo.produkt, abo.id)) {
+        gutschrift += restwert(alt);
         beendeExtern(alt).catch((e) => console.warn('[zahlung] altes Abo beenden:', e.message));
         db.prepare("UPDATE abos SET status = 'beendet', geaendert_am = datetime('now') WHERE id = ?").run(alt.id);
       }
+      const eingeplant = q.aboId.get(abo.id).verrechnung_netto ?? 0;
+      db.prepare('UPDATE benutzer SET guthaben = MAX(0, ROUND(guthaben + ? - ?, 2)) WHERE id = ?').run(runde(gutschrift), eingeplant, b.id);
     }
   }
 
@@ -138,13 +180,15 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
     : `${MARKE.name} Zusatzpaket API-Anbindung`);
 
   /** Bezahlte Zahlung (Stripe/PayPal) mit Leistungszeitraum `von`–`bis` erfassen. */
-  function verbuche(abo, { anbieter, externId, bruttoBetrag, von, bis }) {
-    if (!(bruttoBetrag > 0)) return null;
-    const netto = runde(bruttoBetrag / (1 + z().steuersatz / 100));
-    const r = db.prepare(`INSERT OR IGNORE INTO zahlungen (abo_id, benutzer_id, anbieter, extern_id, produkt, beschreibung, netto, steuersatz, brutto,
-        zeitraum_von, zeitraum_bis, bezahlt_am)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`)
-      .run(abo.id, abo.benutzer_id, anbieter, externId, abo.produkt, beschreibungFuer(abo), netto, z().steuersatz, runde(bruttoBetrag), von, bis);
+  function verbuche(abo, { anbieter, externId, bruttoBetrag, bruttoVoll = bruttoBetrag, von, bis }) {
+    if (!(bruttoVoll > 0)) return null;
+    const faktor = 1 + z().steuersatz / 100;
+    const netto = runde(bruttoVoll / faktor);
+    const verrechnet = runde(Math.max(0, netto - bruttoBetrag / faktor));
+    const r = db.prepare(`INSERT OR IGNORE INTO zahlungen (abo_id, benutzer_id, anbieter, extern_id, produkt, beschreibung, netto, verrechnet, steuersatz,
+        brutto, zeitraum_von, zeitraum_bis, bezahlt_am)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`)
+      .run(abo.id, abo.benutzer_id, anbieter, externId, abo.produkt, beschreibungFuer(abo), netto, verrechnet, z().steuersatz, runde(bruttoBetrag), von, bis);
     if (!r.changes) return null; // bereits verbucht
     const id = Number(r.lastInsertRowid);
     erpnext.rechnungFuer(id).catch((e) => console.warn('[erpnext]', e.message));
@@ -177,17 +221,36 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
     const benutzerId = Number(m.benutzer_id);
     if (!benutzerId || !q.benutzer.get(benutzerId)) throw new Error(`Stripe-Abo ${subscriptionId} ohne gültigen Benutzer`);
     const p = produktFuer(m.produkt, m.angebote);
-    db.prepare(`INSERT OR IGNORE INTO abos (benutzer_id, anbieter, extern_id, produkt, angebote, netto) VALUES (?, 'stripe', ?, ?, ?, ?)`)
-      .run(benutzerId, subscriptionId, p.produkt, p.angebote, p.netto);
+    db.prepare(`INSERT OR IGNORE INTO abos (benutzer_id, anbieter, extern_id, produkt, angebote, netto, verrechnung_netto) VALUES (?, 'stripe', ?, ?, ?, ?, ?)`)
+      .run(benutzerId, subscriptionId, p.produkt, p.angebote, p.netto, Number(m.verrechnung) || 0);
     if (s.customer) db.prepare('UPDATE benutzer SET stripe_kunde = ? WHERE id = ?').run(String(s.customer), benutzerId);
     abo = q.abo.get('stripe', subscriptionId);
     return abo;
+  }
+
+  /** Übriges Guthaben als Kundenguthaben an Stripe übergeben – Stripe verrechnet es mit den nächsten Abbuchungen. */
+  async function guthabenAnStripe(benutzerId, kunde) {
+    const b = q.benutzer.get(benutzerId);
+    const kundeId = kunde || b?.stripe_kunde;
+    if (!b || !(b.guthaben > 0) || !kundeId) return;
+    await stripe('POST', `/v1/customers/${encodeURIComponent(kundeId)}/balance_transactions`, {
+      amount: -Math.round(brutto(b.guthaben) * 100), currency: 'eur', description: 'Guthaben aus Abowechsel',
+    });
+    db.prepare('UPDATE benutzer SET guthaben = 0 WHERE id = ?').run(b.id);
   }
 
   async function stripeCheckout(b, p, kennzeichnung, basis) {
     const testBis = b.haendler_test_bis ? Date.parse(`${b.haendler_test_bis}T23:00:00Z`) : 0;
     const test = testBis > Date.now() + 2 * TAG_MS; // Stripe verlangt mindestens 48 Stunden
     const metadaten = { benutzer_id: String(b.id), produkt: p.produkt, angebote: p.angebote ? String(p.angebote) : '' };
+    // Verrechnung als einmaliger Rabatt auf die erste Rechnung
+    const verrechnung = runde(Math.min(verfuegbar(b, p.produkt), p.netto));
+    let rabatt = null;
+    if (verrechnung > 0 && !test) {
+      rabatt = (await stripe('POST', '/v1/coupons', {
+        amount_off: Math.round(brutto(verrechnung) * 100), currency: 'eur', duration: 'once', name: 'Verrechnung bisheriges Abo', max_redemptions: 1,
+      })).id;
+    }
     const sitzung = await stripe('POST', '/v1/checkout/sessions', {
       mode: 'subscription',
       locale: 'de',
@@ -198,8 +261,9 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
         quantity: 1,
         price_data: { currency: 'eur', unit_amount: Math.round(brutto(p.netto) * 100), recurring: { interval: 'month' }, product_data: { name: p.name } },
       }],
-      metadata: metadaten,
-      subscription_data: { metadata: metadaten, ...(test ? { trial_end: Math.floor(testBis / 1000) } : {}) },
+      ...(rabatt ? { discounts: [{ coupon: rabatt }] } : {}),
+      metadata: { ...metadaten, verrechnung: rabatt ? String(verrechnung) : '0' },
+      subscription_data: { metadata: { ...metadaten, verrechnung: rabatt ? String(verrechnung) : '0' }, ...(test ? { trial_end: Math.floor(testBis / 1000) } : {}) },
       success_url: `${basis}/?app=1#/boerse/haendler?zahlung=erfolg`,
       cancel_url: `${basis}/?app=1#/boerse/haendler?zahlung=abgebrochen`,
     });
@@ -232,9 +296,12 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
         const zeile = o.lines?.data?.[0]?.period ?? {};
         const ende = zeile.end ?? o.period_end;
         const start = zeile.start ?? o.period_start ?? Math.floor(Date.now() / 1000);
-        if (o.amount_paid > 0) {
+        // subtotal = voller Preis; Rabatt (Verrechnung) und Kundenguthaben mindern den gezahlten Betrag
+        const voll = (o.subtotal ?? o.total ?? o.amount_paid) / 100;
+        if (voll > 0) {
           aktiviere(abo, plusPuffer(ende * 1000));
-          verbuche(abo, { anbieter: 'stripe', externId: o.id, bruttoBetrag: o.amount_paid / 100, von: datum(start * 1000), bis: tagDavor(ende * 1000) });
+          verbuche(abo, { anbieter: 'stripe', externId: o.id, bruttoBetrag: o.amount_paid / 100, bruttoVoll: voll, von: datum(start * 1000), bis: tagDavor(ende * 1000) });
+          await guthabenAnStripe(abo.benutzer_id, o.customer);
         }
         break;
       }
@@ -309,8 +376,34 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
     return plan.id;
   }
 
+  /** Einmaliger Plan mit günstigerem ersten Monat (Verrechnung), danach regulärer Preis. */
+  async function paypalPlanMitVerrechnung(p, verrechnung) {
+    await paypalPlan(p); // legt bei Bedarf das Produkt an
+    const produktId = q.schluesselLesen.get(`paypal:${z().paypalSandbox ? 'sandbox' : 'live'}:produkt`).wert;
+    const voll = brutto(p.netto + z().paypalGebuehr);
+    const erster = Math.max(0, runde(voll - brutto(verrechnung)));
+    const plan = await paypal('POST', '/v1/billing/plans', {
+      product_id: produktId,
+      name: `${p.name} (Wechsel mit Verrechnung)`.slice(0, 127),
+      status: 'ACTIVE',
+      billing_cycles: [
+        {
+          frequency: { interval_unit: 'MONTH', interval_count: 1 }, tenure_type: 'TRIAL', sequence: 1, total_cycles: 1,
+          ...(erster > 0 ? { pricing_scheme: { fixed_price: { value: erster.toFixed(2), currency_code: 'EUR' } } } : {}),
+        },
+        {
+          frequency: { interval_unit: 'MONTH', interval_count: 1 }, tenure_type: 'REGULAR', sequence: 2, total_cycles: 0,
+          pricing_scheme: { fixed_price: { value: voll.toFixed(2), currency_code: 'EUR' } },
+        },
+      ],
+      payment_preferences: { auto_bill_outstanding: true, payment_failure_threshold: 1 },
+    });
+    return plan.id;
+  }
+
   async function paypalCheckout(b, p, basis) {
-    const planId = await paypalPlan(p);
+    const verrechnung = runde(Math.min(verfuegbar(b, p.produkt), p.netto + z().paypalGebuehr));
+    const planId = verrechnung > 0 ? await paypalPlanMitVerrechnung(p, verrechnung) : await paypalPlan(p);
     const abo = await paypal('POST', '/v1/billing/subscriptions', {
       plan_id: planId,
       custom_id: `${b.id}:${p.produkt}:${p.angebote ?? ''}`,
@@ -320,8 +413,8 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
         cancel_url: `${basis}/?app=1#/boerse/haendler?zahlung=abgebrochen`,
       },
     });
-    db.prepare(`INSERT OR IGNORE INTO abos (benutzer_id, anbieter, extern_id, produkt, angebote, netto) VALUES (?, 'paypal', ?, ?, ?, ?)`)
-      .run(b.id, abo.id, p.produkt, p.angebote, runde(p.netto + z().paypalGebuehr));
+    db.prepare(`INSERT OR IGNORE INTO abos (benutzer_id, anbieter, extern_id, produkt, angebote, netto, verrechnung_netto) VALUES (?, 'paypal', ?, ?, ?, ?, ?)`)
+      .run(b.id, abo.id, p.produkt, p.angebote, runde(p.netto + z().paypalGebuehr), verrechnung);
     const link = abo.links?.find((l) => l.rel === 'approve')?.href;
     if (!link) throw new KontoFehler('PayPal hat keinen Link zur Bestätigung geliefert.', 502);
     return link;
@@ -358,7 +451,14 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
     switch (ereignis.event_type) {
       case 'BILLING.SUBSCRIPTION.ACTIVATED': {
         const abo = paypalAboZuordnen(o);
-        if (abo) aktiviere(abo, paypalBis(o));
+        if (!abo) break;
+        aktiviere(abo, paypalBis(o));
+        // Vollständig verrechneter erster Monat: keine Abbuchung, trotzdem Rechnung mit vollem Abzug
+        if (abo.verrechnung_netto >= abo.netto) {
+          const naechste = Date.parse(o?.billing_info?.next_billing_time ?? '');
+          verbuche(abo, { anbieter: 'paypal', externId: `${o.id}-verrechnet`, bruttoBetrag: 0, bruttoVoll: brutto(abo.netto),
+            von: heute(), bis: Number.isFinite(naechste) ? tagDavor(naechste) : monatAb(heute()) });
+        }
         break;
       }
       case 'PAYMENT.SALE.COMPLETED': {
@@ -370,8 +470,12 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
         aktiviere(abo, bis);
         const von = String(o.create_time ?? '').slice(0, 10) || heute();
         const naechste = Date.parse(sub?.billing_info?.next_billing_time ?? '');
+        const bezahlt = Number(o.amount?.total ?? o.amount?.value ?? 0);
+        // Erster Monat nach einem Wechsel ist um die Verrechnung günstiger – die Rechnung zeigt vollen Preis und Abzug
+        const ersteZahlung = !db.prepare('SELECT 1 FROM zahlungen WHERE abo_id = ?').get(abo.id);
         verbuche(abo, {
-          anbieter: 'paypal', externId: o.id, bruttoBetrag: Number(o.amount?.total ?? o.amount?.value ?? 0),
+          anbieter: 'paypal', externId: o.id, bruttoBetrag: bezahlt,
+          bruttoVoll: ersteZahlung && abo.verrechnung_netto > 0 ? brutto(abo.netto) : bezahlt,
           von, bis: Number.isFinite(naechste) ? tagDavor(naechste) : monatAb(von),
         });
         break;
@@ -404,11 +508,13 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
 
   // ── Zahlung per Rechnung (über ERPNext) ───────────────────────
   /** Rechnung für den Zeitraum `von`–`bis` stellen (ERPNext legt sie an und verschickt sie). */
-  async function stelleRechnung(abo, von, bis) {
+  async function stelleRechnung(abo, von, bis, verrechnet = 0) {
     const faellig = plusTage(heute(), z().zahlungszielTage);
-    const { lastInsertRowid } = db.prepare(`INSERT INTO zahlungen (abo_id, benutzer_id, anbieter, extern_id, produkt, beschreibung, netto, steuersatz, brutto,
-        zeitraum_von, zeitraum_bis, faellig_am) VALUES (?, ?, 'rechnung', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(abo.id, abo.benutzer_id, `R-${crypto.randomUUID()}`, abo.produkt, beschreibungFuer(abo), abo.netto, z().steuersatz, brutto(abo.netto), von, bis, faellig);
+    const zuZahlen = runde(abo.netto - verrechnet);
+    const { lastInsertRowid } = db.prepare(`INSERT INTO zahlungen (abo_id, benutzer_id, anbieter, extern_id, produkt, beschreibung, netto, verrechnet, steuersatz,
+        brutto, zeitraum_von, zeitraum_bis, faellig_am, bezahlt_am) VALUES (?, ?, 'rechnung', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(abo.id, abo.benutzer_id, `R-${crypto.randomUUID()}`, abo.produkt, beschreibungFuer(abo), abo.netto, verrechnet, z().steuersatz, brutto(zuZahlen),
+        von, bis, faellig, zuZahlen <= 0 ? new Date().toISOString().replace('T', ' ').slice(0, 19) : null);
     const id = Number(lastInsertRowid);
     const name = await erpnext.rechnungFuer(id);
     return { id, name };
@@ -419,10 +525,12 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
     // Im Testzugang beginnt der bezahlte Zeitraum nach dem Test
     const von = b.haendler_test_bis && b.haendler_test_bis >= heute() ? plusTage(b.haendler_test_bis, 1) : heute();
     const bis = monatAb(von);
-    const { lastInsertRowid } = db.prepare(`INSERT INTO abos (benutzer_id, anbieter, extern_id, produkt, angebote, netto) VALUES (?, 'rechnung', ?, ?, ?, ?)`)
-      .run(b.id, `R-${crypto.randomUUID()}`, p.produkt, p.angebote, p.netto);
+    // Rest des bisherigen Abos und vorhandenes Guthaben werden direkt auf der ersten Rechnung verrechnet
+    const verrechnung = runde(Math.min(verfuegbar(b, p.produkt), p.netto));
+    const { lastInsertRowid } = db.prepare(`INSERT INTO abos (benutzer_id, anbieter, extern_id, produkt, angebote, netto, verrechnung_netto) VALUES (?, 'rechnung', ?, ?, ?, ?, ?)`)
+      .run(b.id, `R-${crypto.randomUUID()}`, p.produkt, p.angebote, p.netto, verrechnung);
     const abo = q.aboId.get(Number(lastInsertRowid));
-    const { id, name } = await stelleRechnung(abo, von, bis);
+    const { id, name } = await stelleRechnung(abo, von, bis, verrechnung);
     if (!name) {
       const fehler = db.prepare('SELECT erpnext_fehler FROM zahlungen WHERE id = ?').get(id)?.erpnext_fehler;
       db.prepare('DELETE FROM zahlungen WHERE id = ?').run(id);
@@ -476,8 +584,13 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
       if (!letzte || plusTage(letzte, -7) > heute()) continue;
       const von = plusTage(letzte, 1);
       const bis = monatAb(von);
-      const { name } = await stelleRechnung(abo, von, bis);
-      if (name) { aktiviere(abo, bis); ergebnis.gestellt++; }
+      const guthaben = q.benutzer.get(abo.benutzer_id)?.guthaben ?? 0;
+      const verrechnet = runde(Math.min(guthaben, abo.netto));
+      if (verrechnet > 0) db.prepare('UPDATE benutzer SET guthaben = ROUND(guthaben - ?, 2) WHERE id = ?').run(verrechnet, abo.benutzer_id);
+      const { name } = await stelleRechnung(abo, von, bis, verrechnet);
+      if (name) { aktiviere(abo, bis); ergebnis.gestellt++; } else if (verrechnet > 0) {
+        db.prepare('UPDATE benutzer SET guthaben = ROUND(guthaben + ?, 2) WHERE id = ?').run(verrechnet, abo.benutzer_id);
+      }
     }
     // Gekündigte Rechnungs-Abos nach Ablauf beenden
     db.prepare("UPDATE abos SET status = 'beendet' WHERE anbieter = 'rechnung' AND status = 'gekuendigt' AND laeuft_bis < ?").run(heute());
@@ -531,7 +644,7 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
   }
 
   return {
-    stripeAktiv, paypalAktiv, rechnungAktiv, pruefeRechnungen, uebersicht, checkout, kuendige, portal, stripeWebhook, paypalWebhook, paypalBestaetigen,
+    stripeAktiv, paypalAktiv, rechnungAktiv, pruefeRechnungen, uebersicht, restwert, checkout, kuendige, portal, stripeWebhook, paypalWebhook, paypalBestaetigen,
     /** Nur für Tests und Administration */
     aktiviere, verbuche,
   };

@@ -618,6 +618,12 @@ const MIGRATIONEN = [
   ALTER TABLE zahlungen ADD COLUMN faellig_am TEXT;             -- nur bei Zahlung per Rechnung
   UPDATE zahlungen SET bezahlt_am = erstellt_am;
   `,
+  // 22: Verrechnung beim Abowechsel (anteilige Gutschrift des alten Abos, Guthaben des Händlers)
+  `
+  ALTER TABLE zahlungen ADD COLUMN verrechnet REAL NOT NULL DEFAULT 0;      -- netto verrechnetes Guthaben (netto = voller Preis)
+  ALTER TABLE abos ADD COLUMN verrechnung_netto REAL NOT NULL DEFAULT 0;    -- bei der Buchung eingeplante Verrechnung
+  ALTER TABLE benutzer ADD COLUMN guthaben REAL NOT NULL DEFAULT 0;         -- netto, aus nicht genutzten Zeiträumen
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {
