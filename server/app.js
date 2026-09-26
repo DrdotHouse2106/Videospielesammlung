@@ -23,6 +23,9 @@ import { erstelleKiDienst } from './services/ki.js';
 import { erstelleEinstellungsDienst } from './services/einstellungen.js';
 import { erstelleSicherungsDienst } from './services/sicherung.js';
 import { erstelleExterneSicherung } from './services/externesicherung.js';
+import { erstellePushDienst } from './services/push.js';
+import { erstelleSchnaeppchenDienst } from './services/schnaeppchen.js';
+import { erstellePreisindexDienst } from './services/preisindex.js';
 import { erstelleMailDienst } from './services/mail.js';
 import { erstelleCaptchaDienst } from './services/captcha.js';
 import { erstelleKontoMailDienst } from './services/kontomail.js';
@@ -94,6 +97,10 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const externeSicherung = erstelleExterneSicherung(db, konfiguration, { sicherung, benachrichtigungen, fetchFn });
   const besucher = erstelleBesucherDienst(db);
   const boerse = erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, katalog });
+  const push = erstellePushDienst(db, { konfiguration, schluessel });
+  benachrichtigungen.setzePush(push);
+  const schnaeppchen = erstelleSchnaeppchenDienst(db, { konfiguration, benachrichtigungen, preise, preisindex: erstellePreisindexDienst(db) });
+  boerse.setzeSchnaeppchen(schnaeppchen);
   const boersenImport = erstelleBoersenImport(db, { boerse, plattformen, konfiguration });
   const anbindungen = erstelleAnbindungsDienst(db, { schluessel, boerse, boersenImport, fetchFn });
   const erpnext = erstelleErpNextDienst(db, { konfiguration, fetchFn });
@@ -102,7 +109,7 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const neueKi = () => erstelleKiDienst(db, konfiguration.ki ?? { anbieter: 'aus' }, { katalog, fetchFn, anbieterFn: konfiguration.kiAnbieterFn, benachrichtigungen });
   const ki = neueKi();
   const kontext = {
-    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, externeSicherung, mail, kontoMail, benachrichtigungen, erfolge, besucher, captcha, boerse, boersenImport, anbindungen, angebotFotos, erpnext, zahlung, konfiguration, version,
+    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, externeSicherung, mail, kontoMail, benachrichtigungen, erfolge, besucher, captcha, boerse, push, schnaeppchen, boersenImport, anbindungen, angebotFotos, erpnext, zahlung, konfiguration, version,
   };
 
   /**

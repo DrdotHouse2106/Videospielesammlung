@@ -9,7 +9,7 @@ import Cover from '../komponenten/Cover.jsx';
 import Symbol from '../komponenten/Symbole.jsx';
 import { AngebotKarte } from '../komponenten/BoerseTeile.jsx';
 
-const FILTER = ['q', 'plattform_id', 'typ', 'art', 'region', 'zustand', 'cib', 'max_preis', 'versand', 'plz', 'anbieter', 'sortierung', 'katalog_id', 'mit_foto'];
+const FILTER = ['q', 'plattform_id', 'typ', 'art', 'region', 'zustand', 'cib', 'max_preis', 'versand', 'plz', 'anbieter', 'sortierung', 'katalog_id', 'mit_foto', 'schnaeppchen'];
 
 export default function Boerse({ route }) {
   const tab = route.parameter.tab === 'gesucht' ? 'gesucht' : 'angebote';
@@ -40,7 +40,7 @@ function Angebote({ route, plattformen }) {
   const [daten, setDaten] = useState(null);
   const [fehler, setFehler] = useState(null);
   const [q, setQ] = useState(p.q ?? '');
-  const [mehr, setMehr] = useState(Boolean(p.region || p.zustand || p.cib || p.max_preis || p.plz || p.anbieter || p.versand || p.mit_foto));
+  const [mehr, setMehr] = useState(Boolean(p.region || p.zustand || p.cib || p.max_preis || p.plz || p.anbieter || p.versand || p.mit_foto || p.schnaeppchen));
 
   const filter = Object.fromEntries(FILTER.map((f) => [f, p[f]]).filter(([, w]) => w));
   const schluessel = JSON.stringify({ ...filter, seite: p.seite });
@@ -100,6 +100,7 @@ function Angebote({ route, plattformen }) {
           <label className="flex items-center gap-2 self-end pb-3 text-sm"><input type="checkbox" checked={p.cib === '1'} onChange={(e) => setze('cib', e.target.checked ? '1' : '')} />Nur CIB</label>
           <label className="flex items-center gap-2 self-end pb-3 text-sm"><input type="checkbox" checked={p.versand === '1'} onChange={(e) => setze('versand', e.target.checked ? '1' : '')} />Mit Versand</label>
           <label className="flex items-center gap-2 self-end pb-3 text-sm"><input type="checkbox" checked={p.mit_foto === '1'} onChange={(e) => setze('mit_foto', e.target.checked ? '1' : '')} />Nur mit Foto</label>
+          <label className="flex items-center gap-2 self-end pb-3 text-sm"><input type="checkbox" checked={p.schnaeppchen === '1'} onChange={(e) => setze('schnaeppchen', e.target.checked ? '1' : '')} />Nur Schnäppchen</label>
         </div>
       )}
       {p.katalog_id && <p className="text-sm">Angebote zu einem Spiel · <a className="text-akzent-hell underline" href="#/boerse">Filter entfernen</a></p>}

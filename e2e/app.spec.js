@@ -58,6 +58,7 @@ const SEITEN = [
   ['/boerse/meine?tab=statistik', 'Meine Börse'],
   ['/boerse/haendler', 'Händlerbereich'],
   ['/nachrichten', 'Nachrichten'],
+  ['/premium', 'Schnäppchen & Premium'],
   ['/seite/datenschutz', 'Datenschutz'],
 ];
 

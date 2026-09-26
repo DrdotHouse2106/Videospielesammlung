@@ -39,7 +39,10 @@ export function erstelleSpeicherDienst(db, { standardMb = 1024, dateien }) {
     SELECT (SELECT COALESCE(SUM(groesse_gesamt), 0) FROM medien WHERE benutzer_id = @id AND sichtbarkeit <> 'freigegeben')
          + (SELECT COALESCE(SUM(bild_groesse), 0) FROM artikel WHERE benutzer_id = @id AND bild_datei IS NOT NULL)
          + (SELECT COALESCE(SUM(groesse), 0) FROM angebot_fotos WHERE benutzer_id = @id) AS n`);
-  const benutzerLimit = db.prepare('SELECT rolle, speicher_limit_mb FROM benutzer WHERE id = ?');
+  const benutzerLimit = db.prepare('SELECT rolle, speicher_limit_mb, speicher_extra_mb, speicher_extra_bis FROM benutzer WHERE id = ?');
+  const heute = () => new Date().toISOString().slice(0, 10);
+  /** Gebuchtes Speicherpaket (zusätzliche MB), solange es läuft. */
+  const extraMb = (b) => (b?.speicher_extra_mb > 0 && b.speicher_extra_bis && b.speicher_extra_bis >= heute() ? b.speicher_extra_mb : 0);
 
   /** Limit in Byte, null = unbegrenzt. Administratoren sind ohne eigenes Limit unbegrenzt. */
   const standard = () => (typeof standardMb === 'function' ? standardMb() : standardMb);
@@ -48,7 +51,7 @@ export function erstelleSpeicherDienst(db, { standardMb = 1024, dateien }) {
     const b = benutzerLimit.get(benutzerId);
     if (!b) return 0;
     const mb = b.speicher_limit_mb ?? (b.rolle === 'admin' ? 0 : standard());
-    return mb > 0 ? mb * MB : null;
+    return mb > 0 ? (mb + extraMb(b)) * MB : null;
   }
 
   const belegt = (benutzerId) => belegtAbfrage.get({ id: benutzerId }).n;
@@ -63,6 +66,9 @@ export function erstelleSpeicherDienst(db, { standardMb = 1024, dateien }) {
       frei: limit === null ? null : Math.max(0, limit - genutzt),
       eigenesLimit: b?.speicher_limit_mb ?? null,
       standardMb: standard(),
+      // Gebuchtes Speicherpaket
+      extraMb: extraMb(b),
+      extraBis: extraMb(b) ? b.speicher_extra_bis : null,
     };
   }
 

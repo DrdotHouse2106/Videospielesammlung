@@ -3,7 +3,7 @@
 // - Gebaute Assets & Coverbilder: Cache zuerst (Dateinamen enthalten Hashes)
 // - API-GET-Anfragen: Netzwerk zuerst, offline die zuletzt gesehene Antwort
 
-const VERSION = 'v9';
+const VERSION = 'v10';
 // Server-gerenderte öffentliche Seiten (Suchmaschinen) nicht durch die App-Hülle ersetzen
 const SERVERSEITEN = /^\/(spiel|konsole|zubehoer|plattform|plattformen|suche|sammlung|preisindex|haendler)(\/|$)|^\/(sitemap[^/]*\.xml|robots\.txt)$/;
 const HUELLE = `huelle-${VERSION}`;
@@ -86,4 +86,28 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   event.respondWith(netzwerkZuerst(request, HUELLE));
+});
+
+// ── Web-Push: Benachrichtigungen anzeigen und beim Antippen die passende Seite öffnen ──
+self.addEventListener('push', (event) => {
+  let daten = {};
+  try { daten = event.data?.json() ?? {}; } catch { daten = { titel: event.data?.text() }; }
+  event.waitUntil(self.registration.showNotification(daten.titel || 'ZockDB', {
+    body: daten.text || '',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: daten.tag || undefined,
+    data: { link: daten.link || '' },
+  }));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const link = String(event.notification.data?.link || '');
+  const ziel = `/?app=1${link.startsWith('#/') ? link : ''}`;
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((fenster) => {
+    const offen = fenster.find((f) => new URL(f.url).origin === self.location.origin);
+    if (offen) return offen.navigate(ziel).then((f) => (f ?? offen).focus());
+    return self.clients.openWindow(ziel);
+  }));
 });

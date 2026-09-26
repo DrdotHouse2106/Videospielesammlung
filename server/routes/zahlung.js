@@ -25,13 +25,32 @@ export function zahlungWebhookRouter({ zahlung }) {
   return router;
 }
 
-export function zahlungRouter({ db, zahlung, erpnext }) {
+export function zahlungRouter({ db, zahlung, erpnext, speicher, schnaeppchen, konfiguration }) {
   const router = Router();
-  router.get('/boerse/zahlung', (req, res) => res.json(zahlung.uebersicht(req.benutzer.id)));
-  router.post('/boerse/zahlung/checkout', async (req, res) => res.json(await zahlung.checkout(req.benutzer, req.body ?? {})));
-  router.post('/boerse/zahlung/paypal/bestaetigen', async (req, res) => res.json(await zahlung.paypalBestaetigen(req.benutzer, req.body?.subscription_id)));
-  router.post('/boerse/zahlung/abos/:id/kuendigen', async (req, res) => res.json(await zahlung.kuendige(req.benutzer, req.params.id)));
-  router.post('/boerse/zahlung/portal', async (req, res) => res.json(await zahlung.portal(req.benutzer)));
+  // Unter /boerse/zahlung (Händler) und /zahlung (Privatnutzer – auch wenn die Tauschbörse abgeschaltet ist)
+  for (const basis of ['/boerse/zahlung', '/zahlung']) {
+    router.get(basis, (req, res) => res.json(zahlung.uebersicht(req.benutzer.id)));
+    router.post(`${basis}/checkout`, async (req, res) => res.json(await zahlung.checkout(req.benutzer, req.body ?? {})));
+    router.post(`${basis}/paypal/bestaetigen`, async (req, res) => res.json(await zahlung.paypalBestaetigen(req.benutzer, req.body?.subscription_id)));
+    router.post(`${basis}/abos/:id/kuendigen`, async (req, res) => res.json(await zahlung.kuendige(req.benutzer, req.params.id)));
+    router.post(`${basis}/portal`, async (req, res) => res.json(await zahlung.portal(req.benutzer)));
+  }
+
+  // „Premium“ für Privatnutzer: Frühzugang und Speicherpakete
+  router.get('/premium', (req, res) => {
+    const u = zahlung.uebersicht(req.benutzer.id);
+    res.json({
+      fruehzugang: {
+        preis: konfiguration.privat.fruehzugangPreis, minuten: konfiguration.privat.fruehzugangMinuten,
+        bis: schnaeppchen.einstellungen(req.benutzer.id).fruehzugang_bis, boerse: konfiguration.boerse.aktiv,
+      },
+      speicher: { pakete: konfiguration.privat.speicherPakete, ...speicher.info(req.benutzer.id) },
+      anbieter: u.anbieter, paypal_gebuehr: u.paypal_gebuehr, steuersatz: u.steuersatz, zahlungsziel: u.zahlungsziel, verrechenbar: u.verrechenbar,
+      abos: db.prepare(`SELECT id, anbieter, produkt, angebote, netto, status, laeuft_bis, erstellt_am FROM abos
+        WHERE benutzer_id = ? AND status != 'offen' AND produkt IN ('fruehzugang', 'speicher') ORDER BY id DESC`).all(req.benutzer.id),
+      zahlungen: u.zahlungen.filter((z0) => /Frühzugang|Speicherpaket/.test(z0.beschreibung ?? '')),
+    });
+  });
 
   // Gutschrift als PDF (nur eigene)
   router.get('/boerse/zahlung/gutschrift/:id.pdf', async (req, res) => {
@@ -43,7 +62,7 @@ export function zahlungRouter({ db, zahlung, erpnext }) {
   });
 
   // Rechnung als PDF (nur eigene)
-  router.get('/boerse/zahlung/rechnung/:id.pdf', async (req, res) => {
+  router.get(['/boerse/zahlung/rechnung/:id.pdf', '/zahlung/rechnung/:id.pdf'], async (req, res) => {
     const z = db.prepare('SELECT erpnext_rechnung FROM zahlungen WHERE id = ? AND benutzer_id = ?').get(Number(req.params.id), req.benutzer.id);
     if (!z?.erpnext_rechnung) throw new KontoFehler('Rechnung nicht gefunden oder noch nicht erstellt.', 404);
     const pdf = await erpnext.pdf(z.erpnext_rechnung);

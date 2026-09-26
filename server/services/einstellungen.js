@@ -130,6 +130,13 @@ export const EINSTELLUNGEN = [
   { schluessel: 'PAYMENT_INVOICE_DAYS', gruppe: 'Zahlungen (Stripe, PayPal)', titel: 'Zahlungsziel bei Rechnung (Tage)', typ: 'zahl', min: 1, max: 60 },
   { schluessel: 'PAYMENT_PAYPAL_FEE', gruppe: 'Zahlungen (Stripe, PayPal)', titel: 'PayPal: Zahlungsgebühr je Monat (€, netto)', typ: 'text', platzhalter: '1,00' },
   // ERPNext
+  // Privatnutzer
+  { schluessel: 'PREMIUM_EARLY_PRICE', gruppe: 'Privatnutzer: Frühzugang & Speicher', titel: 'Frühzugang: Preis je Monat (€, inkl. MwSt.)', typ: 'text', platzhalter: '2,90',
+    hinweis: 'Schnäppchen-Benachrichtigungen vor allen anderen. Der Schnäppchen-Alarm selbst ist für alle kostenlos.' },
+  { schluessel: 'PREMIUM_EARLY_MINUTES', gruppe: 'Privatnutzer: Frühzugang & Speicher', titel: 'Frühzugang: Vorsprung in Minuten', typ: 'zahl', min: 5, max: 1440,
+    hinweis: 'So viel früher erhalten Abonnenten Schnäppchen-Benachrichtigungen (Standard 60).' },
+  { schluessel: 'STORAGE_PACKAGES', gruppe: 'Privatnutzer: Frühzugang & Speicher', titel: 'Speicherpakete (GB=Preis inkl. MwSt.)', typ: 'text', platzhalter: '10=1,99;50=4,99;200=9,99',
+    hinweis: 'Zusätzlicher Speicher für Fotos und Scans, zusätzlich zum kostenlosen Kontingent. Leer = keine Speicherpakete.' },
   { schluessel: 'ERPNEXT_URL', gruppe: 'Rechnungen (ERPNext)', titel: 'Adresse von ERPNext', typ: 'url', sicher: true, platzhalter: 'https://erp.example.de' },
   { schluessel: 'ERPNEXT_API_KEY', gruppe: 'Rechnungen (ERPNext)', titel: 'API-Schlüssel', typ: 'text',
     hinweis: 'In ERPNext beim Benutzer unter „API-Zugang“ erzeugen. Rechte: Kunde, Ausgangsrechnung, Zahlung (anlegen und buchen).' },

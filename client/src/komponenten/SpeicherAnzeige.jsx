@@ -20,6 +20,7 @@ export default function SpeicherAnzeige({ info, kompakt = false }) {
         aria-label="Belegter Speicherplatz" aria-valuenow={Math.round(anteil * 100)} aria-valuemin={0} aria-valuemax={100}>
         <div className={`h-full ${farbe}`} style={{ width: `${Math.max(anteil * 100, info.belegt ? 1 : 0)}%` }} />
       </div>
+      {anteil >= 0.8 && !kompakt && <p className="text-sm"><a className="text-akzent-hell underline" href="#/premium">Mehr Speicher buchen</a></p>}
       {!kompakt && (
         <p className="text-xs text-leise">
           Gezählt werden deine Artikelfotos sowie private, eingereichte und abgelehnte Scans. Freigegebene Scans gehören

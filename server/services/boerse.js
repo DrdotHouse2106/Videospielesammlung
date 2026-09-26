@@ -146,6 +146,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
   const neueAnfragenDrossel = erstelleDrossel({ maxVersuche: 20, fensterMs: TAG_MS });
   const statistik = erstelleBoersenStatistik(db);
   const preisindex = erstellePreisindexDienst(db);
+  let schnaeppchen = null; // Schnäppchen-Alarm (wird nach dem Anlegen gesetzt)
 
   // ── Gemeinsame Abfrageteile ───────────────────────────────────
   // Anbieter-Infos und Katalogdaten zu einem Angebot (Alias a)
@@ -153,7 +154,8 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     v.bezeichnung AS variante, b.benutzername, b.anzeigename, b.haendler_status, b.haendler_daten,
     (SELECT COUNT(*) FROM wunschliste w WHERE w.katalog_id = a.katalog_id AND w.benutzer_id != a.benutzer_id) AS gesucht_von,
     (SELECT f.vorschau FROM angebot_fotos f WHERE f.angebot_id = a.id ORDER BY f.reihenfolge, f.id LIMIT 1) AS foto_vorschau,
-    (SELECT COUNT(*) FROM angebot_fotos f WHERE f.angebot_id = a.id) AS fotos_anzahl`;
+    (SELECT COUNT(*) FROM angebot_fotos f WHERE f.angebot_id = a.id) AS fotos_anzahl,
+    (SELECT s.prozent FROM schnaeppchen s WHERE s.angebot_id = a.id AND a.status = 'aktiv') AS schnaeppchen_prozent`;
   const ANGEBOT_JOIN = `FROM angebote a JOIN katalog k ON k.id = a.katalog_id JOIN benutzer b ON b.id = a.benutzer_id
     LEFT JOIN plattformen p ON p.id = a.plattform_id LEFT JOIN katalog_varianten v ON v.id = a.variante_id`;
   // Keine Angebote von Benutzern, die man blockiert hat oder von denen man blockiert wurde
@@ -266,6 +268,8 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
         link: angebote.length === 1 ? `#/boerse/angebot/${angebote[0].id}` : '#/boerse/meine?tab=treffer',
       });
     }
+    // Liegt ein Angebot deutlich unter dem Marktwert? → Schnäppchen-Alarm
+    try { schnaeppchen?.pruefe(angebotIds); } catch (e) { console.warn('[schnaeppchen]', e.message); }
     return { sammler: jeSammler.size, treffer: [...jeAnbieter.values()].reduce((s, n) => s + n, 0) };
   }
 
@@ -432,6 +436,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     }
     if (filter.cib === '1' || filter.cib === true) bed.push("a.vollstaendigkeit = 'cib'");
     if (filter.mit_foto === '1') bed.push('EXISTS (SELECT 1 FROM angebot_fotos f WHERE f.angebot_id = a.id)');
+    if (filter.schnaeppchen === '1') bed.push("a.status = 'aktiv' AND EXISTS (SELECT 1 FROM schnaeppchen s WHERE s.angebot_id = a.id)");
     const maxPreis = leer(filter.max_preis) ? null : leseEuro(filter.max_preis);
     if (maxPreis !== null) { bed.push('a.preis IS NOT NULL AND a.preis <= @maxPreis'); p.maxPreis = maxPreis; }
     if (filter.versand === '1') bed.push('a.versand = 1');
@@ -1087,5 +1092,6 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     statistikFuer,
     meldeVerkauf,
     bestaetigeKauf,
+    setzeSchnaeppchen: (dienst) => { schnaeppchen = dienst; },
   };
 }

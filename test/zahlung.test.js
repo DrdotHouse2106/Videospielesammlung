@@ -391,3 +391,60 @@ test('Kontolöschung beendet laufende Abos sofort beim Zahlungsanbieter', async 
   const antwort = await stripeEreignis('invoice.paid', { id: 'in_weg', subscription: 'sub_weg', amount_paid: 1178, lines: { data: [{ period: { start: 1, end: 2 } }] } });
   assert.equal(antwort.status, 200);
 });
+
+test('Privatnutzer: Frühzugang per Stripe, Speicherpaket per Rechnung, Kündigung', async () => {
+  const sammler = await server.registriere('sammler');
+  const sammlerId = server.db.prepare("SELECT id FROM benutzer WHERE benutzername = 'sammler'").get().id;
+  // Händlerprodukte bleiben Händlern vorbehalten
+  assert.equal((await post(sammler, '/api/zahlung/checkout', { produkt: 'paket', angebote: 500, anbieter: 'stripe' })).status, 403);
+  // Ohne Zustimmung zum sofortigen Beginn keine Buchung (Widerrufsrecht)
+  let r = await post(sammler, '/api/zahlung/checkout', { produkt: 'fruehzugang', anbieter: 'stripe' });
+  assert.equal(r.status, 400);
+  assert.ok(r.json.felder.sofort_beginnen);
+
+  r = await post(sammler, '/api/zahlung/checkout', { produkt: 'fruehzugang', anbieter: 'stripe', sofort_beginnen: true });
+  assert.equal(r.status, 200, r.text);
+  const formular = new URLSearchParams(aufrufe.filter((a) => a.url.endsWith('/v1/checkout/sessions')).at(-1).body);
+  assert.equal(formular.get('line_items[0][price_data][unit_amount]'), '290', 'Endpreis 2,90 € inkl. MwSt.');
+  assert.equal(formular.get('subscription_data[metadata][produkt]'), 'fruehzugang');
+  assert.match(formular.get('success_url'), /#\/premium\?zahlung=erfolg$/);
+  const verzicht = formular.get('subscription_data[metadata][verzicht]');
+  assert.match(verzicht, /^\d{4}-\d{2}-\d{2}T/);
+
+  const ende = Math.floor(Date.parse('2099-01-31T00:00:00Z') / 1000);
+  const start = Math.floor(Date.parse('2099-01-01T00:00:00Z') / 1000);
+  stripeAbos.set('sub_p1', { id: 'sub_p1', status: 'active', customer: 'cus_p1', current_period_end: ende, metadata: { benutzer_id: String(sammlerId), produkt: 'fruehzugang', angebote: '', verzicht } });
+  await stripeEreignis('invoice.paid', { id: 'in_p1', subscription: 'sub_p1', amount_paid: 290, lines: { data: [{ period: { start, end: ende } }] } });
+  await warte();
+  let p = (await sammler.api('/api/premium')).json;
+  assert.equal(p.fruehzugang.bis, '2099-02-03');
+  assert.equal(p.fruehzugang.preis, 2.9);
+  assert.equal(p.abos[0].produkt, 'fruehzugang');
+  assert.equal(server.db.prepare("SELECT widerruf_verzicht_am FROM abos WHERE extern_id = 'sub_p1'").get().widerruf_verzicht_am, verzicht);
+  const kunde = erp.kunden.find((k) => k.customer_name === 'sammler');
+  assert.equal(kunde.customer_type, 'Individual', 'Privatkunde ohne Firma');
+  const zahlung = server.db.prepare("SELECT * FROM zahlungen WHERE extern_id = 'in_p1'").get();
+  assert.equal(zahlung.brutto, 2.9);
+  assert.match(zahlung.beschreibung, /Frühzugang/);
+
+  // Speicherpaket per Rechnung: sofort freigeschaltet, Kontingent wächst
+  assert.equal((await post(sammler, '/api/zahlung/checkout', { produkt: 'speicher', angebote: 7, anbieter: 'rechnung', sofort_beginnen: true })).status, 400);
+  r = await post(sammler, '/api/zahlung/checkout', { produkt: 'speicher', angebote: 10, anbieter: 'rechnung', sofort_beginnen: true });
+  assert.match(r.json.felder.anbieter, /E-Mail-Adresse/, 'Rechnung braucht eine E-Mail-Adresse');
+  server.db.prepare("UPDATE benutzer SET email = 'sammler@example.org' WHERE id = ?").run(sammlerId);
+  r = await post(sammler, '/api/zahlung/checkout', { produkt: 'speicher', angebote: 10, anbieter: 'rechnung', sofort_beginnen: true });
+  assert.equal(r.status, 200, r.text);
+  assert.ok(r.json.rechnung);
+  p = (await sammler.api('/api/premium')).json;
+  assert.equal(p.speicher.extraMb, 10 * 1024);
+  assert.equal(p.speicher.limit, (1024 + 10 * 1024) * 1024 * 1024);
+  assert.deepEqual(p.speicher.pakete.map((x) => x.gb), [10, 50, 200]);
+  assert.equal(erp.rechnungen.at(-1).items[0].rate, 1.6723, '1,99 € brutto → netto mit 4 Nachkommastellen');
+
+  // Verträge hier kündigen: zum Ende des Zeitraums
+  const speicherAbo = p.abos.find((a) => a.produkt === 'speicher');
+  r = await post(sammler, `/api/zahlung/abos/${speicherAbo.id}/kuendigen`, {});
+  assert.equal(r.status, 200, r.text);
+  assert.equal(r.json.status, 'gekuendigt');
+  assert.equal((await sammler.api('/api/premium')).json.speicher.extraMb, 10 * 1024, 'bis zum Ende weiter nutzbar');
+});

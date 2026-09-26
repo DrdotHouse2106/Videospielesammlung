@@ -72,6 +72,9 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
   const paypalAktiv = () => Boolean(z().paypalClientId && z().paypalGeheimnis && z().paypalWebhookId);
   const rechnungAktiv = () => Boolean(z().rechnung && erpnext.aktiv());
   const brutto = (netto) => runde(netto * (1 + z().steuersatz / 100));
+  const privat = () => konfiguration.privat;
+  // Brutto-Endpreise (Verbraucher) → netto mit 4 Nachkommastellen, damit brutto wieder exakt den Endpreis ergibt
+  const nettoAus = (bruttoPreis) => Math.round((bruttoPreis / (1 + z().steuersatz / 100)) * 10_000) / 10_000;
 
   const q = {
     benutzer: db.prepare('SELECT * FROM benutzer WHERE id = ?'),
@@ -89,8 +92,20 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
       if (!p) throw new ValidierungsFehler({ angebote: 'Dieses Paket gibt es nicht. Größere Kontingente bitte individuell anfragen.' });
       return { produkt: 'paket', angebote: p.angebote, netto: p.preis, name: `${MARKE.name} Händler-Paket ${p.angebote.toLocaleString('de-DE')} Angebote` };
     }
+    // Für Privatnutzer: Preise sind inkl. MwSt. angegeben
+    if (produkt === 'fruehzugang') {
+      return { produkt, angebote: null, netto: nettoAus(privat().fruehzugangPreis), name: `${MARKE.name} Frühzugang (Schnäppchen-Alarm)`, privat: true };
+    }
+    if (produkt === 'speicher') {
+      const p = privat().speicherPakete.find((x) => x.gb === Number(angebote));
+      if (!p) throw new ValidierungsFehler({ angebote: 'Dieses Speicherpaket gibt es nicht.' });
+      return { produkt, angebote: p.gb, netto: nettoAus(p.preis), name: `${MARKE.name} Speicherpaket +${p.gb.toLocaleString('de-DE')} GB`, privat: true };
+    }
     throw new ValidierungsFehler({ produkt: 'Unbekanntes Produkt.' });
   }
+  const istPrivat = (produkt) => ['fruehzugang', 'speicher'].includes(produkt);
+  // Rücksprung nach der Zahlung: Händler in den Händlerbereich, Privatnutzer zu „Premium“
+  const ruecksprung = (produkt) => (istPrivat(produkt) ? '#/premium' : '#/boerse/haendler');
 
   function uebersicht(benutzerId) {
     return {
@@ -100,7 +115,7 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
       paypal_gebuehr: z().paypalGebuehr,
       guthaben: q.benutzer.get(benutzerId)?.guthaben ?? 0,
       // Was bei einer neuen Buchung verrechnet würde (Rest des laufenden Abos + Guthaben), netto
-      verrechenbar: { paket: verfuegbar(q.benutzer.get(benutzerId), 'paket'), api: verfuegbar(q.benutzer.get(benutzerId), 'api') },
+      verrechenbar: Object.fromEntries(['paket', 'api', 'fruehzugang', 'speicher'].map((p) => [p, verfuegbar(q.benutzer.get(benutzerId), p)])),
       abos: db.prepare(`SELECT id, anbieter, produkt, angebote, netto, status, laeuft_bis, erstellt_am FROM abos
         WHERE benutzer_id = ? AND status != 'offen' ORDER BY id DESC`).all(benutzerId),
       gutschriften: db.prepare(`SELECT id, grund, brutto, erstellt_am, erpnext_gutschrift IS NOT NULL AS beleg FROM gutschriften WHERE benutzer_id = ?
@@ -153,15 +168,26 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
     if (abo.produkt === 'paket') {
       db.prepare('UPDATE benutzer SET haendler_paket = ?, haendler_paket_bis = ?, haendler_test_bis = NULL WHERE id = ?')
         .run(abo.angebote, neu ? neuBis : spaeter(b.haendler_paket_bis, neuBis), b.id);
-    } else {
+    } else if (abo.produkt === 'api') {
       db.prepare('UPDATE benutzer SET haendler_api_bis = ?, haendler_test_bis = NULL WHERE id = ?').run(neu ? neuBis : spaeter(b.haendler_api_bis, neuBis), b.id);
+    } else if (abo.produkt === 'fruehzugang') {
+      db.prepare('UPDATE benutzer SET fruehzugang_bis = ? WHERE id = ?').run(vorher.status === 'offen' ? neuBis : spaeter(b.fruehzugang_bis, neuBis), b.id);
+    } else if (abo.produkt === 'speicher') {
+      db.prepare('UPDATE benutzer SET speicher_extra_mb = ?, speicher_extra_bis = ? WHERE id = ?')
+        .run(abo.angebote * 1024, vorher.status === 'offen' ? neuBis : spaeter(b.speicher_extra_bis, neuBis), b.id);
     }
     if (vorher.status === 'offen') {
+      const titel = {
+        paket: () => `Händler-Paket ${abo.angebote.toLocaleString('de-DE')} ist gebucht`,
+        api: () => 'Zusatzpaket API-Anbindung ist gebucht',
+        fruehzugang: () => 'Frühzugang ist gebucht',
+        speicher: () => `Speicherpaket +${abo.angebote.toLocaleString('de-DE')} GB ist gebucht`,
+      }[abo.produkt]();
       benachrichtigungen.sende(b.id, {
-        art: 'boerse',
-        titel: abo.produkt === 'paket' ? `Händler-Paket ${abo.angebote.toLocaleString('de-DE')} ist gebucht` : 'Zusatzpaket API-Anbindung ist gebucht',
+        art: istPrivat(abo.produkt) ? 'system' : 'boerse',
+        titel,
         text: 'Vielen Dank! Das Abo verlängert sich monatlich und ist jederzeit zum Ende des Zeitraums kündbar.',
-        link: '#/boerse/haendler',
+        link: ruecksprung(abo.produkt),
       });
       // Ein neues Paket ersetzt ein bisheriges Abo derselben Art (z. B. Wechsel von 500 auf 1.000). Der nicht genutzte
       // Rest wird gutgeschrieben; die bei der Buchung bereits eingeplante Verrechnung ist davon abgezogen.
@@ -177,9 +203,21 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
   }
 
   /** Zahlung einmalig erfassen und Rechnung in ERPNext anstoßen. */
-  const beschreibungFuer = (abo) => (abo.produkt === 'paket'
-    ? `${MARKE.name} Händler-Paket ${abo.angebote.toLocaleString('de-DE')} Angebote`
-    : `${MARKE.name} Zusatzpaket API-Anbindung`);
+  const beschreibungFuer = (abo) => ({
+    paket: () => `${MARKE.name} Händler-Paket ${abo.angebote.toLocaleString('de-DE')} Angebote`,
+    api: () => `${MARKE.name} Zusatzpaket API-Anbindung`,
+    fruehzugang: () => `${MARKE.name} Frühzugang (Schnäppchen-Alarm)`,
+    speicher: () => `${MARKE.name} Speicherpaket +${abo.angebote.toLocaleString('de-DE')} GB`,
+  }[abo.produkt]());
+
+  /** Zugang zu einem Abo ab heute sperren (Kündigung wirksam, Erstattung, überfällige Rechnung). */
+  function sperreZugang(abo) {
+    const gestern = tagDavor(Date.now());
+    if (abo.produkt === 'paket') db.prepare('UPDATE benutzer SET haendler_paket_bis = ? WHERE id = ? AND haendler_paket = ?').run(gestern, abo.benutzer_id, abo.angebote);
+    else if (abo.produkt === 'api') db.prepare('UPDATE benutzer SET haendler_api_bis = ? WHERE id = ?').run(gestern, abo.benutzer_id);
+    else if (abo.produkt === 'fruehzugang') db.prepare('UPDATE benutzer SET fruehzugang_bis = ? WHERE id = ?').run(gestern, abo.benutzer_id);
+    else if (abo.produkt === 'speicher') db.prepare('UPDATE benutzer SET speicher_extra_bis = ? WHERE id = ?').run(gestern, abo.benutzer_id);
+  }
 
   /** Bezahlte Zahlung (Stripe/PayPal) mit Leistungszeitraum `von`–`bis` erfassen. */
   function verbuche(abo, { anbieter, externId, bruttoBetrag, bruttoVoll = bruttoBetrag, von, bis }) {
@@ -227,8 +265,9 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
       return null;
     }
     const p = produktFuer(m.produkt, m.angebote);
-    db.prepare(`INSERT OR IGNORE INTO abos (benutzer_id, anbieter, extern_id, produkt, angebote, netto, verrechnung_netto) VALUES (?, 'stripe', ?, ?, ?, ?, ?)`)
-      .run(benutzerId, subscriptionId, p.produkt, p.angebote, p.netto, Number(m.verrechnung) || 0);
+    db.prepare(`INSERT OR IGNORE INTO abos (benutzer_id, anbieter, extern_id, produkt, angebote, netto, verrechnung_netto, widerruf_verzicht_am)
+      VALUES (?, 'stripe', ?, ?, ?, ?, ?, ?)`)
+      .run(benutzerId, subscriptionId, p.produkt, p.angebote, p.netto, Number(m.verrechnung) || 0, m.verzicht || null);
     if (s.customer) db.prepare('UPDATE benutzer SET stripe_kunde = ? WHERE id = ?').run(String(s.customer), benutzerId);
     abo = q.abo.get('stripe', subscriptionId);
     return abo;
@@ -248,7 +287,7 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
   async function stripeCheckout(b, p, kennzeichnung, basis) {
     const testBis = b.haendler_test_bis ? Date.parse(`${b.haendler_test_bis}T23:00:00Z`) : 0;
     const test = testBis > Date.now() + 2 * TAG_MS; // Stripe verlangt mindestens 48 Stunden
-    const metadaten = { benutzer_id: String(b.id), produkt: p.produkt, angebote: p.angebote ? String(p.angebote) : '' };
+    const metadaten = { benutzer_id: String(b.id), produkt: p.produkt, angebote: p.angebote ? String(p.angebote) : '', verzicht: p.verzicht ?? '' };
     // Verrechnung als einmaliger Rabatt auf die erste Rechnung
     const verrechnung = runde(Math.min(verfuegbar(b, p.produkt), p.netto));
     let rabatt = null;
@@ -271,8 +310,8 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
       ...(rabatt ? { discounts: [{ coupon: rabatt }] } : {}),
       metadata: { ...metadaten, verrechnung: rabatt ? String(verrechnung) : '0' },
       subscription_data: { metadata: { ...metadaten, verrechnung: rabatt ? String(verrechnung) : '0' }, ...(test ? { trial_end: Math.floor(testBis / 1000) } : {}) },
-      success_url: `${basis}/?app=1#/boerse/haendler?zahlung=erfolg`,
-      cancel_url: `${basis}/?app=1#/boerse/haendler?zahlung=abgebrochen`,
+      success_url: `${basis}/?app=1${ruecksprung(p.produkt)}?zahlung=erfolg`,
+      cancel_url: `${basis}/?app=1${ruecksprung(p.produkt)}?zahlung=abgebrochen`,
     });
     return sitzung.url;
   }
@@ -429,12 +468,13 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
       custom_id: `${b.id}:${p.produkt}:${p.angebote ?? ''}`,
       application_context: {
         brand_name: MARKE.name, locale: 'de-DE', shipping_preference: 'NO_SHIPPING', user_action: 'SUBSCRIBE_NOW',
-        return_url: `${basis}/?app=1#/boerse/haendler?zahlung=paypal`,
-        cancel_url: `${basis}/?app=1#/boerse/haendler?zahlung=abgebrochen`,
+        return_url: `${basis}/?app=1${ruecksprung(p.produkt)}?zahlung=paypal`,
+        cancel_url: `${basis}/?app=1${ruecksprung(p.produkt)}?zahlung=abgebrochen`,
       },
     });
-    db.prepare(`INSERT OR IGNORE INTO abos (benutzer_id, anbieter, extern_id, produkt, angebote, netto, verrechnung_netto) VALUES (?, 'paypal', ?, ?, ?, ?, ?)`)
-      .run(b.id, abo.id, p.produkt, p.angebote, runde(p.netto + z().paypalGebuehr), verrechnung);
+    db.prepare(`INSERT OR IGNORE INTO abos (benutzer_id, anbieter, extern_id, produkt, angebote, netto, verrechnung_netto, widerruf_verzicht_am)
+      VALUES (?, 'paypal', ?, ?, ?, ?, ?, ?)`)
+      .run(b.id, abo.id, p.produkt, p.angebote, runde(p.netto + z().paypalGebuehr), verrechnung, p.verzicht ?? null);
     const link = abo.links?.find((l) => l.rel === 'approve')?.href;
     if (!link) throw new KontoFehler('PayPal hat keinen Link zur Bestätigung geliefert.', 502);
     return link;
@@ -554,8 +594,9 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
     const bis = monatAb(von);
     // Rest des bisherigen Abos und vorhandenes Guthaben werden direkt auf der ersten Rechnung verrechnet
     const verrechnung = runde(Math.min(verfuegbar(b, p.produkt), p.netto));
-    const { lastInsertRowid } = db.prepare(`INSERT INTO abos (benutzer_id, anbieter, extern_id, produkt, angebote, netto, verrechnung_netto) VALUES (?, 'rechnung', ?, ?, ?, ?, ?)`)
-      .run(b.id, `R-${crypto.randomUUID()}`, p.produkt, p.angebote, p.netto, verrechnung);
+    const { lastInsertRowid } = db.prepare(`INSERT INTO abos (benutzer_id, anbieter, extern_id, produkt, angebote, netto, verrechnung_netto, widerruf_verzicht_am)
+      VALUES (?, 'rechnung', ?, ?, ?, ?, ?, ?)`)
+      .run(b.id, `R-${crypto.randomUUID()}`, p.produkt, p.angebote, p.netto, verrechnung, p.verzicht ?? null);
     const abo = q.aboId.get(Number(lastInsertRowid));
     const { id, name } = await stelleRechnung(abo, von, bis, verrechnung);
     if (!name) {
@@ -593,13 +634,11 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
       } else if (plusTage(r.faellig_am, PUFFER_TAGE) < heute() && abo.status !== 'pausiert') {
         // Überfällig: Zugang pausieren, bis die Zahlung gebucht ist
         db.prepare("UPDATE abos SET status = 'pausiert', geaendert_am = datetime('now') WHERE id = ?").run(abo.id);
-        const gestern = tagDavor(Date.now());
-        if (abo.produkt === 'paket') db.prepare('UPDATE benutzer SET haendler_paket_bis = ? WHERE id = ? AND haendler_paket = ?').run(gestern, abo.benutzer_id, abo.angebote);
-        else db.prepare('UPDATE benutzer SET haendler_api_bis = ? WHERE id = ?').run(gestern, abo.benutzer_id);
+        sperreZugang(abo);
         benachrichtigungen.sende(abo.benutzer_id, {
           art: 'boerse', titel: `Rechnung ${r.erpnext_rechnung} ist überfällig`,
-          text: 'Dein Paket ist pausiert, bis der Zahlungseingang gebucht ist. Danach wird es automatisch wieder freigeschaltet.',
-          link: '#/boerse/haendler',
+          text: 'Dein Abo ist pausiert, bis der Zahlungseingang gebucht ist. Danach wird es automatisch wieder freigeschaltet.',
+          link: ruecksprung(abo.produkt),
         });
         ergebnis.pausiert++;
       }
@@ -625,12 +664,22 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
   }
 
   // ── Buchen, Kündigen ──────────────────────────────────────────
-  async function checkout(benutzerRoh, { produkt, angebote, anbieter }) {
+  async function checkout(benutzerRoh, { produkt, angebote, anbieter, sofort_beginnen: sofortBeginnen }) {
     const b = q.benutzer.get(benutzerRoh.id);
-    if (b.haendler_status !== 'verifiziert') throw new KontoFehler('Buchen können verifizierte Händler.', 403);
+    const p = produktFuer(produkt, angebote);
+    if (!p.privat && b.haendler_status !== 'verifiziert') throw new KontoFehler('Buchen können verifizierte Händler.', 403);
+    if (p.privat) {
+      // Verbraucher: ausdrückliche Zustimmung zum sofortigen Beginn (Widerrufsrecht erlischt bei vollständiger Erfüllung)
+      if (sofortBeginnen !== true) {
+        throw new ValidierungsFehler({ sofort_beginnen: 'Bitte bestätige, dass die Leistung sofort beginnen soll.' });
+      }
+      p.verzicht = new Date().toISOString();
+      if (anbieter === 'rechnung' && !b.email) {
+        throw new ValidierungsFehler({ anbieter: 'Für Zahlung per Rechnung bitte zuerst unter „Konto“ eine E-Mail-Adresse hinterlegen – dorthin kommt die Rechnung.' });
+      }
+    }
     const basis = konfiguration.oeffentlicheUrl;
     if (!basis) throw new KontoFehler('Für Zahlungen muss die öffentliche Adresse (PUBLIC_URL) gesetzt sein.', 503);
-    const p = produktFuer(produkt, angebote);
     const doppelt = db.prepare(`SELECT 1 FROM abos WHERE benutzer_id = ? AND produkt = ? AND COALESCE(angebote, 0) = ? AND status = 'aktiv'`)
       .get(b.id, p.produkt, p.angebote ?? 0);
     if (doppelt) throw new KontoFehler('Das hast du bereits gebucht.', 409);
@@ -719,9 +768,7 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
       if (abo && abo.status !== 'beendet') {
         await beendeExtern(abo).catch((e) => console.warn('[zahlung] Abo beenden:', e.message));
         db.prepare("UPDATE abos SET status = 'beendet', geaendert_am = datetime('now') WHERE id = ?").run(abo.id);
-        const gestern = tagDavor(Date.now());
-        if (abo.produkt === 'paket') db.prepare('UPDATE benutzer SET haendler_paket_bis = ? WHERE id = ? AND haendler_paket = ?').run(gestern, abo.benutzer_id, abo.angebote);
-        else db.prepare('UPDATE benutzer SET haendler_api_bis = ? WHERE id = ?').run(gestern, abo.benutzer_id);
+        sperreZugang(abo);
       }
     }
     if (zahlung.benutzer_id) {
@@ -767,7 +814,7 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
   async function portal(benutzer) {
     const b = q.benutzer.get(benutzer.id);
     if (!stripeAktiv() || !b.stripe_kunde) throw new KontoFehler('Kein Stripe-Konto vorhanden.', 404);
-    const s = await stripe('POST', '/v1/billing_portal/sessions', { customer: b.stripe_kunde, return_url: `${konfiguration.oeffentlicheUrl}/?app=1#/boerse/haendler` });
+    const s = await stripe('POST', '/v1/billing_portal/sessions', { customer: b.stripe_kunde, return_url: `${konfiguration.oeffentlicheUrl}/?app=1${b.haendler_status ? '#/boerse/haendler' : '#/premium'}` });
     return { url: s.url };
   }
 

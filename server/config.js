@@ -174,6 +174,14 @@ export function ladeKonfiguration(env = process.env) {
       proKontakt: (env.MARKET_PRO_CONTACT || '').trim(),
       proInfo: (env.MARKET_PRO_INFO || '').trim(),
     },
+    // Bezahlfunktionen für Privatnutzer (Preise inkl. MwSt. je Monat)
+    privat: {
+      // Frühzugang: Schnäppchen-Benachrichtigungen X Minuten vor allen anderen
+      fruehzugangPreis: preis(env.PREMIUM_EARLY_PRICE ?? '2,90') ?? 2.9,
+      fruehzugangMinuten: Math.min(24 * 60, Math.max(5, zahl(env.PREMIUM_EARLY_MINUTES, 60))),
+      // Zusätzlicher Speicherplatz: GB = Monatspreis
+      speicherPakete: lesePakete(env.STORAGE_PACKAGES ?? '10=1,99;50=4,99;200=9,99').map((p) => ({ gb: p.angebote, preis: p.preis })),
+    },
     // Automatische Zahlungsabwicklung für Händler-Pakete (Stripe: Karte/SEPA, PayPal mit Zahlungsgebühr)
     zahlung: {
       steuersatz: Math.min(100, Math.max(0, preis(env.PAYMENT_VAT_RATE ?? '19') ?? 19)), // Prozent; 0 z. B. bei Kleinunternehmern

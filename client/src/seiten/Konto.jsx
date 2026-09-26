@@ -286,6 +286,14 @@ function KontoLoeschen() {
       </p>
       <a className="knopf-sekundaer w-fit" href="/api/export/datenauskunft.json" download>Datenauskunft herunterladen</a>
     </section>
+    <section className="karte space-y-2 p-4">
+      <h2 className="font-semibold">Abos &amp; Verträge</h2>
+      <p className="text-sm text-leise">Frühzugang und Speicherpakete verwalten – Händler-Pakete findest du im Händlerbereich.</p>
+      <div className="flex flex-wrap gap-2">
+        <a className="knopf-sekundaer" href="#/premium">Abos ansehen</a>
+        <a className="knopf-sekundaer" href="#/premium?kuendigen=1">Verträge hier kündigen</a>
+      </div>
+    </section>
     <section className="karte space-y-3 border-gefahr/40 p-4">
       <h2 className="font-semibold text-gefahr">Konto löschen</h2>
       {!offen ? (

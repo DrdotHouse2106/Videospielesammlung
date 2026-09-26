@@ -86,9 +86,13 @@ Für die Anbieter-Statistik zählen wir Aufrufe von Angebotsseiten, neue Anfrage
 
 Aus der Tauschbörse erstellen wir ein **anonymes Marktarchiv**: je Anzeige Spiel, Plattform, Zustand, Vollständigkeit, Region, Preise (Start, Ende, Spanne), Laufzeit (nur Datum), Ergebnis (z. B. verkauft) sowie die Summe der Aufrufe und Anfragen, außerdem tägliche Summen der Nachfrage (Anzahl Suchender, durchschnittliche Preisvorstellung). Name, Konto, Postleitzahl, Beschreibungstexte, Fotos und Nachrichten sind darin nicht enthalten; nach dem Löschen eines Angebots oder Kontos besteht keine Verbindung mehr zu dir. Wir nutzen diese Daten für Preisentwicklungen und Marktauswertungen und können sie in zusammengefasster Form auch an Dritte weitergeben oder verkaufen (z. B. Marktberichte, Preisindizes). Rechtsgrundlage für die Anonymisierung: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an Marktauswertungen); anonyme Daten unterliegen danach nicht mehr der DSGVO.
 
-### Zahlungen für Händlerleistungen
+### Zahlungen für kostenpflichtige Leistungen
 
-Buchen Händler kostenpflichtige Leistungen, erfolgt die Zahlung über **Stripe** (Stripe Payments Europe Ltd., Irland) bzw. **PayPal** (PayPal (Europe) S.à r.l. et Cie, S.C.A., Luxemburg). Zahlungsdaten (z. B. Karten- oder Kontodaten) gibst du direkt beim Zahlungsanbieter ein; wir erhalten nur Angaben zum Abo und zur Zahlung. Für die Rechnungsstellung verarbeiten wir die Anbieterkennzeichnung (Firma, Anschrift, E-Mail, USt-IdNr.) in unserer Buchhaltung [ERPNext – Hosting/Anbieter ergänzen]. Rechtsgrundlagen: Art. 6 Abs. 1 lit. b und c DSGVO (Vertrag, gesetzliche Aufbewahrungspflichten).
+Buchst du kostenpflichtige Leistungen (Händler-Pakete, Frühzugang, Speicherpakete), erfolgt die Zahlung über **Stripe** (Stripe Payments Europe Ltd., Irland) bzw. **PayPal** (PayPal (Europe) S.à r.l. et Cie, S.C.A., Luxemburg). Zahlungsdaten (z. B. Karten- oder Kontodaten) gibst du direkt beim Zahlungsanbieter ein; wir erhalten nur Angaben zum Abo und zur Zahlung. Für die Rechnungsstellung verarbeiten wir die Anbieterkennzeichnung (Firma, Anschrift, E-Mail, USt-IdNr.) in unserer Buchhaltung [ERPNext – Hosting/Anbieter ergänzen]. Rechtsgrundlagen: Art. 6 Abs. 1 lit. b und c DSGVO (Vertrag, gesetzliche Aufbewahrungspflichten).
+
+### Push-Benachrichtigungen und Schnäppchen-Alarm
+
+Schaltest du Push-Benachrichtigungen ein, speichern wir die von deinem Browser erzeugte Push-Adresse und zugehörige Schlüssel sowie eine grobe Gerätebezeichnung (z. B. „Android“). Die Nachrichten werden verschlüsselt über den Push-Dienst deines Browsers bzw. Betriebssystems zugestellt (z. B. Google Firebase Cloud Messaging, Apple Push Notification Service, Mozilla Push Service); dieser sieht nur verschlüsselte Inhalte. Du kannst Push jederzeit auf dem Gerät ausschalten; nicht mehr gültige Adressen löschen wir automatisch. Für den Schnäppchen-Alarm speichern wir deine Einstellungen (Schwelle, Umfang, Plattformen) und welche Schnäppchen dir gemeldet wurden. Rechtsgrundlage: Art. 6 Abs. 1 lit. a und b DSGVO.
 
 ### Besucherstatistik
 
@@ -174,15 +178,30 @@ In der Tauschbörse können Benutzer Spiele, Konsolen und Zubehör zum Verkauf o
 - Wir können Angebote, die gegen diese Bedingungen oder geltendes Recht verstoßen, entfernen und Konten sperren. Angebote können über „Melden“ gemeldet werden.
 - Aus Angeboten und Wunschlisten entstehen **anonymisierte Marktdaten** (z. B. Preisentwicklungen, Angebots- und Nachfragemengen, Verkaufsquoten) ohne Bezug zu einzelnen Benutzern. Diese dürfen wir unbefristet speichern, auswerten, veröffentlichen und – auch kommerziell – an Dritte weitergeben. Einzelheiten stehen in der Datenschutzerklärung.
 
-## 8. Affiliate-Links
+## 8. Schnäppchen-Alarm, Frühzugang und Speicherpakete
+
+- Der **Schnäppchen-Alarm** ist kostenlos: Du wirst benachrichtigt, wenn ein Angebot deutlich unter dem Marktwert liegt. Der Marktwert ist eine Schätzung (echte Verkäufe in der Tauschbörse, sonst Marktpreise) ohne Gewähr.
+- **Frühzugang** (kostenpflichtig): Abonnenten erhalten Schnäppchen-Benachrichtigungen sofort, alle anderen Benutzer mit der im Konto angezeigten Verzögerung (derzeit [60] Minuten). Die Angebote selbst sind für alle Benutzer gleichzeitig in der Tauschbörse sichtbar; der Frühzugang betrifft nur den Zeitpunkt der Benachrichtigung. Jeder Benutzer kann den Frühzugang zu denselben Bedingungen buchen – auch der Betreiber nutzt keinen darüber hinausgehenden Vorsprung.
+- **Speicherpakete** (kostenpflichtig) erweitern den Speicherplatz für Fotos und Scans. Endet das Paket, bleiben vorhandene Dateien erhalten; neue Uploads sind erst wieder möglich, wenn der Speicher unter dem kostenlosen Kontingent liegt.
+- Preise sind Endpreise inkl. gesetzlicher Umsatzsteuer und werden monatlich im Voraus berechnet (Karte, SEPA-Lastschrift, PayPal oder Rechnung). Die Abos verlängern sich jeweils um einen Monat und sind **jederzeit zum Ende des laufenden Monats kündbar** – ohne Begründung über den Knopf „Verträge hier kündigen“ (Konto → Abos & Verträge).
+
+### Widerrufsbelehrung (für Verbraucher)
+
+**Widerrufsrecht:** Du hast das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen. Die Widerrufsfrist beträgt vierzehn Tage ab dem Tag des Vertragsschlusses. Um dein Widerrufsrecht auszuüben, musst du uns ([Name, Anschrift, E-Mail-Adresse]) mittels einer eindeutigen Erklärung (z. B. per E-Mail) über deinen Entschluss, diesen Vertrag zu widerrufen, informieren. Du kannst dafür das unten stehende Muster-Widerrufsformular verwenden, das jedoch nicht vorgeschrieben ist. Zur Wahrung der Widerrufsfrist reicht es aus, dass du die Mitteilung über die Ausübung des Widerrufsrechts vor Ablauf der Widerrufsfrist absendest.
+
+**Folgen des Widerrufs:** Wenn du diesen Vertrag widerrufst, haben wir dir alle Zahlungen, die wir von dir erhalten haben, unverzüglich und spätestens binnen vierzehn Tagen ab dem Tag zurückzuzahlen, an dem die Mitteilung über deinen Widerruf bei uns eingegangen ist. Für diese Rückzahlung verwenden wir dasselbe Zahlungsmittel, das du bei der ursprünglichen Transaktion eingesetzt hast, es sei denn, mit dir wurde ausdrücklich etwas anderes vereinbart; in keinem Fall werden dir wegen dieser Rückzahlung Entgelte berechnet. Hast du verlangt, dass die Dienstleistung während der Widerrufsfrist beginnen soll, so hast du uns einen angemessenen Betrag zu zahlen, der dem Anteil der bis zu dem Zeitpunkt, zu dem du uns von der Ausübung des Widerrufsrechts unterrichtest, bereits erbrachten Dienstleistungen im Vergleich zum Gesamtumfang der im Vertrag vorgesehenen Dienstleistungen entspricht.
+
+**Muster-Widerrufsformular:** An [Name, Anschrift, E-Mail-Adresse]: Hiermit widerrufe(n) ich/wir (*) den von mir/uns (*) abgeschlossenen Vertrag über die Erbringung der folgenden Dienstleistung (*) – Bestellt am (*) – Name des/der Verbraucher(s) – Anschrift des/der Verbraucher(s) – Datum. (*) Unzutreffendes streichen.
+
+## 9. Affiliate-Links
 
 Links unter „Hier zum Kauf verfügbar“ sind Werbung (Partnerlinks). Kaufverträge kommen ausschließlich mit dem jeweiligen Anbieter zustande.
 
-## 9. Kündigung
+## 10. Kündigung
 
 Du kannst dein Konto jederzeit selbst löschen. Wir können Konten bei Verstößen gegen diese Bedingungen sperren.
 
-## 10. Haftung
+## 11. Haftung
 
 Wir haften unbeschränkt bei Vorsatz und grober Fahrlässigkeit sowie nach dem Produkthaftungsgesetz. Im Übrigen haften wir nur bei Verletzung wesentlicher Pflichten, begrenzt auf den vorhersehbaren Schaden.
 

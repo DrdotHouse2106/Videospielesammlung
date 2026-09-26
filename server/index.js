@@ -66,6 +66,11 @@ setInterval(() => {
   try { kontext.boerse.raeumeAuf(); } catch (e) { console.warn('[boerse]', e.message); }
 }, 60 * 60 * 1000).unref();
 
+// Schnäppchen-Alarm: fällige Benachrichtigungen (nach Ablauf des Frühzugang-Vorsprungs) jede Minute verschicken
+setInterval(() => {
+  try { kontext.schnaeppchen.versende(); } catch (e) { console.warn('[schnaeppchen]', e.message); }
+}, 60 * 1000).unref();
+
 // Rechnungen, die ERPNext noch nicht erreicht haben, regelmäßig nachholen
 setInterval(() => {
   kontext.erpnext.nachholen()

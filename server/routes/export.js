@@ -88,6 +88,8 @@ export function exportRouter({ db, plattformen }) {
       tauschboerse: {
         angebote: alle('SELECT * FROM angebote WHERE benutzer_id = ? ORDER BY id').map(({ benutzer_id: _b, ...rest }) => rest),
         statistik: alle('SELECT angebot_id, tag, aufrufe, anfragen, treffer FROM boerse_statistik WHERE benutzer_id = ? ORDER BY tag, angebot_id'),
+        schnaeppchen_alarm: db.prepare('SELECT schnaeppchen_aktiv AS aktiv, schnaeppchen_schwelle AS schwelle, schnaeppchen_umfang AS umfang, schnaeppchen_plattformen AS plattformen, fruehzugang_bis FROM benutzer WHERE id = ?').get(b),
+        schnaeppchen_gemeldet: alle('SELECT angebot_id, faellig_am, gesendet_am FROM schnaeppchen_versand WHERE benutzer_id = ? ORDER BY faellig_am'),
         verkaeufe: db.prepare(`SELECT titel, preis, kaeufer_preis, status, extern, erstellt_am, bestaetigt_am,
             CASE WHEN verkaeufer_id = @b THEN 'verkaeufer' ELSE 'kaeufer' END AS rolle
           FROM verkaeufe WHERE verkaeufer_id = @b OR kaeufer_id = @b ORDER BY id`).all({ b }),
@@ -101,6 +103,7 @@ export function exportRouter({ db, plattformen }) {
           WHERE k.benutzer_id = ?`),
         shop_anbindung: anbindung,
       },
+      push_geraete: alle('SELECT geraet, erstellt_am, zuletzt_am FROM push_abos WHERE benutzer_id = ? ORDER BY id'),
       abos: alle('SELECT anbieter, produkt, angebote, netto, status, laeuft_bis, erstellt_am FROM abos WHERE benutzer_id = ? ORDER BY id'),
       gutschriften: alle('SELECT grund, netto, steuersatz, brutto, erpnext_gutschrift AS beleg, erstellt_am FROM gutschriften WHERE benutzer_id = ? ORDER BY id'),
       zahlungen_und_rechnungen: alle(`SELECT anbieter, beschreibung, netto, verrechnet, steuersatz, brutto, zeitraum_von, zeitraum_bis, erpnext_rechnung AS rechnung,

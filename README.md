@@ -359,6 +359,14 @@ Bezahlung und Versand vereinbaren die Beteiligten direkt miteinander.
 - **Öffentliche Händlerseiten** (`/haendler`, `/haendler/<id>-<name>`): Jeder verifizierte Händler bekommt eine Seite mit
   Angeboten, Versandinfos, Bewertungen und Anbieterkennzeichnung (schema.org `Store`). Bei Suchmaschinen gelistet (Sitemap,
   `index`) und mit echtem Shop-Link (ohne `nofollow`) nur mit aktivem Händler-Paket – ein weiterer Vorteil der Pakete.
+- **Schnäppchen-Alarm** (kostenlos, *Mehr → Schnäppchen & Premium*): Benachrichtigung, sobald ein Angebot deutlich unter dem
+  Marktwert liegt – Schwelle (z. B. mindestens 40 % günstiger) und Umfang (Wunschliste, bestimmte Plattformen oder alle)
+  einstellbar. Marktwert: Median echter Börsen-Verkäufe, sonst PriceCharting (lose/CIB passend zum Angebot), sonst die
+  Preisangaben der letzten 90 Tage. Angebote tragen das Abzeichen „−X % unter Marktwert“, die Börse filtert „Nur Schnäppchen“.
+- **Frühzugang** (Abo, Standard 2,90 € im Monat inkl. MwSt., `PREMIUM_EARLY_PRICE`): Schnäppchen-Benachrichtigungen sofort,
+  alle anderen nach `PREMIUM_EARLY_MINUTES` (Standard 60). Offen in den Nutzungsbedingungen beschrieben und für jeden buchbar.
+- **Push-Benachrichtigungen** aufs Handy (Web-Push mit VAPID, ohne Fremddienst-Konto): alle Benachrichtigungen zusätzlich als
+  Push. Auf dem iPhone ab iOS 16.4, wenn ZockDB zum Home-Bildschirm hinzugefügt wurde.
 - **Tauschvorschläge:** Die App findet Sammler, die haben, was du suchst, und gleichzeitig suchen, was du tauschen möchtest.
 - **Nachrichten** zu Angeboten innerhalb der App (E-Mail-Adressen bleiben verborgen), danach gegenseitige **Bewertungen**.
 - **Verkaufsbestätigung:** Beim Markieren als verkauft fragt die App nach dem tatsächlichen Preis und dem Käufer (einer der
@@ -388,6 +396,15 @@ Bezahlung und Versand vereinbaren die Beteiligten direkt miteinander.
   Drei Tage vor Ende gibt es eine Erinnerung, danach endet der Test automatisch.
 - Pakete und API-Anbindung schaltet ein Administrator mit Ablaufdatum frei (*Benutzerverwaltung → Anbieterkennzeichnung
   prüfen*) – oder der Händler bucht selbst (siehe unten).
+
+### Speicherpakete für Privatnutzer
+
+Jeder Benutzer hat `STORAGE_QUOTA_MB` (Standard 1 GB) für Fotos und Scans kostenlos. Mehr Speicher lässt sich unter
+*Mehr → Schnäppchen & Premium* als monatliches Abo buchen – Größen und Preise (inkl. MwSt.) über `STORAGE_PACKAGES`, Standard
+`10=1,99;50=4,99;200=9,99` (GB = €/Monat). Endet ein Paket, bleiben vorhandene Dateien erhalten; neue Uploads sind erst wieder
+möglich, wenn das kostenlose Kontingent unterschritten ist. Buchung wie bei den Händler-Paketen per Karte/SEPA, PayPal oder
+Rechnung (braucht eine E-Mail-Adresse); Verbraucher bestätigen den sofortigen Beginn (Widerrufsrecht), gekündigt wird über
+„Verträge hier kündigen“ (Konto → Abos & Verträge). Rechnungen entstehen wie gewohnt in ERPNext (als Privatkunde).
 
 ### Automatische Zahlungen und Rechnungen (optional)
 

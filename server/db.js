@@ -789,6 +789,48 @@ const MIGRATIONEN = [
   ALTER TABLE markt_angebote ADD COLUMN verkaufspreis REAL;
   ALTER TABLE markt_angebote ADD COLUMN verkauf_status TEXT;   -- bestaetigt, gemeldet, bestritten; NULL = nur Angebotspreis
   ALTER TABLE markt_angebote ADD COLUMN ueber_zockdb INTEGER;  -- 1 = Käufer über ZockDB, 0 = außerhalb, NULL = unbekannt
+  `,  // 29: Web-Push, Schnäppchen-Alarm, Frühzugang und Speicherpakete für Privatnutzer
+  `
+  CREATE TABLE push_abos (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    benutzer_id INTEGER NOT NULL REFERENCES benutzer (id) ON DELETE CASCADE,
+    endpoint    TEXT    NOT NULL UNIQUE,
+    p256dh      TEXT    NOT NULL,
+    auth        TEXT    NOT NULL,
+    geraet      TEXT,
+    fehler      INTEGER NOT NULL DEFAULT 0,
+    zuletzt_am  TEXT,
+    erstellt_am TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX idx_push_abos_benutzer ON push_abos (benutzer_id);
+
+  ALTER TABLE benutzer ADD COLUMN fruehzugang_bis TEXT;
+  ALTER TABLE benutzer ADD COLUMN speicher_extra_mb INTEGER;
+  ALTER TABLE benutzer ADD COLUMN speicher_extra_bis TEXT;
+  ALTER TABLE benutzer ADD COLUMN schnaeppchen_aktiv INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE benutzer ADD COLUMN schnaeppchen_schwelle INTEGER NOT NULL DEFAULT 60;   -- Angebot höchstens X % des Marktwerts
+  ALTER TABLE benutzer ADD COLUMN schnaeppchen_umfang TEXT NOT NULL DEFAULT 'wunschliste'; -- wunschliste, plattformen, alle
+  ALTER TABLE benutzer ADD COLUMN schnaeppchen_plattformen TEXT;                        -- JSON-Liste von Plattform-IDs
+  ALTER TABLE abos ADD COLUMN widerruf_verzicht_am TEXT;  -- Verbraucher: Zustimmung zum sofortigen Beginn
+
+  -- Erkannte Schnäppchen (Angebot deutlich unter Marktwert)
+  CREATE TABLE schnaeppchen (
+    angebot_id  INTEGER PRIMARY KEY REFERENCES angebote (id) ON DELETE CASCADE,
+    preis       REAL    NOT NULL,
+    marktwert   REAL    NOT NULL,
+    prozent     INTEGER NOT NULL,                -- Preis in % des Marktwerts
+    quelle      TEXT    NOT NULL,                -- verkaeufe, marktpreis, preise90
+    erkannt_am  TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  -- Geplanter Versand: Frühzugang sofort, alle anderen nach der Wartezeit
+  CREATE TABLE schnaeppchen_versand (
+    angebot_id  INTEGER NOT NULL REFERENCES angebote (id) ON DELETE CASCADE,
+    benutzer_id INTEGER NOT NULL REFERENCES benutzer (id) ON DELETE CASCADE,
+    faellig_am  TEXT    NOT NULL,
+    gesendet_am TEXT,
+    PRIMARY KEY (angebot_id, benutzer_id)
+  );
+  CREATE INDEX idx_schnaeppchen_versand_faellig ON schnaeppchen_versand (gesendet_am, faellig_am);
   `,
 ];
 

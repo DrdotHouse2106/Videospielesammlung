@@ -71,6 +71,7 @@ export function AngebotKarte({ angebot: a, mitTitel = true }) {
         <p className="font-bold tabular-nums">{preisText(a)}</p>
         {a.anzahl > 1 && <p className="text-xs text-leise">{a.anzahl} Stück</p>}
         {a.gesucht_von > 0 && <p className="text-xs text-akzent-hell">{a.gesucht_von} suchen das</p>}
+        {a.schnaeppchen_prozent != null && <p className="abzeichen mt-1 bg-erfolg/15 text-erfolg">−{100 - a.schnaeppchen_prozent} % unter Marktwert</p>}
       </div>
     </a>
   );

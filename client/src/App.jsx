@@ -35,6 +35,7 @@ const MODULE = {
   boerseMeine: () => import('./seiten/BoerseMeine.jsx'),
   boerseAnbieter: () => import('./seiten/BoerseAnbieter.jsx'),
   haendler: () => import('./seiten/Haendler.jsx'),
+  premium: () => import('./seiten/Premium.jsx'),
   nachrichten: () => import('./seiten/Nachrichten.jsx'),
 };
 
@@ -86,6 +87,7 @@ const BoerseAngebot = spaeter('boerseAngebot');
 const BoerseMeine = spaeter('boerseMeine');
 const BoerseAnbieter = spaeter('boerseAnbieter');
 const Haendler = spaeter('haendler');
+const Premium = spaeter('premium');
 const Nachrichten = spaeter('nachrichten');
 const Unterhaltung = spaeter('nachrichten', 'Unterhaltung');
 
@@ -111,6 +113,7 @@ function Seite({ route }) {
   if (pfad === '/boerse/meine') return <BoerseMeine route={route} />;
   if (pfad === '/boerse/haendler') return <Haendler route={route} />;
   if (pfad === '/nachrichten') return <Nachrichten route={route} />;
+  if (pfad === '/premium') return <Premium route={route} />;
   let t = passt('/artikel/:id/bearbeiten', pfad);
   if (t) return <ArtikelFormular key={`b${t.id}`} route={route} artikelId={t.id} />;
   t = passt('/artikel/:id', pfad);

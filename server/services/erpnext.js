@@ -53,8 +53,8 @@ export function erstelleErpNextDienst(db, { konfiguration, fetchFn = globalThis.
     if (!kundenname) {
       const neu = await anfrage('POST', ressource('Customer'), {
         customer_name: name,
-        customer_type: 'Company',
-        email_id: kennzeichnung?.email || undefined,
+        customer_type: kennzeichnung?.firma ? 'Company' : 'Individual', // Privatnutzer (Frühzugang, Speicher) ohne Firma
+        email_id: kennzeichnung?.email || benutzer.email || undefined,
         tax_id: kennzeichnung?.ustid || undefined,
       });
       kundenname = neu.name;

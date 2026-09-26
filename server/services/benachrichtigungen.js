@@ -6,6 +6,7 @@ import { mailHtml } from './mail.js';
 const MAX_JE_BENUTZER = 200;
 
 export function erstelleBenachrichtigungsDienst(db, { mail, konfiguration }) {
+  let push = null; // wird nach dem Anlegen gesetzt (Web-Push aufs Handy)
   const q = {
     anlegen: db.prepare('INSERT INTO benachrichtigungen (benutzer_id, art, titel, text, link) VALUES (?, ?, ?, ?, ?) RETURNING id'),
     kuerzen: db.prepare(`DELETE FROM benachrichtigungen WHERE benutzer_id = @b AND id NOT IN
@@ -28,6 +29,7 @@ export function erstelleBenachrichtigungsDienst(db, { mail, konfiguration }) {
     if (!b) return null;
     const { id } = q.anlegen.get(b.id, art, String(titel).slice(0, 200), text ? String(text).slice(0, 1000) : null, link);
     q.kuerzen.run({ b: b.id });
+    push?.sende(b.id, { titel, text, link, tag: art }).catch((e) => console.warn('[push]', e.message));
     if (b.benachrichtigung_email && b.email && mail.aktiv && konfiguration.oeffentlicheUrl) {
       const url = `${konfiguration.oeffentlicheUrl}${APP_START}${link ? link.replace(/^\/+/, '') : ''}`;
       const gruss = `Hallo ${b.anzeigename || b.benutzername},`;
@@ -46,6 +48,7 @@ export function erstelleBenachrichtigungsDienst(db, { mail, konfiguration }) {
 
   return {
     sende,
+    setzePush: (dienst) => { push = dienst; },
     liste: (benutzerId, limit = 50) => q.liste.all(benutzerId, Math.min(200, limit)).map((z) => ({ ...z, gelesen: Boolean(z.gelesen) })),
     ungelesen: (benutzerId) => q.ungelesen.get(benutzerId).n,
     markiereGelesen: (benutzerId, id = null) => (id ? q.eineGelesen.run(benutzerId, id) : q.alleGelesen.run(benutzerId)),
