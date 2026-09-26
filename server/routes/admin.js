@@ -5,7 +5,7 @@ import { erstelleDrossel } from '../services/drossel.js';
 // Nur über die .env änderbar – zur Information in der Oberfläche
 const NUR_ENV = ['APP_SECRET', 'DATABASE_PATH', 'UPLOAD_DIR', 'PORT', 'HOST', 'TRUST_PROXY', 'COOKIE_SECURE', 'SESSION_DAYS', 'REGISTRATIONS_PER_HOUR'];
 
-export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, preisimport, igdb, ebay, preise, affiliate, ki, einstellungen, konfiguration }) {
+export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, benachrichtigungen, preisimport, igdb, ebay, preise, affiliate, ki, einstellungen, konfiguration }) {
   const router = Router();
   const bestaetigungsDrossel = erstelleDrossel({ maxVersuche: 5 });
   const anzahlAdmins = () => db.prepare("SELECT COUNT(*) AS n FROM benutzer WHERE rolle = 'admin' AND gesperrt = 0").get().n;
@@ -142,6 +142,14 @@ export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, pr
     if (rolle !== undefined) {
       if (!['admin', 'moderator', 'nutzer'].includes(rolle)) throw new KontoFehler('Ungültige Rolle.');
       db.prepare('UPDATE benutzer SET rolle = ? WHERE id = ?').run(rolle, b.id);
+      if (rolle !== b.rolle) {
+        const name = { admin: 'Administrator', moderator: 'Moderator', nutzer: 'Nutzer' }[rolle];
+        benachrichtigungen.sende(b.id, {
+          art: 'rolle', titel: `Deine Rolle: ${name}`,
+          text: rolle === 'moderator' ? 'Du kannst jetzt Einreichungen prüfen und Katalogeinträge bearbeiten – unter „Mehr → Moderation“. Danke für deine Hilfe!' : null,
+          link: rolle === 'nutzer' ? null : rolle === 'moderator' ? '#/moderation' : '#/admin',
+        });
+      }
     }
     if (limitMb !== undefined) {
       // null/leer = Standard, 0 = unbegrenzt, sonst MB

@@ -44,7 +44,7 @@ export function meldenRouter({ db, katalog }) {
 }
 
 /** Bearbeitung durch das Moderationsteam. */
-export function meldungenModerationRouter({ db }) {
+export function meldungenModerationRouter({ db, benachrichtigungen }) {
   const router = Router();
 
   router.get('/meldungen', (req, res) => {
@@ -74,6 +74,9 @@ export function meldungenModerationRouter({ db }) {
     if (!m) return res.status(404).json({ fehler: 'Meldung nicht gefunden oder bereits erledigt.' });
     const aktion = req.body?.aktion === 'entfernen' ? 'entfernen' : 'keine';
     const ergebnis = String(req.body?.ergebnis ?? '').trim().slice(0, 1000) || (aktion === 'entfernen' ? 'Inhalt entfernt.' : 'Kein Verstoß festgestellt.');
+    // Alle Meldenden mit Konto erfahren das Ergebnis
+    const meldende = db.prepare(`SELECT DISTINCT benutzer_id, grund FROM inhalt_meldungen
+      WHERE bereich = ? AND ziel_id = ? AND status = 'offen' AND benutzer_id IS NOT NULL`).all(m.bereich, m.ziel_id);
     db.transaction(() => {
       if (aktion === 'entfernen') {
         if (m.bereich === 'medien') {
@@ -94,6 +97,19 @@ export function meldungenModerationRouter({ db }) {
       db.prepare(`UPDATE inhalt_meldungen SET status = 'erledigt', ergebnis = ?, erledigt_von = ?, erledigt_am = datetime('now')
                   WHERE bereich = ? AND ziel_id = ? AND status = 'offen'`).run(ergebnis, req.benutzer.id, m.bereich, m.ziel_id);
     })();
+    const katalogId = {
+      katalog: () => m.ziel_id,
+      medien: () => db.prepare('SELECT katalog_id FROM medien WHERE id = ?').get(m.ziel_id)?.katalog_id,
+      link: () => db.prepare('SELECT katalog_id FROM externe_links WHERE id = ?').get(m.ziel_id)?.katalog_id,
+      preis: () => null,
+    }[m.bereich]?.();
+    for (const { benutzer_id: b, grund } of meldende) {
+      benachrichtigungen.sende(b, {
+        art: 'meldung',
+        titel: grund === 'ergaenzung' ? 'Danke für deinen Vorschlag – er wurde bearbeitet' : 'Deine Meldung wurde bearbeitet',
+        text: ergebnis, link: katalogId ? `#/katalog/${katalogId}` : null,
+      });
+    }
     res.json({ ok: true });
   });
 

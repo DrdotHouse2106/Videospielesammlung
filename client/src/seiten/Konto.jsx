@@ -39,7 +39,7 @@ export default function Konto({ route }) {
         {!konto ? <p className="text-leise">Wird geladen …</p> : (
           <>
             <Profil konto={konto} onSpeichern={speichereProfil} />
-            {!pflicht && <EmailAdresse konto={konto} onGeaendert={laden} />}
+            {!pflicht && <EmailAdresse konto={konto} onGeaendert={laden} onSpeichern={speichereProfil} />}
             <ZweiFaktor konto={konto} pflicht={auth?.zweiFaktorPflicht} onGeaendert={() => { laden(); aktualisiere(); }} />
             {!pflicht && (
               <>
@@ -322,7 +322,7 @@ function Aktionen({ fehler, onAbbrechen, text, gefahr }) {
   );
 }
 
-function EmailAdresse({ konto, onGeaendert }) {
+function EmailAdresse({ konto, onGeaendert, onSpeichern }) {
   const zeigeHinweis = useHinweis();
   const [offen, setOffen] = useState(false);
   const [w, setW] = useState({ email: '', passwort: '' });
@@ -367,6 +367,13 @@ function EmailAdresse({ konto, onGeaendert }) {
             <p className="text-sm text-warnung">Wartet auf Bestätigung: <span className="break-all">{konto.ausstehendeEmail}</span> – bitte den Link in der E-Mail öffnen.</p>
           )}
           <p className="text-xs text-leise">Wird nur für „Passwort vergessen“, Sicherheitshinweise und – wenn du es möchtest – Benachrichtigungen verwendet. Nie für Werbung, nie für andere sichtbar.</p>
+          {konto.email && (
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" className="mt-1 size-4 accent-akzent" checked={konto.benachrichtigung_email}
+                onChange={(e) => onSpeichern({ benachrichtigung_email: e.target.checked })} />
+              <span>Benachrichtigungen zusätzlich per E-Mail (z. B. wenn deine Einreichungen geprüft wurden)</span>
+            </label>
+          )}
           {offen ? (
             <form className="space-y-2" onSubmit={speichern}>
               <input type="email" className="eingabe" placeholder="neue@adresse.de" value={w.email} onChange={(e) => setW({ ...w, email: e.target.value })} autoComplete="email" required />

@@ -399,6 +399,21 @@ const MIGRATIONEN = [
   );
   CREATE INDEX idx_konto_tokens_benutzer ON konto_tokens (benutzer_id, zweck);
   `,
+  // 12: Benachrichtigungen
+  `
+  CREATE TABLE benachrichtigungen (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    benutzer_id INTEGER NOT NULL REFERENCES benutzer (id) ON DELETE CASCADE,
+    art         TEXT    NOT NULL,       -- freigabe, ablehnung, meldung, rolle, erfolg …
+    titel       TEXT    NOT NULL,
+    text        TEXT,
+    link        TEXT,                   -- App-Adresse, z. B. #/katalog/5
+    gelesen     INTEGER NOT NULL DEFAULT 0,
+    erstellt_am TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX idx_benachrichtigungen ON benachrichtigungen (benutzer_id, gelesen, id);
+  ALTER TABLE benutzer ADD COLUMN benachrichtigung_email INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

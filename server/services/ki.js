@@ -144,7 +144,7 @@ const VERDAECHTIG = /(https?:\/\/|www\.|@[a-z0-9-]+\.[a-z]{2,}|ignor(e|iere)|anw
 
 // ── Dienst ───────────────────────────────────────────────────────────────────
 
-export function erstelleKiDienst(db, konfiguration, { katalog, fetchFn = globalThis.fetch, anbieterFn } = {}) {
+export function erstelleKiDienst(db, konfiguration, { katalog, fetchFn = globalThis.fetch, anbieterFn, benachrichtigungen } = {}) {
   const { anbieter, apiKey, basisUrl } = konfiguration;
   const modell = konfiguration.modell || STANDARD_MODELLE[anbieter] || '';
   let aufruf = anbieterFn ?? null;
@@ -204,9 +204,16 @@ export function erstelleKiDienst(db, konfiguration, { katalog, fetchFn = globalT
       db.prepare(`UPDATE ${tabelle} SET ki_hinweis = ? WHERE id = ?`).run(hinweis.slice(0, 1500), ziel.id);
     } else {
       const notiz = `${ergebnis === 'freigegeben' ? 'Automatisch durch KI freigegeben' : 'Automatisch durch KI abgelehnt'}: ${vorschlag.begruendung || 'ohne Begründung'}`;
-      db.prepare(`UPDATE ${tabelle} SET status = ?, automatisch_geprueft = 1, pruefung_notiz = ?, geprueft_von = NULL, ki_hinweis = NULL
+      const r = db.prepare(`UPDATE ${tabelle} SET status = ?, automatisch_geprueft = 1, pruefung_notiz = ?, geprueft_von = NULL, ki_hinweis = NULL
         ${tabelle === 'katalog' ? ", geprueft_am = datetime('now')" : ''} WHERE id = ? AND status = 'eingereicht'`)
         .run(ergebnis, notiz.slice(0, 1000), ziel.id);
+      if (r.changes && benachrichtigungen) {
+        const name = bereich === 'katalog' ? `„${ziel.titel}“` : `Die Variante „${ziel.bezeichnung}“`;
+        const katalogId = bereich === 'katalog' ? ziel.id : ziel.katalog_id;
+        benachrichtigungen.sende(ziel.erstellt_von, ergebnis === 'freigegeben'
+          ? { art: 'freigabe', titel: `${name} wurde automatisch freigegeben`, text: 'Die KI-Vorprüfung hat deine Einreichung freigegeben. Danke für deinen Beitrag!', link: `#/katalog/${katalogId}` }
+          : { art: 'ablehnung', titel: `${name} wurde automatisch abgelehnt`, text: `${vorschlag.begruendung || 'Ohne Begründung.'} Du kannst den Eintrag überarbeiten oder eine Prüfung durch einen Moderator verlangen.`, link: `#/katalog/${katalogId}` });
+      }
     }
     return ergebnis;
   }

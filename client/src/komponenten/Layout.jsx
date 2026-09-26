@@ -3,6 +3,7 @@ import { MARKE } from '../../../shared/marke.js';
 import { navigiere } from '../router.js';
 import { useSitzung } from '../sitzung.js';
 import Fusszeile from './Fusszeile.jsx';
+import Glocke from './Glocke.jsx';
 
 const NAVIGATION = [
   { pfad: '/', label: 'Sammlung', symbol: 'sammlung' },
@@ -70,6 +71,7 @@ export default function Layout({ route, titel, zurueck, aktionen, children }) {
           )}
           <h1 className="min-w-0 flex-1 truncate text-lg font-bold sm:text-center md:text-left">{titel}</h1>
           {aktionen}
+          <Glocke />
           <nav className="ml-4 hidden items-center gap-1 md:flex" aria-label="Hauptnavigation">
             {[...NAVIGATION.slice(0, 2), ...NUR_DESKTOP, ...NAVIGATION.slice(2)].map((eintrag) => (
               <a

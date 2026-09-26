@@ -5,7 +5,7 @@ import { katalogZeileZuObjekt } from '../services/katalog.js';
 import { pruefeKatalogEintrag, leseEuro, ValidierungsFehler } from '../services/validierung.js';
 import { plattformZuObjekt } from '../services/plattformen.js';
 
-export function moderationRouter({ db, katalog, plattformen }) {
+export function moderationRouter({ db, katalog, plattformen, benachrichtigungen }) {
   const router = Router();
   const grund = (req) => String(req.body?.grund ?? '').trim().slice(0, 1000) || null;
 
@@ -57,7 +57,12 @@ export function moderationRouter({ db, katalog, plattformen }) {
       db.prepare(`UPDATE katalog SET status = 'freigegeben', geprueft_von = ?, geprueft_am = datetime('now'), pruefung_notiz = ?,
                   automatisch_geprueft = 0, ki_hinweis = NULL WHERE id = ?`).run(req.benutzer.id, grund(req), e.id);
     })();
-    res.json(katalog.holeEintrag(e.id));
+    const neu = katalog.holeEintrag(e.id);
+    benachrichtigungen.sende(e.erstellt_von, {
+      art: 'freigabe', titel: `„${neu.titel}“ wurde freigegeben`,
+      text: grund(req) ?? 'Dein Eintrag ist jetzt für alle sichtbar. Danke für deinen Beitrag!', link: `#/katalog/${e.id}`,
+    });
+    res.json(neu);
   });
 
   router.post('/katalog/:id/ablehnen', (req, res) => {
@@ -65,6 +70,9 @@ export function moderationRouter({ db, katalog, plattformen }) {
     if (!e) return;
     db.prepare(`UPDATE katalog SET status = 'abgelehnt', geprueft_von = ?, geprueft_am = datetime('now'), pruefung_notiz = ?,
                 automatisch_geprueft = 0, ki_hinweis = NULL WHERE id = ?`).run(req.benutzer.id, grund(req) ?? 'Ohne Begründung abgelehnt.', e.id);
+    benachrichtigungen.sende(e.erstellt_von, {
+      art: 'ablehnung', titel: `„${e.titel}“ wurde abgelehnt`, text: grund(req) ?? 'Ohne Begründung abgelehnt.', link: `#/katalog/${e.id}`,
+    });
     res.json(katalog.holeEintrag(e.id));
   });
 
@@ -95,17 +103,37 @@ export function moderationRouter({ db, katalog, plattformen }) {
     medien: { frei: ", geprueft_am = datetime('now')", ab: '' },
     externe_links: { frei: '', ab: '' },
   };
+  // Wem gehört der Beitrag, und wie heißt er in der Benachrichtigung?
+  const BESITZER = {
+    katalog_varianten: { spalte: 'erstellt_von', name: (z) => `Deine Variante „${z.bezeichnung}“` },
+    medien: { spalte: 'benutzer_id', name: (z) => `Dein Scan${z.titel ? ` „${z.titel}“` : ''}` },
+    externe_links: { spalte: 'benutzer_id', name: (z) => `Dein Link zu ${z.domain}` },
+  };
+  function benachrichtige(tabelle, id, freigegeben, text) {
+    const z = db.prepare(`SELECT * FROM ${tabelle} WHERE id = ?`).get(id);
+    const b = BESITZER[tabelle];
+    if (!z) return;
+    benachrichtigungen.sende(z[b.spalte], {
+      art: freigegeben ? 'freigabe' : 'ablehnung',
+      titel: `${b.name(z)} wurde ${freigegeben ? 'freigegeben' : 'abgelehnt'}`,
+      text: text ?? (freigegeben ? 'Danke für deinen Beitrag!' : null),
+      link: `#/katalog/${z.katalog_id}`,
+    });
+  }
   for (const [pfad, tabelle, feld] of [['varianten', 'katalog_varianten', 'status'], ['medien', 'medien', 'sichtbarkeit'], ['links', 'externe_links', 'status']]) {
     router.post(`/${pfad}/:id/freigeben`, (req, res) => {
       const r = db.prepare(`UPDATE ${tabelle} SET ${feld} = 'freigegeben', geprueft_von = ?, pruefung_notiz = ?${ZUSATZ[tabelle].frei}
                             WHERE id = ?`).run(req.benutzer.id, grund(req), Number(req.params.id));
       if (!r.changes) return res.status(404).json({ fehler: 'Nicht gefunden.' });
+      benachrichtige(tabelle, Number(req.params.id), true, grund(req));
       res.json({ ok: true });
     });
     router.post(`/${pfad}/:id/ablehnen`, (req, res) => {
+      const text = grund(req) ?? 'Ohne Begründung abgelehnt.';
       const r = db.prepare(`UPDATE ${tabelle} SET ${feld} = 'abgelehnt', geprueft_von = ?, pruefung_notiz = ?${ZUSATZ[tabelle].ab} WHERE id = ?`)
-        .run(req.benutzer.id, grund(req) ?? 'Ohne Begründung abgelehnt.', Number(req.params.id));
+        .run(req.benutzer.id, text, Number(req.params.id));
       if (!r.changes) return res.status(404).json({ fehler: 'Nicht gefunden.' });
+      benachrichtige(tabelle, Number(req.params.id), false, text);
       res.json({ ok: true });
     });
   }

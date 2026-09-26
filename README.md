@@ -290,6 +290,13 @@ Datenschutz & Sicherheit: Links enthalten einen Zufallswert, gespeichert wird nu
 `PUBLIC_URL` gebaut (nie aus dem Host-Header), ohne `PUBLIC_URL` bleiben die E-Mail-Funktionen aus. Die Antworten verraten
 nicht, ob ein Benutzername oder eine Adresse existiert. Adressen sind für andere Benutzer nie sichtbar.
 
+### Benachrichtigungen
+
+Die **Glocke** oben in der App zeigt neue Benachrichtigungen, z. B. wenn eine Einreichung (Katalogeintrag, Variante, Scan,
+Link) freigegeben oder abgelehnt wurde – auch bei Entscheidungen der KI-Vorprüfung –, wenn eine Meldung oder ein Vorschlag
+bearbeitet wurde oder sich die eigene Rolle geändert hat. Wer eine bestätigte E-Mail-Adresse hat, kann unter *Konto*
+zusätzlich **E-Mail-Benachrichtigungen** einschalten (standardmäßig aus). Je Benutzer werden die letzten 200 gespeichert.
+
 ## Globaler Katalog, Moderation & Rollen
 
 Jeder Artikel in einer Sammlung gehört zu einem **Katalogeintrag** (das „Spiel“ bzw. „Gerät“ an sich).

@@ -116,6 +116,7 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher, konto
       ausstehendeEmail: kontoMail.ausstehendeEmail(req.benutzer.id),
       emailAktiv: kontoMail.bereit(),
       emailPflicht: emailPflicht(),
+      benachrichtigung_email: Boolean(req.benutzer.benachrichtigung_email),
       speicher: speicher.info(req.benutzer.id),
     });
   });
@@ -165,14 +166,18 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher, konto
   });
 
   router.put('/konto', angemeldet, (req, res) => {
-    const { anzeigename, sammlung_oeffentlich: oeffentlich } = req.body ?? {};
+    const { anzeigename, sammlung_oeffentlich: oeffentlich, benachrichtigung_email: perEmail } = req.body ?? {};
+    if (perEmail !== undefined) {
+      db.prepare('UPDATE benutzer SET benachrichtigung_email = ? WHERE id = ?').run(perEmail ? 1 : 0, req.benutzer.id);
+    }
     if (anzeigename !== undefined) {
       db.prepare('UPDATE benutzer SET anzeigename = ? WHERE id = ?').run(String(anzeigename).trim().slice(0, 60) || null, req.benutzer.id);
     }
     if (oeffentlich !== undefined) {
       db.prepare('UPDATE benutzer SET sammlung_oeffentlich = ? WHERE id = ?').run(oeffentlich ? 1 : 0, req.benutzer.id);
     }
-    res.json(oeffentlichesProfil(konten.holeBenutzer(req.benutzer.id)));
+    const b = konten.holeBenutzer(req.benutzer.id);
+    res.json({ ...oeffentlichesProfil(b), benachrichtigung_email: Boolean(b.benachrichtigung_email) });
   });
 
   router.post('/konto/passwort', angemeldet, async (req, res) => {
