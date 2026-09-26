@@ -10,9 +10,10 @@
 import { Router } from 'express';
 import { HERSTELLER_REIHENFOLGE, ARTIKELTYPEN, MEDIENARTEN, beschriftung } from '../../shared/konstanten.js';
 import { katalogPfad, plattformPfad, slug, KATALOG_PRAEFIXE } from '../../shared/seo.js';
+import { MARKE } from '../../shared/marke.js';
 import { katalogZeileZuObjekt } from '../services/katalog.js';
 
-const APP = 'Videospielesammlung';
+const APP = MARKE.name;
 const PRO_SEITE = 60;
 const PRO_SITEMAP = 40000;
 
@@ -64,8 +65,8 @@ body{margin:0;background:var(--hg);color:var(--text);font:16px/1.55 system-ui,-a
 a{color:var(--akzent-hell)}
 .kopf{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--rand)}
 .kopf a.marke{display:flex;align-items:center;gap:8px;color:var(--text);font-weight:700;text-decoration:none}
-.kopf img{width:28px;height:28px}
-.knopf{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:12px;background:var(--akzent);color:var(--akzent-text);font-weight:600;text-decoration:none}
+.kopf img{width:32px;height:32px}.kopf .marke span{display:flex;flex-direction:column;line-height:1.15}.kopf .marke small{font-weight:400;font-size:12px;color:var(--leise)}@media(max-width:380px){.kopf .marke small{display:none}}
+.knopf{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:12px;background:var(--akzent);color:var(--akzent-text);font-weight:600;text-decoration:none}
 .knopf.zweit{background:transparent;border:1px solid var(--rand);color:var(--text)}
 main{max-width:860px;margin:0 auto;padding:16px}
 nav.pfad{font-size:14px;color:var(--leise);margin-bottom:12px}nav.pfad a{color:var(--leise)}
@@ -125,7 +126,7 @@ ${indexierbar ? '<meta name="robots" content="index,follow,max-image-preview:lar
 <meta property="og:title" content="${esc(titel)}">
 <meta property="og:description" content="${esc(beschreibung)}">
 <meta property="og:url" content="${esc(url)}">
-${bild ? `<meta property="og:image" content="${esc(bild)}">` : ''}
+<meta property="og:image" content="${esc(bild || `${basis(req)}/icons/icon-512.png`)}">
 <meta name="twitter:card" content="${bild ? 'summary_large_image' : 'summary'}">
 <meta name="theme-color" content="#16131f">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
@@ -135,7 +136,7 @@ ${strukturiert.map(jsonLd).join('\n')}
 </head>
 <body>
 <header class="kopf">
-  <a class="marke" href="/plattformen"><img src="/icons/icon.svg" alt="" width="28" height="28">${APP}</a>
+  <a class="marke" href="/plattformen"><img src="/icons/icon.svg" alt="" width="28" height="28"><span>${APP}<small>${esc(MARKE.untertitel)}</small></span></a>
   <a class="knopf" href="${esc(appZiel)}">Zur App</a>
 </header>
 <main>
@@ -322,7 +323,7 @@ ${reihenfolge.map((h) => `<section class="karte"><h2>${esc(h || 'Sonstige')}</h2
 ${liste.length ? '' : '<p class="leise">Noch keine Einträge vorhanden.</p>'}
 <section class="karte"><h2>Deine Sammlung verwalten</h2><p>Kostenlos erfassen, bewerten und den Überblick behalten – mit Barcode-Scanner und Preisverlauf.</p><p><a class="knopf" href="/">Zur App</a></p></section>`;
     sende(res, seite(req, {
-      titel: `Retro- und Videospiele nach Plattform – Werte & Varianten | ${APP}`,
+      titel: `Retro- und Videospiele nach Plattform – Werte & Varianten | ${APP} – ${MARKE.untertitel}`,
       beschreibung: `Spiele, Konsolen und Zubehör für ${zahl(liste.length)} Plattformen: aktuelle Werte, Varianten, Revisionen und wie viele Sammler sie besitzen.`,
       pfad: '/plattformen', indexierbar: liste.length > 0, inhalt,
     }));

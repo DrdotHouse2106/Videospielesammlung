@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MARKE } from '../../../shared/marke.js';
 import { api, ApiFehler } from '../api.js';
 import { useSitzung } from '../sitzung.js';
 import Symbol from '../komponenten/Symbole.jsx';
@@ -64,7 +65,10 @@ export default function Anmelden() {
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-3 text-center">
           <img src="/icons/icon.svg" alt="" className="size-16" />
-          <h1 className="text-2xl font-bold">Videospielesammlung</h1>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{MARKE.name}</h1>
+            <p className="font-medium text-akzent-hell">{MARKE.untertitel}</p>
+          </div>
           <p className="text-sm text-leise">Spiele, Konsolen und Zubehör verwalten – mit Barcode-Scanner und Wertübersicht.</p>
         </div>
 

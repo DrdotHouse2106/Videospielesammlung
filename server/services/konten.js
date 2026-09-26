@@ -1,5 +1,6 @@
 // Benutzerkonten, Sitzungen und Zwei-Faktor-Authentifizierung.
 import QRCode from 'qrcode';
+import { MARKE } from '../../shared/marke.js';
 import {
   hashePasswort, pruefePasswort, vergleicheMitPlatzhalter, zufallsToken, sha256, verschluessele, entschluessele,
   erzeugeTotpGeheimnis, pruefeTotp, erzeugeWiederherstellungscodes, normalisiereWiederherstellungscode,
@@ -46,7 +47,7 @@ export function pruefeNeuesPasswort(passwort, feld = 'passwort') {
   return wert;
 }
 
-export function erstelleKontenDienst(db, { schluessel, sitzungTage, appName = 'Videospielesammlung' }) {
+export function erstelleKontenDienst(db, { schluessel, sitzungTage, appName = MARKE.name }) {
   const sitzungDauerMs = sitzungTage * 24 * 60 * 60 * 1000;
   const q = {
     anzahlBenutzer: db.prepare('SELECT COUNT(*) AS n FROM benutzer'),

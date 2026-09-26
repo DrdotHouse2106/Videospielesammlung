@@ -59,7 +59,7 @@ test('Sobald jemand das Spiel sammelt: indexierbar mit Metadaten, JSON-LD und Sa
   const s = await seite(pfad);
   assert.equal(s.status, 200);
   assert.match(s.text, /<meta name="robots" content="index,follow/);
-  assert.match(s.text, /<title>Super Mario 64 \(N64\) – Wert, Varianten &amp; Infos \| Videospielesammlung<\/title>/);
+  assert.match(s.text, /<title>Super Mario 64 \(N64\) – Wert, Varianten &amp; Infos \| ZockDB<\/title>/);
   assert.match(s.text, new RegExp(`<link rel="canonical" href="https://sammlung\\.example\\.de${pfad}">`));
   assert.match(s.text, /<meta name="description" content="Super Mario 64 für Nintendo 64 \(1996\)\. Aktueller Wert ca\. 37,86/);
   assert.match(s.text, /<b>1<\/b> Sammler hat diesen Eintrag in seiner Sammlung · 2 Exemplare insgesamt/);

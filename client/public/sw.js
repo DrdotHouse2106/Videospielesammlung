@@ -3,7 +3,7 @@
 // - Gebaute Assets & Coverbilder: Cache zuerst (Dateinamen enthalten Hashes)
 // - API-GET-Anfragen: Netzwerk zuerst, offline die zuletzt gesehene Antwort
 
-const VERSION = 'v3';
+const VERSION = 'v4';
 // Server-gerenderte öffentliche Seiten (Suchmaschinen) nicht durch die App-Hülle ersetzen
 const SERVERSEITEN = /^\/(spiel|konsole|zubehoer|plattform|plattformen)(\/|$)|^\/(sitemap[^/]*\.xml|robots\.txt)$/;
 const HUELLE = `huelle-${VERSION}`;

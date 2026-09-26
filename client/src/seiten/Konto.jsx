@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { MARKE } from '../../../shared/marke.js';
 import { api } from '../api.js';
 import { useSitzung } from '../sitzung.js';
 import { datumDe } from '../format.js';
@@ -112,7 +113,7 @@ function Sichtbarkeit({ konto, onSpeichern }) {
 }
 
 function Wiederherstellungscodes({ codes, onFertig }) {
-  const text = `Videospielesammlung – Wiederherstellungscodes\nJeder Code funktioniert genau einmal.\n\n${codes.join('\n')}\n`;
+  const text = `${MARKE.name} – Wiederherstellungscodes\nJeder Code funktioniert genau einmal.\n\n${codes.join('\n')}\n`;
   const herunterladen = () => {
     const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
     const a = Object.assign(document.createElement('a'), { href: url, download: 'wiederherstellungscodes.txt' });

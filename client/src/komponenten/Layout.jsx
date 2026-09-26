@@ -1,4 +1,5 @@
 import Symbol from './Symbole.jsx';
+import { MARKE } from '../../../shared/marke.js';
 import { navigiere } from '../router.js';
 import { useSitzung } from '../sitzung.js';
 import Fusszeile from './Fusszeile.jsx';
@@ -37,7 +38,7 @@ export default function Layout({ route, titel, zurueck, aktionen, children }) {
           <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
             <a href="#/katalog" className="flex items-center gap-2 font-bold" aria-label="Zum Katalog">
               <img src="/icons/icon.svg" alt="" className="size-8" />
-              <span className="hidden sm:inline">Videospielesammlung</span>
+              <span className="hidden sm:inline">{MARKE.name}</span>
             </a>
             <h1 className="min-w-0 flex-1 truncate text-lg font-bold">{titel}</h1>
             <a href="#/" className="knopf-primaer px-3 py-1.5">Anmelden</a>
@@ -64,7 +65,7 @@ export default function Layout({ route, titel, zurueck, aktionen, children }) {
           ) : (
             <a href="#/" className="flex items-center gap-2 font-bold" aria-label="Zur Sammlung">
               <img src="/icons/icon.svg" alt="" className="size-8" />
-              <span className="hidden sm:inline">Videospielesammlung</span>
+              <span className="hidden sm:inline">{MARKE.name}</span>
             </a>
           )}
           <h1 className="min-w-0 flex-1 truncate text-lg font-bold sm:text-center md:text-left">{titel}</h1>

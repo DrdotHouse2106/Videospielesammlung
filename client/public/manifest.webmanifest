@@ -1,7 +1,7 @@
 {
-  "name": "Videospielesammlung",
-  "short_name": "Sammlung",
-  "description": "Retro- und Videospielsammlung verwalten: Spiele, Konsolen und Zubehör – mit Barcode-Scanner.",
+  "name": "ZockDB – Deine Spielesammlung",
+  "short_name": "ZockDB",
+  "description": "Deine Spielesammlung an einem Platz: Spiele, Konsolen und Zubehör sammeln, bewerten und verwalten – mit Barcode-Scanner.",
   "lang": "de-DE",
   "dir": "ltr",
   "start_url": "/",
