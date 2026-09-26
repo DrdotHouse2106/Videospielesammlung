@@ -18,6 +18,13 @@ export const EINSTELLUNGEN = [
     hinweis: 'Dürfen sich neue Benutzer selbst registrieren?' },
   { schluessel: 'REQUIRE_2FA', gruppe: 'Konten & Sicherheit', titel: 'Zwei-Faktor-Anmeldung für alle Pflicht', ...JA_NEIN, sicher: true,
     hinweis: 'Benutzer ohne 2FA müssen sie vor der Nutzung einrichten.' },
+  { schluessel: 'CAPTCHA_PROVIDER', gruppe: 'Konten & Sicherheit', titel: 'Spam-Schutz bei Registrierung', typ: 'auswahl', sicher: true,
+    optionen: [['altcha', 'ALTCHA (ohne Google, ohne Cookies)'], ['recaptcha', 'Google reCAPTCHA v3 (mit Einwilligung)'], ['aus', 'Aus']],
+    hinweis: 'reCAPTCHA überträgt Daten an Google (USA) und wird erst nach Einwilligung geladen – Datenschutzerklärung anpassen.' },
+  { schluessel: 'RECAPTCHA_SITE_KEY', gruppe: 'Konten & Sicherheit', titel: 'reCAPTCHA-Websiteschlüssel', typ: 'text' },
+  { schluessel: 'RECAPTCHA_SECRET', gruppe: 'Konten & Sicherheit', titel: 'reCAPTCHA-Geheimschlüssel', typ: 'geheim', sicher: true },
+  { schluessel: 'RECAPTCHA_MIN_SCORE', gruppe: 'Konten & Sicherheit', titel: 'reCAPTCHA-Mindestscore', typ: 'dezimal', min: 0.1, max: 0.9,
+    hinweis: '0,1 (lässt fast alle durch) bis 0,9 (sehr streng). Standard 0,5.' },
   // Uploads
   { schluessel: 'STORAGE_QUOTA_MB', gruppe: 'Uploads & Speicher', titel: 'Speicherplatz je Benutzer (MB)', typ: 'zahl', min: 0, max: 10_000_000,
     hinweis: '0 = unbegrenzt. Freigegebene Scans zählen nicht mit.' },

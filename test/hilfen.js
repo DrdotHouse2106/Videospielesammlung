@@ -14,6 +14,7 @@ export async function starteTestServer({ env = {}, fetchFn, kiAnbieterFn, mailFn
     BARCODE_PROVIDERS: '',
     APP_SECRET: 'test-geheimnis',
     REGISTRATIONS_PER_HOUR: '1000',
+    CAPTCHA_PROVIDER: 'aus',
     ...env,
   });
   if (kiAnbieterFn) konfiguration.kiAnbieterFn = kiAnbieterFn;

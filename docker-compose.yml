@@ -53,6 +53,12 @@ services:
       # Empfohlen: einmalig mit „openssl rand -base64 32“ erzeugen und NIE wieder ändern.
       # Leer = wird automatisch erzeugt und als geheimnis.key im Volume gespeichert.
       APP_SECRET: ""
+      # Spam-Schutz für Registrierung & „Passwort vergessen“: altcha (ohne Google/Cookies), recaptcha oder aus.
+      # reCAPTCHA v3 überträgt Daten an Google und wird erst nach Einwilligung geladen.
+      CAPTCHA_PROVIDER: "altcha"
+      RECAPTCHA_SITE_KEY: ""
+      RECAPTCHA_SECRET: ""
+      RECAPTCHA_MIN_SCORE: "0.5"
       # Wie lange eine Anmeldung gültig bleibt (Tage)
       SESSION_DAYS: "30"
       # Registrierungen pro Stunde und IP-Adresse (Schutz vor Missbrauch)

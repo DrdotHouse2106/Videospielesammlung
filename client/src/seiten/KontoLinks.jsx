@@ -5,6 +5,7 @@ import { MARKE } from '../../../shared/marke.js';
 import { api } from '../api.js';
 import { useSitzung } from '../sitzung.js';
 import Fusszeile from '../komponenten/Fusszeile.jsx';
+import { captchaNachweis, CaptchaHinweis } from '../captcha.jsx';
 
 function Rahmen({ titel, children }) {
   return (
@@ -25,6 +26,8 @@ function Rahmen({ titel, children }) {
 }
 
 export function PasswortVergessen() {
+  const { auth } = useSitzung();
+  const [zustimmung, setZustimmung] = useState(false);
   const [kennung, setKennung] = useState('');
   const [status, setStatus] = useState(null); // { ok, text }
   const [laedt, setLaedt] = useState(false);
@@ -32,7 +35,7 @@ export function PasswortVergessen() {
     e.preventDefault();
     setLaedt(true);
     try {
-      const a = await api.passwortVergessen(kennung);
+      const a = await api.passwortVergessen(kennung, await captchaNachweis(auth?.captcha, 'passwort', { zustimmung }));
       setStatus({ ok: true, text: a.hinweis });
     } catch (err) {
       setStatus({ ok: false, text: Object.values(err.felder ?? {})[0] ?? err.message });
@@ -55,6 +58,7 @@ export function PasswortVergessen() {
             <span className="beschriftung">Benutzername oder E-Mail-Adresse</span>
             <input className="eingabe" value={kennung} onChange={(e) => setKennung(e.target.value)} autoComplete="username" autoCapitalize="none" required autoFocus />
           </label>
+          <CaptchaHinweis info={auth?.captcha} zustimmung={zustimmung} setZustimmung={setZustimmung} />
           {status && <p className="rounded-xl bg-gefahr/10 p-3 text-sm text-gefahr" role="alert">{status.text}</p>}
           <button type="submit" className="knopf-primaer w-full" disabled={laedt || !kennung.trim()}>{laedt ? 'Bitte warten …' : 'Link anfordern'}</button>
           <a href="#/" className="block text-center text-sm text-akzent-hell underline">Zurück zur Anmeldung</a>

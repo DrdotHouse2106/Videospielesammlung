@@ -82,6 +82,9 @@ Rechtsgrundlage: § 25 Abs. 2 Nr. 2 TDDDG, Art. 6 Abs. 1 lit. b DSGVO.
 
 ## 7. Externe Inhalte und Dienste
 
+- **Spam-Schutz (ALTCHA):** Bei der Registrierung und bei „Passwort vergessen“ löst dein Browser eine kleine Rechenaufgabe. Dabei werden keine Cookies gesetzt und keine Daten an Dritte übertragen.
+- **[Nur falls genutzt] Google reCAPTCHA v3:** Nur wenn du im Formular ausdrücklich einwilligst, laden wir reCAPTCHA der Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland. Dabei werden u. a. IP-Adresse, Browser- und Nutzungsdaten an Google übertragen (auch in die USA; Google ist nach dem EU-US Data Privacy Framework zertifiziert) und Cookies gesetzt, um automatisierte Registrierungen zu erkennen. Rechtsgrundlage ist deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG), die du jederzeit mit Wirkung für die Zukunft widerrufen kannst. Ohne Einwilligung ist eine Registrierung leider nicht möglich – wende dich in diesem Fall an uns. Weitere Informationen: https://policies.google.com/privacy
+
 - **Coverbilder von IGDB:** Coverbilder werden direkt von images.igdb.com (Twitch Interactive, Inc., USA) geladen. Dabei wird deine IP-Adresse an diesen Anbieter übertragen. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (ansprechende Darstellung). [Hinweis auf Data Privacy Framework / Garantien des Anbieters prüfen und ergänzen.]
 - **Spiel- und Preisdaten** (IGDB, Barcode-Datenbanken, PriceCharting, eBay, Europäische Zentralbank) werden **vom Server** abgefragt – dabei werden keine personenbezogenen Daten von dir übermittelt.
 - **Affiliate-Links (Amazon, eBay u. a.):** Erst wenn du auf einen solchen Link klickst, wirst du zum jeweiligen Anbieter weitergeleitet, der dann eigene Cookies setzen und Daten verarbeiten kann. Es gelten die Datenschutzhinweise des Anbieters.

@@ -9,7 +9,7 @@ import { normalisiereEmail } from '../services/kontomail.js';
 
 const ZU_VIELE = 'Zu viele Fehlversuche. Bitte warte 15 Minuten und versuche es dann erneut.';
 
-export function authRouter({ db, konten, konfiguration, dateien, speicher, kontoMail }) {
+export function authRouter({ db, konten, konfiguration, dateien, speicher, kontoMail, captcha }) {
   const router = Router();
   const { cookieSicher } = konfiguration.konten;
   // Live-Werte (über Admin → Einstellungen änderbar)
@@ -37,7 +37,14 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher, konto
       oeffentlicherKatalog: konfiguration.oeffentlicherKatalog,
       emailAktiv: kontoMail.bereit(),
       emailPflicht: emailPflicht(),
+      captcha: captcha.oeffentlich(),
     });
+  });
+
+  // ALTCHA-Aufgabe für Registrierung und „Passwort vergessen“
+  router.get('/auth/captcha', (_req, res) => {
+    if (captcha.anbieter !== 'altcha') return res.status(404).json({ fehler: 'Nicht aktiv.' });
+    res.set('Cache-Control', 'no-store').json(captcha.aufgabe());
   });
 
   router.post('/auth/registrieren', async (req, res) => {
@@ -45,6 +52,8 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher, konto
       return res.status(403).json({ fehler: 'Die Registrierung ist auf diesem Server geschlossen.' });
     }
     if (registrierDrossel.gesperrt(req.ip)) return res.status(429).json({ fehler: 'Zu viele Registrierungen. Bitte später erneut versuchen.' });
+    // Das allererste Konto (Administrator) ohne Spam-Prüfung, damit eine Fehlkonfiguration nicht aussperrt
+    if (!konten.istErsteinrichtung()) await captcha.pruefe(req.body?.captcha, { aktion: 'registrieren', ip: req.ip });
     // E-Mail vorab prüfen, damit bei einem Tippfehler kein halbes Konto entsteht
     const email = kontoMail.bereit() ? normalisiereEmail(req.body?.email) : null;
     if (emailPflicht() && !email) throw new ValidierungsFehler({ email: 'Bitte gib eine E-Mail-Adresse an.' });
@@ -145,6 +154,7 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher, konto
   router.post('/auth/passwort-vergessen', async (req, res) => {
     if (mailDrossel.gesperrt(req.ip)) return res.status(429).json({ fehler: 'Zu viele Anfragen. Bitte später erneut versuchen.' });
     mailDrossel.fehlschlag(req.ip);
+    await captcha.pruefe(req.body?.captcha, { aktion: 'passwort', ip: req.ip });
     await kontoMail.anfordernReset(req.body?.kennung);
     // Immer dieselbe Antwort – verrät nicht, ob das Konto existiert
     res.json({ ok: true, hinweis: 'Falls ein Konto mit bestätigter E-Mail-Adresse existiert, haben wir dir einen Link geschickt. Er ist 60 Minuten gültig.' });

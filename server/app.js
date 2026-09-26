@@ -23,6 +23,7 @@ import { erstelleKiDienst } from './services/ki.js';
 import { erstelleEinstellungsDienst } from './services/einstellungen.js';
 import { erstelleSicherungsDienst } from './services/sicherung.js';
 import { erstelleMailDienst } from './services/mail.js';
+import { erstelleCaptchaDienst } from './services/captcha.js';
 import { erstelleKontoMailDienst } from './services/kontomail.js';
 import { erstelleBenachrichtigungsDienst } from './services/benachrichtigungen.js';
 import { benachrichtigungenRouter } from './routes/benachrichtigungen.js';
@@ -71,6 +72,8 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const preise = erstellePreisDienst(db, konfiguration.preise, { cache, fetchFn });
   const preisimport = erstellePreisImport(db, { preise, ebay, cache });
   const sicherung = erstelleSicherungsDienst(db, konfiguration);
+  const neuesCaptcha = () => erstelleCaptchaDienst(konfiguration.captcha, { schluessel, fetchFn });
+  const captcha = neuesCaptcha();
   const neueMail = () => erstelleMailDienst(konfiguration.mail, { transportFn: konfiguration.mailTransportFn });
   const mail = neueMail();
   const kontoMail = erstelleKontoMailDienst(db, { mail, konfiguration, konten });
@@ -78,7 +81,7 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const neueKi = () => erstelleKiDienst(db, konfiguration.ki ?? { anbieter: 'aus' }, { katalog, fetchFn, anbieterFn: konfiguration.kiAnbieterFn, benachrichtigungen });
   const ki = neueKi();
   const kontext = {
-    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, mail, kontoMail, benachrichtigungen, konfiguration, version,
+    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, mail, kontoMail, benachrichtigungen, captcha, konfiguration, version,
   };
 
   /**
@@ -93,6 +96,7 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
     }
     if (betrifft('BARCODE_', 'OPENGTINDB_')) Object.assign(barcode, erstelleBarcodeDienst(konfiguration.barcode, { fetchFn }));
     if (betrifft('SMTP_')) Object.assign(mail, neueMail());
+    if (betrifft('CAPTCHA_', 'RECAPTCHA_')) Object.assign(captcha, neuesCaptcha());
     if (betrifft('AFFILIATE_')) Object.assign(affiliate, erstelleAffiliateDienst(db, konfiguration.affiliate));
     if (betrifft('EBAY_')) Object.assign(ebay, erstelleEbayDienst(konfiguration.ebay, konfiguration.affiliate, { fetchFn }));
     if (betrifft('PRICECHARTING_')) Object.assign(preise, erstellePreisDienst(db, konfiguration.preise, { cache, fetchFn }));
@@ -110,6 +114,8 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   }
 
   app.use((_req, res, next) => {
+    // reCAPTCHA (nur wenn gewählt) braucht Skripte und Frames von Google
+    const google = captcha.anbieter === 'recaptcha' ? ' https://www.google.com https://www.gstatic.com https://www.recaptcha.net' : '';
     res.set({
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'same-origin',
@@ -119,10 +125,10 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
         "default-src 'self'",
         "img-src 'self' data: blob: https:",
         "style-src 'self' 'unsafe-inline'",
-        "script-src 'self'",
-        "connect-src 'self'",
+        `script-src 'self'${google}`,
+        `connect-src 'self'${google}`,
         "object-src 'self'",
-        "frame-src 'self'",
+        `frame-src 'self'${google}`,
         "frame-ancestors 'self'",
         "base-uri 'self'",
         "form-action 'self'",

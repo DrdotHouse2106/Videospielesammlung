@@ -214,6 +214,9 @@ Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 | `SMTP_SECURE`          | `auto`                    | `auto` (Port 465 = TLS, sonst STARTTLS), `true` oder `false` |
 | `SMTP_USER` / `SMTP_PASSWORD` | –                  | Zugangsdaten des Postfachs |
 | `SMTP_FROM`            | –                         | Absender, z. B. `ZockDB <noreply@zockdb.de>` |
+| `CAPTCHA_PROVIDER`     | `altcha`                  | Spam-Schutz für Registrierung und „Passwort vergessen“: `altcha`, `recaptcha` oder `aus` |
+| `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET` | –      | Schlüssel für Google reCAPTCHA v3 |
+| `RECAPTCHA_MIN_SCORE`  | `0.5`                     | Mindestscore für reCAPTCHA (0,1–0,9) |
 | `REQUIRE_EMAIL`        | `false`                   | E-Mail-Adresse bei der Registrierung verpflichtend |
 | `BACKUP_ENABLED`       | `true`                    | Automatische Datenbank-Sicherung im Datenordner (`sicherungen/`) |
 | `BACKUP_DAYS` / `BACKUP_MONTHS` | `7` / `12`       | Aufbewahrung der täglichen bzw. monatlichen Sicherungen |
@@ -289,6 +292,18 @@ Mit einem SMTP-Postfach (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`,
 Datenschutz & Sicherheit: Links enthalten einen Zufallswert, gespeichert wird nur dessen Hash. Links werden **nur** mit
 `PUBLIC_URL` gebaut (nie aus dem Host-Header), ohne `PUBLIC_URL` bleiben die E-Mail-Funktionen aus. Die Antworten verraten
 nicht, ob ein Benutzername oder eine Adresse existiert. Adressen sind für andere Benutzer nie sichtbar.
+
+### Spam-Schutz bei der Registrierung
+
+Registrierung und „Passwort vergessen“ sind zusätzlich zur Begrenzung je IP-Adresse geschützt (`CAPTCHA_PROVIDER`,
+auch unter *Administration → Einstellungen*):
+
+| Anbieter | Funktionsweise | Datenschutz |
+| --- | --- | --- |
+| **ALTCHA** (Standard) | Der Browser löst beim Absenden unsichtbar eine kleine Rechenaufgabe (ca. 1 Sekunde). Bots müssen dafür echte Rechenzeit aufwenden. | Selbst gehostet, keine Cookies, keine Daten an Dritte – **keine Einwilligung nötig**. |
+| **Google reCAPTCHA v3** | Unsichtbare Bewertung des Verhaltens mit einem Score; Einrichtung unter <https://www.google.com/recaptcha/admin> (Typ „v3“, Domain eintragen). | Überträgt Daten (u. a. IP, Browser-/Nutzungsdaten) an Google, auch in die USA, und setzt Cookies. Wird deshalb **erst nach ausdrücklicher Einwilligung** im Formular geladen; Datenschutzerklärung entsprechend ergänzen. |
+
+Das allererste Konto (Administrator) wird ohne Prüfung angelegt, damit eine falsche Konfiguration nicht aussperrt.
 
 ### Benachrichtigungen
 

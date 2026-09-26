@@ -90,6 +90,13 @@ export function ladeKonfiguration(env = process.env) {
       passwort: env.SMTP_PASSWORD || '',
       absender: (env.SMTP_FROM || '').trim(), // z. B. "ZockDB <noreply@zockdb.de>"
     },
+    // Spam-Schutz für Registrierung und „Passwort vergessen“: altcha, recaptcha oder aus
+    captcha: {
+      anbieter: (env.CAPTCHA_PROVIDER || 'altcha').trim().toLowerCase(),
+      recaptchaSiteKey: (env.RECAPTCHA_SITE_KEY || '').trim(),
+      recaptchaSecret: (env.RECAPTCHA_SECRET || '').trim(),
+      mindestScore: Math.min(0.9, Math.max(0.1, Number.parseFloat(env.RECAPTCHA_MIN_SCORE || '') || 0.5)),
+    },
     // Muss bei der Registrierung eine E-Mail-Adresse angegeben werden?
     emailPflicht: jaNein(env.REQUIRE_EMAIL, false),
     ebay: {

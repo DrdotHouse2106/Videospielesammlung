@@ -4,12 +4,14 @@ import { api, ApiFehler } from '../api.js';
 import { useSitzung } from '../sitzung.js';
 import Symbol from '../komponenten/Symbole.jsx';
 import Fusszeile from '../komponenten/Fusszeile.jsx';
+import { captchaNachweis, CaptchaHinweis } from '../captcha.jsx';
 
 export default function Anmelden() {
   const { auth, aktualisiere } = useSitzung();
   const [modus, setModus] = useState(auth?.ersteinrichtung || (auth?.registrierungOffen && window.location.hash.includes('registrieren=1')) ? 'registrieren' : 'anmelden');
   const [werte, setWerte] = useState({ benutzername: '', passwort: '', passwort2: '', anzeigename: '', email: '' });
   const [akzeptiert, setAkzeptiert] = useState(false);
+  const [captchaZustimmung, setCaptchaZustimmung] = useState(false);
   const [zweiFaktor, setZweiFaktor] = useState(null); // { token }
   const [code, setCode] = useState('');
   const [mitWiederherstellung, setMitWiederherstellung] = useState(false);
@@ -35,7 +37,9 @@ export default function Anmelden() {
           : { token: zweiFaktor.token, code });
         await aktualisiere();
       } else if (modus === 'registrieren') {
+        const captcha = auth?.ersteinrichtung ? undefined : await captchaNachweis(auth?.captcha, 'registrieren', { zustimmung: captchaZustimmung });
         await api.registrieren({
+          captcha,
           benutzername: werte.benutzername, passwort: werte.passwort, anzeigename: werte.anzeigename, email: werte.email, bedingungen_akzeptiert: akzeptiert,
         });
         await aktualisiere();
@@ -151,6 +155,7 @@ export default function Anmelden() {
                     </span>
                   </label>
                   {felder.bedingungen && <p className="text-sm text-gefahr">{felder.bedingungen}</p>}
+                  {!auth?.ersteinrichtung && <CaptchaHinweis info={auth?.captcha} zustimmung={captchaZustimmung} setZustimmung={setCaptchaZustimmung} />}
                 </>
               )}
             </>
