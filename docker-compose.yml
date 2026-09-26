@@ -146,6 +146,8 @@ services:
       PAYMENT_PAYPAL_WEBHOOK_ID: ""
       PAYMENT_PAYPAL_MODE: "live"     # oder sandbox zum Testen
       PAYMENT_PAYPAL_FEE: "1,00"      # Zahlungsgebühr je Monat (netto)
+      PAYMENT_INVOICE_ENABLED: "false" # Zahlung per Rechnung (verschickt über ERPNext)
+      PAYMENT_INVOICE_DAYS: "7"       # Zahlungsziel in Tagen
 
       # ── Rechnungen in ERPNext (optional) ────────────────────────
       ERPNEXT_URL: ""                 # z. B. https://erp.example.de
@@ -156,6 +158,7 @@ services:
       ERPNEXT_TAX_TEMPLATE: ""        # z. B. "Germany VAT 19% - ZDB"
       ERPNEXT_ACCOUNT_STRIPE: ""      # Konto für Zahlungseingänge über Stripe
       ERPNEXT_ACCOUNT_PAYPAL: ""
+      ERPNEXT_PRINT_FORMAT: "Standard" # PDF-Anhang beim Rechnungsversand
 
     # Ein Healthcheck (GET /api/health) ist bereits im Image hinterlegt –
     # „docker compose ps“ zeigt „healthy“, sobald die App bereit ist.

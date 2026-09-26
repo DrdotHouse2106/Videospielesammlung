@@ -287,7 +287,7 @@ function Zahlungen() {
   return (
     <div className="space-y-3">
       <div className="karte flex flex-wrap items-center gap-2 p-4 text-sm">
-        <span className="flex-1">Zahlungen über Stripe und PayPal. Für jede Zahlung wird automatisch eine Rechnung in ERPNext angelegt; fehlgeschlagene Übertragungen werden alle 15 Minuten wiederholt.</span>
+        <span className="flex-1">Zahlungen über Stripe, PayPal und per Rechnung. Für jede Zahlung wird automatisch eine Rechnung mit Leistungszeitraum in ERPNext angelegt; Rechnungen „per Rechnung“ verschickt ERPNext per E-Mail. Zahlungseingänge und fehlgeschlagene Übertragungen werden alle 15 Minuten geprüft.</span>
         <button type="button" className="knopf-sekundaer px-3 py-1.5" onClick={async () => {
           try { await api.adminErpNextTest(); zeigeHinweis('Verbindung zu ERPNext in Ordnung.'); } catch (e) { zeigeHinweis(e.message, 'fehler'); }
         }}>ERPNext testen</button>
@@ -302,8 +302,8 @@ function Zahlungen() {
                 <tr key={z.id} className="border-t border-rand align-top">
                   <td className="p-2">{datumDe(z.erstellt_am)}</td>
                   <td className="p-2">{z.haendler ?? '–'}</td>
-                  <td className="p-2">{z.beschreibung}</td>
-                  <td className="p-2">{z.anbieter === 'paypal' ? 'PayPal' : 'Stripe'}</td>
+                  <td className="p-2">{z.beschreibung}{z.zeitraum_von && <span className="block text-leise">{datumDe(z.zeitraum_von)} – {datumDe(z.zeitraum_bis)}</span>}</td>
+                  <td className="p-2">{{ paypal: 'PayPal', stripe: 'Stripe', rechnung: 'Rechnung' }[z.anbieter] ?? z.anbieter}{z.anbieter === 'rechnung' && <span className={`block ${z.bezahlt_am ? 'text-erfolg' : 'text-warnung'}`}>{z.bezahlt_am ? 'bezahlt' : `offen bis ${datumDe(z.faellig_am)}`}</span>}</td>
                   <td className="p-2 text-right tabular-nums">{euro(z.brutto)}</td>
                   <td className="p-2">
                     {z.erpnext_rechnung ? <span className="text-erfolg">{z.erpnext_rechnung}{z.erpnext_zahlung ? ' · bezahlt' : ''}</span> : (

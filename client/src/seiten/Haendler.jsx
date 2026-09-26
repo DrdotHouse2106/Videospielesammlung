@@ -56,8 +56,8 @@ export default function Haendler({ route }) {
             <Vorteile profil={profil} />
             <Kennzeichnung profil={profil} onGespeichert={setProfil} />
             {profil.status && <MassenUpload profil={profil} />}
-            <Pakete profil={profil} zahlung={zahlung} onGeaendert={setProfil} />
-            {profil.status && <ApiBereich profil={profil} zahlung={zahlung} />}
+            <Pakete profil={profil} zahlung={zahlung} onGeaendert={setProfil} onGebucht={laden} />
+            {profil.status && <ApiBereich profil={profil} zahlung={zahlung} onGebucht={laden} />}
             {zahlung && (zahlung.abos.length > 0 || zahlung.zahlungen.length > 0) && <AbosUndRechnungen zahlung={zahlung} onGeaendert={laden} />}
             <IndividuelleAnbindung profil={profil} />
           </>
@@ -284,15 +284,20 @@ const datum = (iso) => iso.split('-').reverse().join('.');
 const euro = (n) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 
 /** Buchen über Stripe (Karte, SEPA-Lastschrift) oder PayPal (zzgl. Zahlungsgebühr). */
-function BuchenKnoepfe({ profil, zahlung, produkt, angebote }) {
+function BuchenKnoepfe({ profil, zahlung, produkt, angebote, onGebucht }) {
   const zeigeHinweis = useHinweis();
   const [laeuft, setLaeuft] = useState(false);
-  if (profil.status !== 'verifiziert' || !zahlung || (!zahlung.anbieter.stripe && !zahlung.anbieter.paypal)) return null;
+  const a = zahlung?.anbieter;
+  if (profil.status !== 'verifiziert' || !a || (!a.stripe && !a.paypal && !a.rechnung)) return null;
   const buchen = async (anbieter) => {
+    if (anbieter === 'rechnung' && !window.confirm(`Per Rechnung buchen? Die Rechnung kommt per E-Mail (Zahlungsziel ${zahlung.zahlungsziel} Tage). Das Paket ist sofort aktiv und verlängert sich monatlich, bis du kündigst.`)) return;
     setLaeuft(true);
     try {
-      const { url } = await api.zahlungCheckout({ produkt, angebote, anbieter });
-      window.location.href = url;
+      const r = await api.zahlungCheckout({ produkt, angebote, anbieter });
+      if (r.url) { window.location.href = r.url; return; }
+      zeigeHinweis(`Gebucht! Rechnung ${r.rechnung} ist per E-Mail unterwegs – zahlbar bis ${datum(r.faellig_am)}.`);
+      setLaeuft(false);
+      onGebucht?.();
     } catch (e) {
       zeigeHinweis(Object.values(e.felder ?? {})[0] ?? e.message, 'fehler');
       setLaeuft(false);
@@ -309,11 +314,18 @@ function BuchenKnoepfe({ profil, zahlung, produkt, angebote }) {
           PayPal (+{euro(zahlung.paypal_gebuehr)})
         </button>
       )}
+      {zahlung.anbieter.rechnung && (
+        <button type="button" className="knopf-sekundaer px-2.5 py-1 text-xs" disabled={laeuft} onClick={() => buchen('rechnung')}
+          title={`Rechnung per E-Mail, zahlbar innerhalb von ${zahlung.zahlungsziel} Tagen`}>
+          Rechnung ({zahlung.zahlungsziel} Tage)
+        </button>
+      )}
     </div>
   );
 }
 
-const ABO_STATUS = { aktiv: 'Aktiv', gekuendigt: 'Gekündigt – läuft aus', beendet: 'Beendet' };
+const ABO_STATUS = { aktiv: 'Aktiv', gekuendigt: 'Gekündigt – läuft aus', beendet: 'Beendet', pausiert: 'Pausiert – Rechnung überfällig' };
+const WEG = { stripe: 'Karte/SEPA', paypal: 'PayPal', rechnung: 'Rechnung' };
 
 /** Gebuchte Abos (kündbar zum Periodenende) und Rechnungen als PDF. */
 function AbosUndRechnungen({ zahlung, onGeaendert }) {
@@ -335,15 +347,15 @@ function AbosUndRechnungen({ zahlung, onGeaendert }) {
               <span className="min-w-0 flex-1">
                 <strong>{a.produkt === 'paket' ? `Händler-Paket ${anzahl(a.angebote)}` : 'API-Anbindung'}</strong>
                 <span className="block text-xs text-leise">
-                  {euro(a.netto)} netto/Monat · {a.anbieter === 'paypal' ? 'PayPal' : 'Karte/SEPA'} · {ABO_STATUS[a.status] ?? a.status}{a.laeuft_bis ? ` · bezahlt bis ${datum(a.laeuft_bis)}` : ''}
+                  {euro(a.netto)} netto/Monat · {WEG[a.anbieter] ?? a.anbieter} · {ABO_STATUS[a.status] ?? a.status}{a.laeuft_bis ? ` · bezahlt bis ${datum(a.laeuft_bis)}` : ''}
                 </span>
               </span>
-              {a.status === 'aktiv' && <button type="button" className="knopf-sekundaer px-3 py-1 text-xs" onClick={() => kuendigen(a)}>Kündigen</button>}
+              {['aktiv', 'pausiert'].includes(a.status) && <button type="button" className="knopf-sekundaer px-3 py-1 text-xs" onClick={() => kuendigen(a)}>Kündigen</button>}
             </li>
           ))}
         </ul>
       )}
-      {zahlung.abos.some((a) => a.anbieter === 'stripe') && (
+      {zahlung.abos.some((x) => x.anbieter === 'stripe') && (
         <button type="button" className="text-xs text-akzent-hell underline" onClick={portal}>Zahlungsdaten ändern (Stripe)</button>
       )}
       {zahlung.zahlungen.length > 0 && (
@@ -353,7 +365,11 @@ function AbosUndRechnungen({ zahlung, onGeaendert }) {
             {zahlung.zahlungen.map((r) => (
               <tr key={r.id} className="border-t border-rand">
                 <td className="py-1.5 pr-3 whitespace-nowrap">{datum(r.erstellt_am.slice(0, 10))}</td>
-                <td className="py-1.5">{r.beschreibung}</td>
+                <td className="py-1.5">
+                  {r.beschreibung}
+                  {r.zeitraum_von && <span className="block text-leise">{datum(r.zeitraum_von)} – {datum(r.zeitraum_bis)}</span>}
+                  {!r.bezahlt_am && r.faellig_am && <span className="block text-warnung">offen, fällig am {datum(r.faellig_am)}</span>}
+                </td>
                 <td className="py-1.5 pl-3 text-right tabular-nums whitespace-nowrap">{euro(r.brutto)}</td>
                 <td className="py-1.5 pl-3 text-right">{r.rechnung ? <a className="text-akzent-hell underline" href={`/api/boerse/zahlung/rechnung/${r.id}.pdf`}>PDF</a> : <span className="text-leise">folgt</span>}</td>
               </tr>
@@ -367,7 +383,7 @@ function AbosUndRechnungen({ zahlung, onGeaendert }) {
 const euroMonat = (n) => `${n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })} / Monat`;
 
 /** Kostenloses Kontingent und buchbare Händler-Pakete. */
-function Pakete({ profil, zahlung, onGeaendert }) {
+function Pakete({ profil, zahlung, onGeaendert, onGebucht }) {
   const zeigeHinweis = useHinweis();
   const testStarten = async () => {
     if (!window.confirm(`${profil.test_tage} Tage kostenlos testen? Der Test kann nur einmal genutzt werden und endet automatisch – ohne Kosten und ohne Kündigung.`)) return;
@@ -400,7 +416,7 @@ function Pakete({ profil, zahlung, onGeaendert }) {
               <p className="text-xs text-leise">bis {anzahl(s.angebote)} aktive Angebote{s.preis ? ' · volle Nachfrage-Auswertung' : ' · auch per CSV-Upload'}</p>
               {s.preis > 0 && zahlung?.steuersatz > 0 && <p className="text-xs text-leise">zzgl. {zahlung.steuersatz.toLocaleString('de-DE')} % MwSt.</p>}
               {gewaehlt && <p className="mt-1 text-xs font-semibold text-akzent-hell">{s.preis ? `${profil.test_bis ? 'Test' : 'Gebucht'} bis ${datum(profil.paket_bis)}` : 'Aktuell'}</p>}
-              {s.preis > 0 && !gewaehlt && <BuchenKnoepfe profil={profil} zahlung={zahlung} produkt="paket" angebote={s.angebote} />}
+              {s.preis > 0 && !gewaehlt && <BuchenKnoepfe profil={profil} zahlung={zahlung} produkt="paket" angebote={s.angebote} onGebucht={onGebucht} />}
             </div>
           );
         })}
@@ -457,7 +473,7 @@ const SYSTEME = [
   ['csv_url', 'CSV-Feed (Adresse eines Produktexports)'],
 ];
 
-function ApiBereich({ profil, zahlung }) {
+function ApiBereich({ profil, zahlung, onGebucht }) {
   const zeigeHinweis = useHinweis();
   const [info, setInfo] = useState(undefined);
   const [w, setW] = useState(null);
@@ -482,7 +498,7 @@ function ApiBereich({ profil, zahlung }) {
           <li>Andere Systeme binden wir auf Wunsch individuell an (siehe unten).</li>
         </ul>
         {profil.preis_hinweis && <p className="text-xs text-leise">{profil.preis_hinweis}</p>}
-        <BuchenKnoepfe profil={profil} zahlung={zahlung} produkt="api" />
+        <BuchenKnoepfe profil={profil} zahlung={zahlung} produkt="api" onGebucht={onGebucht} />
         <p>
           {profil.status !== 'verifiziert' ? 'Verfügbar nach der Verifizierung deines Händlerkontos. ' : ''}
           {zahlung?.anbieter?.stripe || zahlung?.anbieter?.paypal ? 'Fragen: ' : 'Buchen: '}<KontaktLink kontakt={profil.kontakt} betreff={`${MARKE.name}: Zusatzpaket API-Anbindung`} />

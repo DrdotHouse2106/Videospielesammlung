@@ -169,6 +169,9 @@ export function ladeKonfiguration(env = process.env) {
       paypalWebhookId: (env.PAYMENT_PAYPAL_WEBHOOK_ID || '').trim(),
       paypalSandbox: (env.PAYMENT_PAYPAL_MODE || 'live').trim().toLowerCase() === 'sandbox',
       paypalGebuehr: preis(env.PAYMENT_PAYPAL_FEE ?? '1,00') ?? 1, // netto je Monat
+      // Zahlung per Rechnung: ERPNext verschickt die Rechnung, Zahlungseingang wird in ERPNext gebucht
+      rechnung: jaNein(env.PAYMENT_INVOICE_ENABLED, false),
+      zahlungszielTage: Math.min(60, Math.max(1, zahl(env.PAYMENT_INVOICE_DAYS, 7))),
     },
     // Rechnungen in ERPNext (REST-API mit API-Schlüssel eines Benutzers mit Rechten für Kunden, Rechnungen und Zahlungen)
     erpnext: {
@@ -180,6 +183,7 @@ export function ladeKonfiguration(env = process.env) {
       steuervorlage: (env.ERPNEXT_TAX_TEMPLATE || '').trim(),
       kontoStripe: (env.ERPNEXT_ACCOUNT_STRIPE || '').trim(),
       kontoPaypal: (env.ERPNEXT_ACCOUNT_PAYPAL || '').trim(),
+      druckformat: (env.ERPNEXT_PRINT_FORMAT || 'Standard').trim(),
     },
     vertrauteProxies: env.TRUST_PROXY || '',
     affiliate: ladeAffiliateKonfiguration(env),

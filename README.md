@@ -235,8 +235,8 @@ Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 | `MARKET_MAX_OFFERS`    | `50`                      | Kostenlose aktive Angebote je Benutzer (auch per CSV-Upload) |
 | `MARKET_PACKAGES`      | `500=9,90;1000=14,90;5000=29,90` | Händler-Pakete: Anzahl aktiver Angebote = Monatspreis in € |
 | `MARKET_API_PRICE`     | `19,90`                   | Monatspreis des Zusatzpakets API-Anbindung (Shop/ERP) |
-| `PAYMENT_*`            | –                         | Zahlungen: `PAYMENT_STRIPE_SECRET_KEY`, `PAYMENT_STRIPE_WEBHOOK_SECRET`, `PAYMENT_PAYPAL_CLIENT_ID`, `PAYMENT_PAYPAL_SECRET`, `PAYMENT_PAYPAL_WEBHOOK_ID`, `PAYMENT_PAYPAL_MODE` (`live`/`sandbox`), `PAYMENT_PAYPAL_FEE` (`1,00`), `PAYMENT_VAT_RATE` (`19`) |
-| `ERPNEXT_*`            | –                         | Rechnungen: `ERPNEXT_URL`, `ERPNEXT_API_KEY`, `ERPNEXT_API_SECRET`, `ERPNEXT_COMPANY`, `ERPNEXT_ITEM_CODE` (`ZOCKDB-ABO`), `ERPNEXT_TAX_TEMPLATE`, `ERPNEXT_ACCOUNT_STRIPE`, `ERPNEXT_ACCOUNT_PAYPAL` |
+| `PAYMENT_*`            | –                         | Zahlungen: `PAYMENT_STRIPE_SECRET_KEY`, `PAYMENT_STRIPE_WEBHOOK_SECRET`, `PAYMENT_PAYPAL_CLIENT_ID`, `PAYMENT_PAYPAL_SECRET`, `PAYMENT_PAYPAL_WEBHOOK_ID`, `PAYMENT_PAYPAL_MODE` (`live`/`sandbox`), `PAYMENT_PAYPAL_FEE` (`1,00`), `PAYMENT_VAT_RATE` (`19`), `PAYMENT_INVOICE_ENABLED` (`false`), `PAYMENT_INVOICE_DAYS` (`7`) |
+| `ERPNEXT_*`            | –                         | Rechnungen: `ERPNEXT_URL`, `ERPNEXT_API_KEY`, `ERPNEXT_API_SECRET`, `ERPNEXT_COMPANY`, `ERPNEXT_ITEM_CODE` (`ZOCKDB-ABO`), `ERPNEXT_TAX_TEMPLATE`, `ERPNEXT_ACCOUNT_STRIPE`, `ERPNEXT_ACCOUNT_PAYPAL`, `ERPNEXT_PRINT_FORMAT` (`Standard`) |
 | `MARKET_TRIAL_DAYS`    | `0`                       | Testzugang, den verifizierte Händler einmalig selbst starten können (Tage, `0` = nur durch Administratoren) |
 | `MARKET_MIN_ACCOUNT_DAYS` | `3`                    | Neue Konten ohne bestätigte E-Mail dürfen erst nach X Tagen Nachrichten schreiben |
 | `MARKET_PRO_CONTACT` / `MARKET_PRO_INFO` | –   | Kontakt (E-Mail oder https-Adresse) für Buchungen und individuelle Anbindungen, Zusatzhinweis zu den Preisen (z. B. „zzgl. MwSt.“) |
@@ -372,7 +372,13 @@ netto). Alle Preise sind Nettopreise, berechnet wird mit `PAYMENT_VAT_RATE` (Sta
    Monats plus drei Tage Puffer freigeschaltet. Verlängerungen laufen automatisch; nach Kündigung oder fehlgeschlagener
    Zahlung läuft das Paket aus. Ein neues Paket ersetzt das bisherige Abo. Während eines Testzugangs beginnt die
    Abrechnung bei Stripe erst mit dessen Ende.
-3. Für jede Zahlung legt ZockDB in **ERPNext** automatisch eine gebuchte Ausgangsrechnung an (Kunde wird aus der
+3. Alternativ **per Rechnung** (`PAYMENT_INVOICE_ENABLED`, braucht ERPNext): ERPNext legt die Rechnung mit Zahlungsziel
+   (`PAYMENT_INVOICE_DAYS`, Standard 7 Tage) an und verschickt sie per E-Mail mit PDF (`ERPNEXT_PRINT_FORMAT`, am besten
+   mit Bankverbindung). Die Leistung beginnt sofort; den Zahlungseingang buchst du in ERPNext, ZockDB erkennt ihn alle
+   15 Minuten. Ist eine Rechnung drei Tage nach Fälligkeit offen, wird der Zugang pausiert und nach Zahlung automatisch
+   wieder freigeschaltet. Folgerechnungen werden sieben Tage vor Ende des Zeitraums gestellt.
+4. Für jede Zahlung legt ZockDB in **ERPNext** automatisch eine gebuchte Ausgangsrechnung mit **Leistungszeitraum**
+   (Felder „Von/Bis“ und Positionstext) an (Kunde wird aus der
    Anbieterkennzeichnung angelegt, Umsatzsteuer aus der eingestellten Vorlage) und verbucht die Zahlung auf dem Konto des
    Zahlungsanbieters. Ist ERPNext nicht erreichbar, wird es alle 15 Minuten erneut versucht. Händler laden ihre Rechnungen
    als PDF im Händlerbereich herunter; Administratoren sehen alle Zahlungen unter *Administration → Zahlungen*.

@@ -12,7 +12,7 @@ let shopId;
 const aufrufe = [];
 const stripeAbos = new Map();
 const paypalAbos = new Map();
-const erp = { kunden: [], rechnungen: [], zahlungen: [], fehler: false };
+const erp = { kunden: [], rechnungen: [], zahlungen: [], mails: [], bezahlt: new Set(), fehler: false };
 
 const json = (daten, status = 200) => new Response(JSON.stringify(daten), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -51,6 +51,12 @@ async function fetchFn(url, optionen = {}) {
     if (pfad === '/api/resource/Customer' && (optionen.method ?? 'GET') === 'GET') return json({ data: erp.kunden.filter((k) => u.search.includes(encodeURIComponent(k.customer_name).replace(/%20/g, '%20'))) });
     if (pfad === '/api/resource/Customer') { const k = { ...JSON.parse(optionen.body), name: `CUST-${erp.kunden.length + 1}` }; erp.kunden.push(k); return json({ data: k }); }
     if (pfad === '/api/resource/Sales Taxes and Charges Template/USt 19%') return json({ data: { taxes: [{ charge_type: 'On Net Total', account_head: 'USt 19% - ZDB', description: 'USt 19%', rate: 19 }] } });
+    const rechnungLesen = pfad.match(/^\/api\/resource\/Sales Invoice\/(.+)$/);
+    if (rechnungLesen) {
+      const r = erp.rechnungen.find((x) => x.name === rechnungLesen[1]);
+      return json({ data: { ...r, docstatus: 1, status: erp.bezahlt.has(r.name) ? 'Paid' : 'Unpaid', outstanding_amount: erp.bezahlt.has(r.name) ? 0 : r.grand_total } });
+    }
+    if (pfad === '/api/method/frappe.core.doctype.communication.email.make') { erp.mails.push(JSON.parse(optionen.body)); return json({ message: { name: 'COMM-1' } }); }
     if (pfad === '/api/resource/Sales Invoice') {
       const r = JSON.parse(optionen.body);
       const netto = r.items[0].rate;
@@ -94,7 +100,7 @@ before(async () => {
       PAYMENT_STRIPE_SECRET_KEY: 'sk_test_123', PAYMENT_STRIPE_WEBHOOK_SECRET: WEBHOOK_GEHEIMNIS,
       PAYMENT_PAYPAL_CLIENT_ID: 'pp_id', PAYMENT_PAYPAL_SECRET: 'pp_geheim', PAYMENT_PAYPAL_WEBHOOK_ID: 'WH-ID', PAYMENT_PAYPAL_MODE: 'sandbox',
       ERPNEXT_URL: 'https://erp.example.com', ERPNEXT_API_KEY: 'key123', ERPNEXT_API_SECRET: 'geheim456', ERPNEXT_COMPANY: 'ZockDB',
-      ERPNEXT_TAX_TEMPLATE: 'USt 19%', ERPNEXT_ACCOUNT_STRIPE: 'Stripe - ZDB',
+      ERPNEXT_TAX_TEMPLATE: 'USt 19%', ERPNEXT_ACCOUNT_STRIPE: 'Stripe - ZDB', PAYMENT_INVOICE_ENABLED: 'true',
     },
   });
   admin = await server.registriere('admin');
@@ -120,7 +126,8 @@ test('Buchen nur für verifizierte Händler und nur eingestellte Pakete', async 
   r = await post(shop, '/api/boerse/zahlung/checkout', { produkt: 'paket', angebote: 12000, anbieter: 'stripe' });
   assert.equal(r.status, 400, 'individuelle Kontingente nicht selbst buchbar');
   const u = (await shop.api('/api/boerse/zahlung')).json;
-  assert.deepEqual(u.anbieter, { stripe: true, paypal: true });
+  assert.deepEqual(u.anbieter, { stripe: true, paypal: true, rechnung: true });
+  assert.equal(u.zahlungsziel, 7);
   assert.equal(u.paypal_gebuehr, 1);
 });
 
@@ -142,7 +149,8 @@ test('Stripe: Checkout, Zahlung, Freischaltung, ERPNext-Rechnung, Verlängerung,
   const ende = Math.floor(Date.parse('2099-01-31T00:00:00Z') / 1000);
   stripeAbos.set('sub_1', { id: 'sub_1', status: 'active', customer: 'cus_1', current_period_end: ende, metadata: { benutzer_id: String(shopId), produkt: 'paket', angebote: '500' } });
   // Rechnung kommt vor der Checkout-Meldung an – das Abo wird aus den Metadaten angelegt
-  const rechnung = { id: 'in_1', subscription: 'sub_1', amount_paid: 1178, lines: { data: [{ period: { end: ende } }] } };
+  const start = Math.floor(Date.parse('2099-01-01T00:00:00Z') / 1000);
+  const rechnung = { id: 'in_1', subscription: 'sub_1', amount_paid: 1178, lines: { data: [{ period: { start, end: ende } }] } };
   assert.equal((await stripeEreignis('invoice.paid', rechnung)).status, 200);
   assert.equal((await stripeEreignis('invoice.paid', rechnung)).status, 200, 'doppelte Meldung ist harmlos');
   assert.equal((await stripeEreignis('checkout.session.completed', { subscription: 'sub_1', customer: 'cus_1' })).status, 200);
@@ -161,6 +169,11 @@ test('Stripe: Checkout, Zahlung, Freischaltung, ERPNext-Rechnung, Verlängerung,
   assert.equal(erp.rechnungen[0].items[0].rate, 9.9);
   assert.equal(erp.rechnungen[0].taxes[0].rate, 19);
   assert.equal(erp.rechnungen[0].docstatus, 1);
+  // Leistungszeitraum in den Feldern und im Positionstext
+  assert.equal(erp.rechnungen[0].from_date, '2099-01-01');
+  assert.equal(erp.rechnungen[0].to_date, '2099-01-30');
+  assert.match(erp.rechnungen[0].items[0].description, /Leistungszeitraum: 01\.01\.2099 – 30\.01\.2099/);
+  assert.match(erp.rechnungen[0].remarks, /Bezahlt über Stripe \(in_1\)/);
   assert.equal(erp.zahlungen[0].references[0].reference_name, 'ACC-SINV-2026-00001');
   assert.equal(erp.zahlungen[0].reference_no, 'in_1');
 
@@ -240,14 +253,72 @@ test('PayPal: Plan inkl. Zahlungsgebühr, Aktivierung, Zahlung, ERPNext-Fehler w
   assert.equal((await shop.api('/api/admin/zahlungen')).status, 403);
 });
 
+test('Zahlung per Rechnung: ERPNext verschickt, Zahlungseingang wird erkannt, Überfälligkeit pausiert', async () => {
+  const r = await post(shop, '/api/boerse/zahlung/checkout', { produkt: 'paket', angebote: 5000, anbieter: 'rechnung' });
+  assert.equal(r.status, 200, r.text);
+  assert.ok(r.json.rechnung);
+  const rechnung = erp.rechnungen.at(-1);
+  const heute = new Date().toISOString().slice(0, 10);
+  const faellig = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+  assert.equal(rechnung.due_date, faellig, '7 Tage Zahlungsziel');
+  assert.equal(rechnung.from_date, heute);
+  assert.ok(rechnung.to_date > heute);
+  assert.match(rechnung.remarks, /Zahlbar bis/);
+  assert.equal(erp.zahlungen.filter((x) => x.references[0].reference_name === rechnung.name).length, 0, 'keine Zahlung verbucht');
+  const mail = erp.mails.at(-1);
+  assert.equal(mail.name, rechnung.name);
+  assert.equal(mail.recipients, 'info@shop.example');
+  assert.equal(mail.send_email, 1);
+  assert.equal(mail.print_format, 'Standard');
+  // Leistung beginnt sofort
+  let h = (await shop.api('/api/boerse/haendler')).json;
+  assert.equal(h.paket, 5000);
+  assert.equal(h.paket_bis, rechnung.to_date);
+
+  // Überfällig → pausiert
+  const zid = server.db.prepare('SELECT id FROM zahlungen WHERE erpnext_rechnung = ?').get(rechnung.name).id;
+  server.db.prepare("UPDATE zahlungen SET faellig_am = '2000-01-01' WHERE id = ?").run(zid);
+  let e = await server.kontext.zahlung.pruefeRechnungen();
+  assert.equal(e.pausiert, 1);
+  h = (await shop.api('/api/boerse/haendler')).json;
+  assert.equal(h.paket, null, 'Paket pausiert – es gilt das kostenlose Limit');
+  assert.ok((await shop.api('/api/benachrichtigungen')).json.eintraege.some((b) => b.titel.includes('überfällig')));
+
+  // Zahlungseingang in ERPNext gebucht → wieder frei
+  erp.bezahlt.add(rechnung.name);
+  e = await server.kontext.zahlung.pruefeRechnungen();
+  assert.equal(e.bezahlt, 1);
+  h = (await shop.api('/api/boerse/haendler')).json;
+  assert.equal(h.paket, 5000);
+  assert.ok(server.db.prepare('SELECT bezahlt_am FROM zahlungen WHERE id = ?').get(zid).bezahlt_am);
+
+  // Folgerechnung sieben Tage vor Ende des Zeitraums
+  const aboId = server.db.prepare("SELECT id FROM abos WHERE anbieter = 'rechnung'").get().id;
+  const bald = new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10);
+  server.db.prepare('UPDATE zahlungen SET zeitraum_bis = ? WHERE id = ?').run(bald, zid);
+  const vorher = erp.rechnungen.length;
+  e = await server.kontext.zahlung.pruefeRechnungen();
+  assert.equal(e.gestellt, 1);
+  const folge = erp.rechnungen.at(-1);
+  assert.equal(erp.rechnungen.length, vorher + 1);
+  assert.equal(folge.from_date, new Date(Date.parse(`${bald}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10), 'lückenlos anschließend');
+  assert.equal((await server.kontext.zahlung.pruefeRechnungen()).gestellt, 0, 'nicht doppelt');
+
+  // Kündigen: keine Folgerechnungen mehr
+  assert.equal((await post(shop, `/api/boerse/zahlung/abos/${aboId}/kuendigen`, {})).json.status, 'gekuendigt');
+  server.db.prepare('UPDATE zahlungen SET zeitraum_bis = ? WHERE abo_id = ?').run(bald, aboId);
+  assert.equal((await server.kontext.zahlung.pruefeRechnungen()).gestellt, 0);
+});
+
 test('Paketwechsel beendet das bisherige Abo', async () => {
   const ende = Math.floor(Date.parse('2099-01-31T00:00:00Z') / 1000);
   stripeAbos.set('sub_2', { id: 'sub_2', status: 'active', customer: 'cus_1', current_period_end: ende, metadata: { benutzer_id: String(shopId), produkt: 'paket', angebote: '1000' } });
-  await stripeEreignis('invoice.paid', { id: 'in_3', subscription: 'sub_2', amount_paid: 1773, lines: { data: [{ period: { end: ende } }] } });
+  await stripeEreignis('invoice.paid', { id: 'in_3', subscription: 'sub_2', amount_paid: 1773, lines: { data: [{ period: { start: ende - 2592000, end: ende } }] } });
   await warte();
   const abos = (await shop.api('/api/boerse/zahlung')).json.abos.filter((a) => a.produkt === 'paket');
   assert.equal(abos.find((a) => a.angebote === 1000).status, 'aktiv');
   assert.equal(abos.find((a) => a.angebote === 500).status, 'beendet');
+  assert.equal(abos.find((a) => a.angebote === 5000).status, 'beendet', 'auch ein Rechnungs-Abo wird ersetzt');
   assert.equal((await shop.api('/api/boerse/haendler')).json.paket, 1000);
   assert.ok(aufrufe.some((a) => a.url.endsWith('/v1/subscriptions/sub_1') && a.methode === 'DELETE'));
 });

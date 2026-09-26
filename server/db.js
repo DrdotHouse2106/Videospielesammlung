@@ -611,6 +611,13 @@ const MIGRATIONEN = [
   ALTER TABLE benutzer ADD COLUMN stripe_kunde TEXT;
   ALTER TABLE benutzer ADD COLUMN erpnext_kunde TEXT;
   `,
+  // 21: Leistungszeitraum auf Rechnungen und Zahlung per Rechnung (Zahlungsziel)
+  `
+  ALTER TABLE zahlungen ADD COLUMN zeitraum_von TEXT;
+  ALTER TABLE zahlungen ADD COLUMN bezahlt_am TEXT;             -- NULL = Rechnung noch offen
+  ALTER TABLE zahlungen ADD COLUMN faellig_am TEXT;             -- nur bei Zahlung per Rechnung
+  UPDATE zahlungen SET bezahlt_am = erstellt_am;
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

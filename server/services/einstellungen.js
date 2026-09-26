@@ -104,6 +104,9 @@ export const EINSTELLUNGEN = [
     hinweis: 'Webhook-Adresse: PUBLIC_URL + /api/zahlung/paypal/webhook, Ereignisse: BILLING.SUBSCRIPTION.ACTIVATED, .CANCELLED, .EXPIRED, .SUSPENDED und PAYMENT.SALE.COMPLETED.' },
   { schluessel: 'PAYMENT_PAYPAL_MODE', gruppe: 'Zahlungen (Stripe, PayPal)', titel: 'PayPal-Modus', typ: 'auswahl', sicher: true,
     optionen: [['live', 'Live'], ['sandbox', 'Sandbox (Test)']] },
+  { schluessel: 'PAYMENT_INVOICE_ENABLED', gruppe: 'Zahlungen (Stripe, PayPal)', titel: 'Zahlung per Rechnung anbieten', ...JA_NEIN,
+    hinweis: 'Braucht ERPNext: Die Rechnung wird dort angelegt und per E-Mail verschickt. Den Zahlungseingang buchst du in ERPNext – ZockDB erkennt ihn automatisch.' },
+  { schluessel: 'PAYMENT_INVOICE_DAYS', gruppe: 'Zahlungen (Stripe, PayPal)', titel: 'Zahlungsziel bei Rechnung (Tage)', typ: 'zahl', min: 1, max: 60 },
   { schluessel: 'PAYMENT_PAYPAL_FEE', gruppe: 'Zahlungen (Stripe, PayPal)', titel: 'PayPal: Zahlungsgebühr je Monat (€, netto)', typ: 'text', platzhalter: '1,00' },
   // ERPNext
   { schluessel: 'ERPNEXT_URL', gruppe: 'Rechnungen (ERPNext)', titel: 'Adresse von ERPNext', typ: 'url', sicher: true, platzhalter: 'https://erp.example.de' },
@@ -117,6 +120,8 @@ export const EINSTELLUNGEN = [
     hinweis: 'Name der Vorlage „Verkaufssteuern und -abgaben“. Leer = ohne Steuerzeilen (z. B. Kleinunternehmer).' },
   { schluessel: 'ERPNEXT_ACCOUNT_STRIPE', gruppe: 'Rechnungen (ERPNext)', titel: 'Konto für Stripe-Zahlungen', typ: 'text', platzhalter: 'Stripe - ZDB',
     hinweis: 'Leer = Rechnung wird nur angelegt, nicht als bezahlt verbucht.' },
+  { schluessel: 'ERPNEXT_PRINT_FORMAT', gruppe: 'Rechnungen (ERPNext)', titel: 'Druckformat für den E-Mail-Versand', typ: 'text', platzhalter: 'Standard',
+    hinweis: 'Wird bei „Zahlung per Rechnung“ als PDF an die E-Mail gehängt – am besten mit Bankverbindung im Briefkopf/Fußtext.' },
   { schluessel: 'ERPNEXT_ACCOUNT_PAYPAL', gruppe: 'Rechnungen (ERPNext)', titel: 'Konto für PayPal-Zahlungen', typ: 'text', platzhalter: 'PayPal - ZDB' },
   // Affiliate
   { schluessel: 'AFFILIATE_LINKS', gruppe: 'Affiliate-Links („Hier kaufen“)', titel: 'Kauflinks anzeigen', ...JA_NEIN,

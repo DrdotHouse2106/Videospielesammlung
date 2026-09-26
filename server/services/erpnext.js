@@ -1,5 +1,7 @@
 // Rechnungen in ERPNext: Für jede erfolgreiche Zahlung (Erstzahlung und jede Verlängerung) wird eine gebuchte
-// Ausgangsrechnung angelegt und – falls ein Zahlungskonto eingestellt ist – gleich als bezahlt verbucht.
+// Ausgangsrechnung mit Leistungszeitraum angelegt und – falls ein Zahlungskonto eingestellt ist – gleich als bezahlt
+// verbucht. Bei „Zahlung per Rechnung“ wird sie stattdessen mit Zahlungsziel angelegt und von ERPNext per E-Mail
+// verschickt; den Zahlungseingang bucht der Betreiber in ERPNext.
 //
 // Voraussetzungen in ERPNext:
 //  - ein Benutzer mit API-Schlüssel/-Geheimnis und Rechten für Kunden, Ausgangsrechnungen und Zahlungen
@@ -9,6 +11,9 @@
 // Fehler (z. B. ERPNext nicht erreichbar) brechen die Zahlung nicht ab: Die Rechnung wird später erneut versucht.
 
 export class ErpFehler extends Error {}
+
+const deDatum = (iso) => (iso ? iso.split('-').reverse().join('.') : '');
+const betrag = (n) => Number(n).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 
 export function erstelleErpNextDienst(db, { konfiguration, fetchFn = globalThis.fetch }) {
   const k = () => konfiguration.erpnext;
@@ -79,23 +84,38 @@ export function erstelleErpNextDienst(db, { konfiguration, fetchFn = globalThis.
     if (!benutzer) return null;
     let kennzeichnung = null;
     try { kennzeichnung = JSON.parse(benutzer.haendler_daten || 'null'); } catch { /* ohne Kennzeichnung */ }
+    const perRechnung = z.anbieter === 'rechnung';
     try {
       const kundenname = await kunde(benutzer, kennzeichnung);
       const heute = new Date().toISOString().slice(0, 10);
+      // Leistungszeitraum (§ 14 UStG): in den Feldern „Von/Bis“ der Rechnung und im Positionstext
+      const zeitraum = z.zeitraum_von && z.zeitraum_bis ? `Leistungszeitraum: ${deDatum(z.zeitraum_von)} – ${deDatum(z.zeitraum_bis)}` : '';
+      const zahlweg = perRechnung ? `Zahlbar bis ${deDatum(z.faellig_am)} ohne Abzug.`
+        : `Bezahlt über ${z.anbieter === 'paypal' ? 'PayPal' : 'Stripe'} (${z.extern_id}).`;
       const rechnung = await anfrage('POST', ressource('Sales Invoice'), {
         customer: kundenname,
         company: k().firma,
         posting_date: heute,
         set_posting_time: 1,
-        due_date: heute,
+        due_date: perRechnung ? z.faellig_am : heute,
+        from_date: z.zeitraum_von || undefined,
+        to_date: z.zeitraum_bis || undefined,
         currency: 'EUR',
         address_display: kennzeichnung ? [kennzeichnung.firma, kennzeichnung.anschrift].filter(Boolean).join('\n') : undefined,
-        remarks: `${z.beschreibung} – bezahlt über ${z.anbieter === 'paypal' ? 'PayPal' : 'Stripe'} (${z.extern_id})`,
-        items: [{ item_code: k().artikel, item_name: z.beschreibung.slice(0, 140), description: z.beschreibung, qty: 1, rate: z.netto, uom: 'Nos' }],
+        remarks: [z.beschreibung, zeitraum, zahlweg].filter(Boolean).join('\n'),
+        items: [{
+          item_code: k().artikel, item_name: z.beschreibung.slice(0, 140), description: [z.beschreibung, zeitraum].filter(Boolean).join('<br>'),
+          qty: 1, rate: z.netto, uom: 'Nos',
+        }],
         ...(await steuerzeilen()),
         docstatus: 1,
       });
       db.prepare('UPDATE zahlungen SET erpnext_rechnung = ?, erpnext_fehler = NULL, versuche = versuche + 1 WHERE id = ?').run(rechnung.name, z.id);
+
+      if (perRechnung) {
+        await versende(rechnung, z, kennzeichnung?.email || benutzer.email, zeitraum);
+        return rechnung.name;
+      }
 
       // Zahlung gleich verbuchen, wenn ein Konto für den Anbieter eingestellt ist
       const konto = z.anbieter === 'paypal' ? k().kontoPaypal : k().kontoStripe;
@@ -117,6 +137,34 @@ export function erstelleErpNextDienst(db, { konfiguration, fetchFn = globalThis.
       if (!(e instanceof ErpFehler)) console.warn('[erpnext]', e.message);
       return null;
     }
+  }
+
+  /** Rechnung per E-Mail aus ERPNext verschicken (mit PDF im eingestellten Druckformat). */
+  async function versende(rechnung, z, empfaenger, zeitraum) {
+    if (!empfaenger) throw new ErpFehler('Keine E-Mail-Adresse für den Rechnungsversand hinterlegt.');
+    await anfrage('POST', '/api/method/frappe.core.doctype.communication.email.make', {
+      doctype: 'Sales Invoice',
+      name: rechnung.name,
+      recipients: empfaenger,
+      subject: `Rechnung ${rechnung.name} – ${z.beschreibung}`,
+      content: [
+        'Guten Tag,',
+        `anbei erhalten Sie die Rechnung ${rechnung.name} über ${betrag(rechnung.grand_total ?? z.brutto)} für ${z.beschreibung}.`,
+        zeitraum,
+        `Bitte überweisen Sie den Betrag bis zum ${deDatum(z.faellig_am)} unter Angabe der Rechnungsnummer.`,
+        'Vielen Dank!',
+      ].filter(Boolean).map((zeile) => `<p>${zeile}</p>`).join(''),
+      send_email: 1,
+      print_format: k().druckformat || 'Standard',
+      print_letterhead: 1,
+    });
+  }
+
+  /** Stand einer Rechnung in ERPNext: bezahlt, offen oder storniert. */
+  async function rechnungsStatus(name) {
+    const r = await anfrage('GET', ressource('Sales Invoice', name));
+    if (r.docstatus === 2 || r.status === 'Cancelled') return 'storniert';
+    return Number(r.outstanding_amount ?? 0) <= 0.005 || r.status === 'Paid' ? 'bezahlt' : 'offen';
   }
 
   /** Noch nicht übertragene Zahlungen erneut versuchen (höchstens 20 Versuche je Zahlung). */
@@ -148,5 +196,5 @@ export function erstelleErpNextDienst(db, { konfiguration, fetchFn = globalThis.
     return Buffer.from(await antwort.arrayBuffer());
   }
 
-  return { aktiv, rechnungFuer, nachholen, teste, pdf };
+  return { aktiv, rechnungFuer, nachholen, teste, pdf, rechnungsStatus };
 }

@@ -2,6 +2,9 @@
 //
 //  - Stripe (Karte, SEPA-Lastschrift) über Stripe Checkout im Abo-Modus
 //  - PayPal über PayPal-Abonnements, zzgl. Zahlungsgebühr (PAYMENT_PAYPAL_FEE)
+//  - Rechnung: ERPNext legt die Rechnung mit Zahlungsziel an und verschickt sie per E-Mail. Die Leistung beginnt sofort;
+//    ist die Rechnung drei Tage nach Fälligkeit nicht bezahlt, wird der Zugang pausiert, bis der Zahlungseingang in
+//    ERPNext gebucht ist. Folgerechnungen werden sieben Tage vor Ende des Zeitraums gestellt.
 //
 // Ablauf: Händler wählt ein Paket → Bezahlseite des Anbieters → Webhook meldet die Zahlung → Paket wird bis zum Ende
 // des bezahlten Zeitraums (plus drei Tage Puffer) freigeschaltet, eine Rechnung in ERPNext angelegt. Verlängerungen
@@ -24,6 +27,15 @@ const datum = (ms) => new Date(ms).toISOString().slice(0, 10);
 const plusPuffer = (ms) => datum(ms + PUFFER_TAGE * TAG_MS);
 const inEinemMonat = () => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.getTime(); };
 const spaeter = (a, b) => (!a ? b : !b ? a : a > b ? a : b);
+const heute = () => datum(Date.now());
+const tagDavor = (ms) => datum(ms - TAG_MS);
+/** Leistungszeitraum von einem Tag (JJJJ-MM-TT) an für einen Monat: 26.09. → 25.10. */
+function monatAb(von) {
+  const d = new Date(`${von}T12:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() + 1);
+  return datum(d.getTime() - TAG_MS);
+}
+const plusTage = (iso, n) => datum(Date.parse(`${iso}T12:00:00Z`) + n * TAG_MS);
 
 /** Verschachtelte Parameter im Format der Stripe-API: { a: { b: 1 } } → a[b]=1 */
 export function stripeFormular(objekt, praefix = '', teile = new URLSearchParams()) {
@@ -53,6 +65,7 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
   const boerse = () => konfiguration.boerse;
   const stripeAktiv = () => Boolean(z().stripeSchluessel && z().stripeWebhookGeheimnis);
   const paypalAktiv = () => Boolean(z().paypalClientId && z().paypalGeheimnis && z().paypalWebhookId);
+  const rechnungAktiv = () => Boolean(z().rechnung && erpnext.aktiv());
   const brutto = (netto) => runde(netto * (1 + z().steuersatz / 100));
 
   const q = {
@@ -76,12 +89,14 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
 
   function uebersicht(benutzerId) {
     return {
-      anbieter: { stripe: stripeAktiv(), paypal: paypalAktiv() },
+      anbieter: { stripe: stripeAktiv(), paypal: paypalAktiv(), rechnung: rechnungAktiv() },
+      zahlungsziel: z().zahlungszielTage,
       steuersatz: z().steuersatz,
       paypal_gebuehr: z().paypalGebuehr,
       abos: db.prepare(`SELECT id, anbieter, produkt, angebote, netto, status, laeuft_bis, erstellt_am FROM abos
         WHERE benutzer_id = ? AND status != 'offen' ORDER BY id DESC`).all(benutzerId),
-      zahlungen: db.prepare(`SELECT id, anbieter, beschreibung, netto, brutto, erstellt_am, zeitraum_bis, erpnext_rechnung IS NOT NULL AS rechnung
+      zahlungen: db.prepare(`SELECT id, anbieter, beschreibung, netto, brutto, erstellt_am, zeitraum_von, zeitraum_bis, bezahlt_am, faellig_am,
+          erpnext_rechnung IS NOT NULL AS rechnung
         FROM zahlungen WHERE benutzer_id = ? ORDER BY id DESC LIMIT 100`).all(benutzerId).map((r) => ({ ...r, rechnung: Boolean(r.rechnung) })),
     };
   }
@@ -94,11 +109,13 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
     const status = vorher.status === 'gekuendigt' ? 'gekuendigt' : 'aktiv';
     db.prepare("UPDATE abos SET status = ?, laeuft_bis = ?, geaendert_am = datetime('now') WHERE id = ?").run(status, neuBis, abo.id);
     const b = q.benutzer.get(abo.benutzer_id);
+    // Erstes Freischalten eines neuen Abos (auch beim Wechsel) setzt den Zeitraum neu; Verlängerungen schieben ihn nur nach hinten
+    const neu = vorher.status === 'offen' || b.haendler_test_bis;
     if (abo.produkt === 'paket') {
       db.prepare('UPDATE benutzer SET haendler_paket = ?, haendler_paket_bis = ?, haendler_test_bis = NULL WHERE id = ?')
-        .run(abo.angebote, spaeter(b.haendler_test_bis ? null : b.haendler_paket_bis, neuBis), b.id);
+        .run(abo.angebote, neu ? neuBis : spaeter(b.haendler_paket_bis, neuBis), b.id);
     } else {
-      db.prepare('UPDATE benutzer SET haendler_api_bis = ?, haendler_test_bis = NULL WHERE id = ?').run(spaeter(b.haendler_test_bis ? null : b.haendler_api_bis, neuBis), b.id);
+      db.prepare('UPDATE benutzer SET haendler_api_bis = ?, haendler_test_bis = NULL WHERE id = ?').run(neu ? neuBis : spaeter(b.haendler_api_bis, neuBis), b.id);
     }
     if (vorher.status === 'offen') {
       benachrichtigungen.sende(b.id, {
@@ -116,15 +133,18 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
   }
 
   /** Zahlung einmalig erfassen und Rechnung in ERPNext anstoßen. */
-  function verbuche(abo, { anbieter, externId, bruttoBetrag, bis }) {
+  const beschreibungFuer = (abo) => (abo.produkt === 'paket'
+    ? `${MARKE.name} Händler-Paket ${abo.angebote.toLocaleString('de-DE')} Angebote`
+    : `${MARKE.name} Zusatzpaket API-Anbindung`);
+
+  /** Bezahlte Zahlung (Stripe/PayPal) mit Leistungszeitraum `von`–`bis` erfassen. */
+  function verbuche(abo, { anbieter, externId, bruttoBetrag, von, bis }) {
     if (!(bruttoBetrag > 0)) return null;
     const netto = runde(bruttoBetrag / (1 + z().steuersatz / 100));
-    const monat = bis ? ` bis ${bis.split('-').reverse().join('.')}` : '';
-    const beschreibung = abo.produkt === 'paket'
-      ? `${MARKE.name} Händler-Paket ${abo.angebote.toLocaleString('de-DE')} Angebote${monat}`
-      : `${MARKE.name} Zusatzpaket API-Anbindung${monat}`;
-    const r = db.prepare(`INSERT OR IGNORE INTO zahlungen (abo_id, benutzer_id, anbieter, extern_id, produkt, beschreibung, netto, steuersatz, brutto, zeitraum_bis)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(abo.id, abo.benutzer_id, anbieter, externId, abo.produkt, beschreibung, netto, z().steuersatz, runde(bruttoBetrag), bis);
+    const r = db.prepare(`INSERT OR IGNORE INTO zahlungen (abo_id, benutzer_id, anbieter, extern_id, produkt, beschreibung, netto, steuersatz, brutto,
+        zeitraum_von, zeitraum_bis, bezahlt_am)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`)
+      .run(abo.id, abo.benutzer_id, anbieter, externId, abo.produkt, beschreibungFuer(abo), netto, z().steuersatz, runde(bruttoBetrag), von, bis);
     if (!r.changes) return null; // bereits verbucht
     const id = Number(r.lastInsertRowid);
     erpnext.rechnungFuer(id).catch((e) => console.warn('[erpnext]', e.message));
@@ -209,11 +229,12 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
         const subId = o.subscription ?? o.parent?.subscription_details?.subscription;
         if (!subId) break;
         const abo = await stripeAbo(subId);
-        const ende = o.lines?.data?.[0]?.period?.end ?? o.period_end;
-        const bis = plusPuffer(ende * 1000);
+        const zeile = o.lines?.data?.[0]?.period ?? {};
+        const ende = zeile.end ?? o.period_end;
+        const start = zeile.start ?? o.period_start ?? Math.floor(Date.now() / 1000);
         if (o.amount_paid > 0) {
-          aktiviere(abo, bis);
-          verbuche(abo, { anbieter: 'stripe', externId: o.id, bruttoBetrag: o.amount_paid / 100, bis: datum(ende * 1000) });
+          aktiviere(abo, plusPuffer(ende * 1000));
+          verbuche(abo, { anbieter: 'stripe', externId: o.id, bruttoBetrag: o.amount_paid / 100, von: datum(start * 1000), bis: tagDavor(ende * 1000) });
         }
         break;
       }
@@ -347,8 +368,12 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
         if (!abo) break;
         const bis = paypalBis(sub);
         aktiviere(abo, bis);
-        const zeitraumBis = sub?.billing_info?.next_billing_time ? sub.billing_info.next_billing_time.slice(0, 10) : null;
-        verbuche(abo, { anbieter: 'paypal', externId: o.id, bruttoBetrag: Number(o.amount?.total ?? o.amount?.value ?? 0), bis: zeitraumBis });
+        const von = String(o.create_time ?? '').slice(0, 10) || heute();
+        const naechste = Date.parse(sub?.billing_info?.next_billing_time ?? '');
+        verbuche(abo, {
+          anbieter: 'paypal', externId: o.id, bruttoBetrag: Number(o.amount?.total ?? o.amount?.value ?? 0),
+          von, bis: Number.isFinite(naechste) ? tagDavor(naechste) : monatAb(von),
+        });
         break;
       }
       case 'BILLING.SUBSCRIPTION.CANCELLED':
@@ -377,6 +402,88 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
     return { status: sub.status };
   }
 
+  // ── Zahlung per Rechnung (über ERPNext) ───────────────────────
+  /** Rechnung für den Zeitraum `von`–`bis` stellen (ERPNext legt sie an und verschickt sie). */
+  async function stelleRechnung(abo, von, bis) {
+    const faellig = plusTage(heute(), z().zahlungszielTage);
+    const { lastInsertRowid } = db.prepare(`INSERT INTO zahlungen (abo_id, benutzer_id, anbieter, extern_id, produkt, beschreibung, netto, steuersatz, brutto,
+        zeitraum_von, zeitraum_bis, faellig_am) VALUES (?, ?, 'rechnung', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(abo.id, abo.benutzer_id, `R-${crypto.randomUUID()}`, abo.produkt, beschreibungFuer(abo), abo.netto, z().steuersatz, brutto(abo.netto), von, bis, faellig);
+    const id = Number(lastInsertRowid);
+    const name = await erpnext.rechnungFuer(id);
+    return { id, name };
+  }
+
+  async function rechnungCheckout(b, p) {
+    if (!rechnungAktiv()) throw new ValidierungsFehler({ anbieter: 'Zahlung per Rechnung ist nicht verfügbar.' });
+    // Im Testzugang beginnt der bezahlte Zeitraum nach dem Test
+    const von = b.haendler_test_bis && b.haendler_test_bis >= heute() ? plusTage(b.haendler_test_bis, 1) : heute();
+    const bis = monatAb(von);
+    const { lastInsertRowid } = db.prepare(`INSERT INTO abos (benutzer_id, anbieter, extern_id, produkt, angebote, netto) VALUES (?, 'rechnung', ?, ?, ?, ?)`)
+      .run(b.id, `R-${crypto.randomUUID()}`, p.produkt, p.angebote, p.netto);
+    const abo = q.aboId.get(Number(lastInsertRowid));
+    const { id, name } = await stelleRechnung(abo, von, bis);
+    if (!name) {
+      const fehler = db.prepare('SELECT erpnext_fehler FROM zahlungen WHERE id = ?').get(id)?.erpnext_fehler;
+      db.prepare('DELETE FROM zahlungen WHERE id = ?').run(id);
+      db.prepare('DELETE FROM abos WHERE id = ?').run(abo.id);
+      console.warn('[zahlung] Rechnung konnte nicht erstellt werden:', fehler);
+      throw new KontoFehler('Die Rechnung konnte gerade nicht erstellt werden. Bitte später erneut versuchen oder eine andere Zahlungsart wählen.', 502);
+    }
+    // Die Leistung beginnt sofort – bezahlt wird innerhalb des Zahlungsziels
+    aktiviere(abo, bis);
+    return { rechnung: name, faellig_am: plusTage(heute(), z().zahlungszielTage) };
+  }
+
+  /**
+   * Zeitgesteuert (alle 15 Minuten): Zahlungseingänge in ERPNext erkennen, überfällige Rechnungen pausieren
+   * und Folgerechnungen sieben Tage vor Ende des Zeitraums stellen.
+   */
+  async function pruefeRechnungen() {
+    if (!erpnext.aktiv()) return { bezahlt: 0, pausiert: 0, gestellt: 0 };
+    const ergebnis = { bezahlt: 0, pausiert: 0, gestellt: 0 };
+    const offene = db.prepare(`SELECT z.*, a.status AS abo_status FROM zahlungen z JOIN abos a ON a.id = z.abo_id
+      WHERE z.anbieter = 'rechnung' AND z.bezahlt_am IS NULL AND z.erpnext_rechnung IS NOT NULL AND z.erpnext_fehler IS NOT 'In ERPNext storniert'`).all();
+    for (const r of offene) {
+      let status;
+      try { status = await erpnext.rechnungsStatus(r.erpnext_rechnung); } catch (e) { console.warn('[zahlung]', e.message); continue; }
+      const abo = q.aboId.get(r.abo_id);
+      if (status === 'bezahlt') {
+        db.prepare("UPDATE zahlungen SET bezahlt_am = datetime('now') WHERE id = ?").run(r.id);
+        if (abo.status === 'pausiert') db.prepare("UPDATE abos SET status = 'aktiv' WHERE id = ?").run(abo.id);
+        if (r.zeitraum_bis >= heute()) aktiviere(q.aboId.get(abo.id), r.zeitraum_bis);
+        ergebnis.bezahlt++;
+      } else if (status === 'storniert') {
+        db.prepare("UPDATE zahlungen SET erpnext_fehler = 'In ERPNext storniert' WHERE id = ?").run(r.id);
+      } else if (plusTage(r.faellig_am, PUFFER_TAGE) < heute() && abo.status !== 'pausiert') {
+        // Überfällig: Zugang pausieren, bis die Zahlung gebucht ist
+        db.prepare("UPDATE abos SET status = 'pausiert', geaendert_am = datetime('now') WHERE id = ?").run(abo.id);
+        const gestern = tagDavor(Date.now());
+        if (abo.produkt === 'paket') db.prepare('UPDATE benutzer SET haendler_paket_bis = ? WHERE id = ? AND haendler_paket = ?').run(gestern, abo.benutzer_id, abo.angebote);
+        else db.prepare('UPDATE benutzer SET haendler_api_bis = ? WHERE id = ?').run(gestern, abo.benutzer_id);
+        benachrichtigungen.sende(abo.benutzer_id, {
+          art: 'boerse', titel: `Rechnung ${r.erpnext_rechnung} ist überfällig`,
+          text: 'Dein Paket ist pausiert, bis der Zahlungseingang gebucht ist. Danach wird es automatisch wieder freigeschaltet.',
+          link: '#/boerse/haendler',
+        });
+        ergebnis.pausiert++;
+      }
+    }
+    // Folgerechnungen für laufende Abos
+    const laufende = db.prepare("SELECT * FROM abos WHERE anbieter = 'rechnung' AND status = 'aktiv'").all();
+    for (const abo of laufende) {
+      const letzte = db.prepare('SELECT MAX(zeitraum_bis) AS bis FROM zahlungen WHERE abo_id = ?').get(abo.id).bis;
+      if (!letzte || plusTage(letzte, -7) > heute()) continue;
+      const von = plusTage(letzte, 1);
+      const bis = monatAb(von);
+      const { name } = await stelleRechnung(abo, von, bis);
+      if (name) { aktiviere(abo, bis); ergebnis.gestellt++; }
+    }
+    // Gekündigte Rechnungs-Abos nach Ablauf beenden
+    db.prepare("UPDATE abos SET status = 'beendet' WHERE anbieter = 'rechnung' AND status = 'gekuendigt' AND laeuft_bis < ?").run(heute());
+    return ergebnis;
+  }
+
   // ── Buchen, Kündigen ──────────────────────────────────────────
   async function checkout(benutzerRoh, { produkt, angebote, anbieter }) {
     const b = q.benutzer.get(benutzerRoh.id);
@@ -391,10 +498,12 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
     try { kennzeichnung = JSON.parse(b.haendler_daten || 'null'); } catch { /* ohne */ }
     if (anbieter === 'stripe' && stripeAktiv()) return { url: await stripeCheckout(b, p, kennzeichnung, basis) };
     if (anbieter === 'paypal' && paypalAktiv()) return { url: await paypalCheckout(b, p, basis) };
+    if (anbieter === 'rechnung') return rechnungCheckout(b, p);
     throw new ValidierungsFehler({ anbieter: 'Diese Zahlungsart ist nicht verfügbar.' });
   }
 
   async function beendeExtern(abo, { zumEnde = false } = {}) {
+    if (abo.anbieter === 'rechnung') return; // es werden einfach keine Folgerechnungen mehr gestellt
     if (abo.anbieter === 'stripe') {
       if (zumEnde) await stripe('POST', `/v1/subscriptions/${encodeURIComponent(abo.extern_id)}`, { cancel_at_period_end: 'true' });
       else await stripe('DELETE', `/v1/subscriptions/${encodeURIComponent(abo.extern_id)}`);
@@ -407,7 +516,7 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
   async function kuendige(benutzer, aboId) {
     const abo = q.aboId.get(Number(aboId));
     if (!abo || abo.benutzer_id !== benutzer.id) throw new KontoFehler('Abo nicht gefunden.', 404);
-    if (abo.status !== 'aktiv') throw new KontoFehler('Dieses Abo ist nicht aktiv.', 409);
+    if (!['aktiv', 'pausiert'].includes(abo.status)) throw new KontoFehler('Dieses Abo ist nicht aktiv.', 409);
     await beendeExtern(abo, { zumEnde: true });
     db.prepare("UPDATE abos SET status = 'gekuendigt', geaendert_am = datetime('now') WHERE id = ?").run(abo.id);
     return q.aboId.get(abo.id);
@@ -422,7 +531,7 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
   }
 
   return {
-    stripeAktiv, paypalAktiv, uebersicht, checkout, kuendige, portal, stripeWebhook, paypalWebhook, paypalBestaetigen,
+    stripeAktiv, paypalAktiv, rechnungAktiv, pruefeRechnungen, uebersicht, checkout, kuendige, portal, stripeWebhook, paypalWebhook, paypalBestaetigen,
     /** Nur für Tests und Administration */
     aktiviere, verbuche,
   };
