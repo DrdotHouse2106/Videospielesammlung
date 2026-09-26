@@ -442,9 +442,20 @@ Auf Katalogseiten erscheint – deutlich als **Anzeige** gekennzeichnet – ein 
 1. **Suchlinks** zu Amazon und eBay mit Partner-ID, automatisch für jedes Spiel.
 2. **Direktlinks**, die Moderatoren je Spiel hinterlegen (beliebiger Shop, z. B. mit eigenem Partnerlink).
 
-Die **Standard-Partner-IDs stehen im Code** in [`server/affiliate-konfiguration.js`](server/affiliate-konfiguration.js)
-und gelten damit für jede Installation, die sie nicht ändert. Betreiber können sie per `.env` überschreiben
-(`AFFILIATE_AMAZON_TAG`, `AFFILIATE_EBAY_CAMPID`) oder abschalten (`AFFILIATE_LINKS=false`).
+**Welche Partner-IDs gelten?**
+
+1. **Eigene IDs des Betreibers** – `AFFILIATE_AMAZON_TAG` und `AFFILIATE_EBAY_CAMPID` in der `docker-compose.yml`/`.env`
+   oder unter *Administration → Einstellungen*. Sie haben immer Vorrang.
+2. **Standard-IDs aus dem Code** in [`server/affiliate-konfiguration.js`](server/affiliate-konfiguration.js) – aber
+   **nur**, wenn `PUBLIC_URL` auf eine dort unter `domains` eingetragene Website zeigt (Subdomains inklusive).
+3. Sonst: Kauflinks **ohne** Partnerkennung. Mit `AFFILIATE_LINKS=false` verschwinden sie ganz.
+
+Hintergrund: Partnerprogramme wie das Amazon-PartnerNet erlauben Links mit einer Partner-ID nur auf Websites, die
+im Partnerkonto des ID-Inhabers angemeldet sind. Würden fremde Installationen dieses Projekts die Standard-IDs
+verwenden, käme der Verkehr von nicht angemeldeten Websites – das kann zur Sperrung des Partnerkontos führen.
+Eine Weiterleitung über die eigene Website ist **keine** Lösung: Sie würde die tatsächliche Herkunft der Klicks
+verschleiern, was die Programmrichtlinien ebenfalls verbieten. Unter *Administration → Einstellungen* ist zu sehen,
+welche IDs gerade gelten und woher sie stammen.
 
 > **Wichtig für Betreiber:** Affiliate-Links sind Werbung und werden in der Oberfläche als „Anzeige“ markiert
 > (Kennzeichnungspflicht nach UWG). Prüfe außerdem die Teilnahmebedingungen deines Partnerprogramms –

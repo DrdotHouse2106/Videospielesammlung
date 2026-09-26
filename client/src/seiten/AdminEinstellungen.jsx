@@ -68,7 +68,7 @@ export default function AdminEinstellungen() {
       });
       setBestaetigung(null);
       zeigeHinweis(antwort.geaendert.length ? `${antwort.geaendert.length} Einstellung(en) gespeichert – sofort aktiv.` : 'Keine Änderungen.');
-      setDaten({ ...daten, einstellungen: antwort.einstellungen, protokoll: antwort.protokoll });
+      setDaten({ ...daten, einstellungen: antwort.einstellungen, protokoll: antwort.protokoll, affiliate: antwort.affiliate });
       setWerte({}); setZuruecksetzen(new Set()); setEntfernen(new Set()); setFehler({});
     } catch (e) {
       if (e.felder) setFehler(e.felder);
@@ -92,6 +92,7 @@ export default function AdminEinstellungen() {
       {gruppen.map(([gruppe, liste]) => (
         <section key={gruppe} className="karte space-y-4 p-4">
           <h2 className="font-semibold">{gruppe}</h2>
+          {gruppe.startsWith('Affiliate') && daten.affiliate && <AffiliateStatus a={daten.affiliate} />}
           {liste.map((e) => (
             <Feld key={e.schluessel} e={e} wert={werte[e.schluessel]} fehler={fehler[e.schluessel]}
               zuruecksetzenVorgemerkt={zuruecksetzen.has(e.schluessel)} entfernenVorgemerkt={entfernen.has(e.schluessel)}
@@ -225,6 +226,30 @@ function Feld({ e, wert, fehler, zuruecksetzenVorgemerkt, entfernenVorgemerkt, o
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+const QUELLE = {
+  eigen: 'eigene ID aus .env bzw. Einstellungen',
+  standard: 'Standard-ID aus dem Code (Domain freigegeben)',
+  keine: 'keine ID – Links ohne Partnerkennung',
+};
+
+function AffiliateStatus({ a }) {
+  return (
+    <div className="rounded-xl border border-rand p-3 text-xs text-leise">
+      {!a.aktiv ? <p>Kauflinks sind abgeschaltet.</p> : (
+        <>
+          <p><strong className="text-text">Amazon:</strong> {QUELLE[a.amazon]}</p>
+          <p><strong className="text-text">eBay:</strong> {QUELLE[a.ebay]}</p>
+        </>
+      )}
+      <p className="mt-1">
+        Standard-IDs aus dem Code gelten nur, wenn die öffentliche Adresse (PUBLIC_URL) auf eine dieser Domains zeigt:{' '}
+        {a.domains.length ? a.domains.join(', ') : 'keine eingetragen'}. Partnerprogramme erlauben Links nur auf Websites,
+        die im Partnerkonto angemeldet sind – trage hier deshalb eigene IDs ein, wenn du eine eigene Installation betreibst.
+      </p>
     </div>
   );
 }

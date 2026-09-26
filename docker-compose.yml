@@ -99,11 +99,13 @@ services:
       PRICECHARTING_TOKEN: ""
 
       # ── Affiliate-Links („Hier kaufen“) ─────────────────────────
-      # Ohne Einträge gelten die Partner-IDs aus server/affiliate-konfiguration.js.
-      # Nur bei Bedarf einkommentieren (ein leerer Wert "" würde die ID abschalten):
-      # AFFILIATE_AMAZON_TAG: "deinpartner-21"
-      # AFFILIATE_EBAY_CAMPID: "5338000000"
-      # AFFILIATE_LINKS: "false"          # „Hier kaufen“-Links ganz abschalten
+      # Eigene Partner-IDs (Amazon-PartnerNet, eBay Partner Network). Leer = Standard-IDs aus
+      # server/affiliate-konfiguration.js – die gelten aber NUR, wenn PUBLIC_URL auf eine dort
+      # freigegebene Domain zeigt; sonst werden Kauflinks ohne Partnerkennung angezeigt.
+      AFFILIATE_AMAZON_TAG: ""
+      AFFILIATE_EBAY_CAMPID: ""
+      # „Hier kaufen“-Links ganz abschalten: "false"
+      AFFILIATE_LINKS: "true"
 
       # ── KI-Vorprüfung von Einreichungen (optional) ──────────────
       # Anbieter: aus, anthropic, gemini oder openai (auch Mistral, Ollama … über AI_BASE_URL)

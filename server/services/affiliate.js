@@ -2,14 +2,48 @@
 // hinterlegte Direktlinks zu konkreten Angeboten.
 import { AFFILIATE_STANDARD } from '../affiliate-konfiguration.js';
 
+/** Hostname ohne „www.“ aus einer URL, z. B. PUBLIC_URL. */
+function hostname(url) {
+  try {
+    return new URL(String(url ?? '').trim()).hostname.toLowerCase().replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+/** Gehört der Host zu einer der freigegebenen Domains (inkl. Subdomains)? */
+export function domainErlaubt(host, domains = AFFILIATE_STANDARD.domains) {
+  if (!host) return false;
+  return domains.map((d) => String(d).toLowerCase().replace(/^www\./, '')).filter(Boolean)
+    .some((d) => host === d || host.endsWith(`.${d}`));
+}
+
+/**
+ * Eigene IDs des Betreibers (.env / Administration → Einstellungen) haben Vorrang.
+ * Die Standard-IDs aus dem Code gelten nur, wenn PUBLIC_URL auf eine in
+ * affiliate-konfiguration.js eingetragene Domain zeigt – andere Installationen
+ * nutzen sie nicht (Partnerprogramme erlauben Links nur auf angemeldeten Websites).
+ */
 export function ladeAffiliateKonfiguration(env = process.env) {
   const aus = ['0', 'false', 'nein', 'no', 'off'].includes(String(env.AFFILIATE_LINKS ?? '').trim().toLowerCase());
+  const standardErlaubt = domainErlaubt(hostname(env.PUBLIC_URL));
+  const wert = (eigen, standard) => {
+    const e = String(eigen ?? '').trim();
+    if (e) return { id: e, quelle: 'eigen' };
+    if (standard && standardErlaubt) return { id: standard, quelle: 'standard' };
+    return { id: '', quelle: 'keine' };
+  };
+  const amazon = wert(env.AFFILIATE_AMAZON_TAG, AFFILIATE_STANDARD.amazon.tag);
+  const ebay = wert(env.AFFILIATE_EBAY_CAMPID, AFFILIATE_STANDARD.ebay.campid);
   return {
     aktiv: !aus,
-    amazonTag: (env.AFFILIATE_AMAZON_TAG ?? AFFILIATE_STANDARD.amazon.tag).trim(),
+    amazonTag: amazon.id,
+    amazonQuelle: amazon.quelle,
     amazonDomain: (env.AFFILIATE_AMAZON_DOMAIN || AFFILIATE_STANDARD.amazon.domain).trim(),
-    ebayCampid: (env.AFFILIATE_EBAY_CAMPID ?? AFFILIATE_STANDARD.ebay.campid).trim(),
+    ebayCampid: ebay.id,
+    ebayQuelle: ebay.quelle,
     ebayCustomid: AFFILIATE_STANDARD.ebay.customid,
+    standardDomains: AFFILIATE_STANDARD.domains,
   };
 }
 

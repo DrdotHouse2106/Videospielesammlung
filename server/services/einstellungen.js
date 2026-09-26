@@ -51,6 +51,13 @@ export const EINSTELLUNGEN = [
   { schluessel: 'EBAY_CLIENT_SECRET', gruppe: 'Preise & Angebote', titel: 'eBay Client-Secret', typ: 'geheim', sicher: true },
   { schluessel: 'EBAY_MARKETPLACE', gruppe: 'Preise & Angebote', titel: 'eBay-Marktplatz', typ: 'text', platzhalter: 'EBAY_DE' },
   { schluessel: 'PRICECHARTING_TOKEN', gruppe: 'Preise & Angebote', titel: 'PriceCharting-Token', typ: 'geheim', sicher: true },
+  // Affiliate
+  { schluessel: 'AFFILIATE_LINKS', gruppe: 'Affiliate-Links („Hier kaufen“)', titel: 'Kauflinks anzeigen', ...JA_NEIN,
+    hinweis: 'Nein = keine Amazon-/eBay-Suchlinks und keine eBay-Angebote mit Partner-ID.' },
+  { schluessel: 'AFFILIATE_AMAZON_TAG', gruppe: 'Affiliate-Links („Hier kaufen“)', titel: 'Amazon-Tracking-ID', typ: 'text', platzhalter: 'deinname-21',
+    hinweis: 'Aus dem Amazon-PartnerNet. Leer = Standard-ID aus dem Code, aber nur auf den dort freigegebenen Domains.' },
+  { schluessel: 'AFFILIATE_EBAY_CAMPID', gruppe: 'Affiliate-Links („Hier kaufen“)', titel: 'eBay-Partner-Network-Kampagnen-ID', typ: 'text', platzhalter: '5338000000',
+    hinweis: 'Leer = Standard-ID aus dem Code, aber nur auf den dort freigegebenen Domains.' },
   // Spieledaten
   { schluessel: 'TWITCH_CLIENT_ID', gruppe: 'Spieledaten (IGDB) & Barcodes', titel: 'Twitch Client-ID (IGDB)', typ: 'text' },
   { schluessel: 'TWITCH_CLIENT_SECRET', gruppe: 'Spieledaten (IGDB) & Barcodes', titel: 'Twitch Client-Secret (IGDB)', typ: 'geheim', sicher: true },

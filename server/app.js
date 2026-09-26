@@ -82,6 +82,7 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
       Object.assign(igdb, erstelleIgdbDienst(konfiguration.igdb, db, { fetchFn }));
     }
     if (betrifft('BARCODE_', 'OPENGTINDB_')) Object.assign(barcode, erstelleBarcodeDienst(konfiguration.barcode, { fetchFn }));
+    if (betrifft('AFFILIATE_')) Object.assign(affiliate, erstelleAffiliateDienst(db, konfiguration.affiliate));
     if (betrifft('EBAY_')) Object.assign(ebay, erstelleEbayDienst(konfiguration.ebay, konfiguration.affiliate, { fetchFn }));
     if (betrifft('PRICECHARTING_')) Object.assign(preise, erstellePreisDienst(db, konfiguration.preise, { cache, fetchFn }));
     if (betrifft('AI_')) {

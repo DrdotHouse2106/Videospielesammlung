@@ -67,9 +67,15 @@ export function adminRouter({ db, konten, dateien, speicher, preisimport, igdb, 
     res.status(202).json({ gestartet: true });
   });
 
+  // Welche Partner-IDs gerade gelten und woher sie stammen
+  const affiliateStatus = () => {
+    const a = konfiguration.affiliate;
+    return { aktiv: a.aktiv, amazon: a.amazonQuelle, ebay: a.ebayQuelle, domains: a.standardDomains, oeffentlicheUrl: konfiguration.oeffentlicheUrl };
+  };
+
   // ── Server-Einstellungen (Vorrang vor der .env, wirken sofort) ─────────
   router.get('/einstellungen', (_req, res) => {
-    res.json({ einstellungen: einstellungen.liste(), nurEnv: NUR_ENV, protokoll: einstellungen.protokoll(50) });
+    res.json({ einstellungen: einstellungen.liste(), nurEnv: NUR_ENV, protokoll: einstellungen.protokoll(50), affiliate: affiliateStatus() });
   });
 
   router.put('/einstellungen', async (req, res) => {
@@ -96,7 +102,7 @@ export function adminRouter({ db, konten, dateien, speicher, preisimport, igdb, 
       bestaetigungsDrossel.zuruecksetzen(drosselSchluessel);
     }
     const geaendert = einstellungen.setze(aenderung, req.benutzer);
-    res.json({ geaendert, einstellungen: einstellungen.liste(), protokoll: einstellungen.protokoll(50) });
+    res.json({ geaendert, einstellungen: einstellungen.liste(), protokoll: einstellungen.protokoll(50), affiliate: affiliateStatus() });
   });
 
   router.get('/benutzer', (_req, res) => {
