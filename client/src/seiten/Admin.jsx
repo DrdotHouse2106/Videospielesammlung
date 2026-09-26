@@ -10,7 +10,7 @@ import SpeicherAnzeige from '../komponenten/SpeicherAnzeige.jsx';
 import AdminEinstellungen from './AdminEinstellungen.jsx';
 import { useHinweis } from '../komponenten/Hinweise.jsx';
 
-const REITER = [['uebersicht', 'Übersicht'], ['benutzer', 'Benutzer & Rollen'], ['einstellungen', 'Einstellungen'], ['rechtliches', 'Rechtliches'], ['besucher', 'Besucher'], ['preise', 'Preisimport'], ['zahlungen', 'Zahlungen'], ['sicherungen', 'Sicherungen']];
+const REITER = [['uebersicht', 'Übersicht'], ['benutzer', 'Benutzer & Rollen'], ['einstellungen', 'Einstellungen'], ['rechtliches', 'Rechtliches'], ['besucher', 'Besucher'], ['markt', 'Marktdaten'], ['preise', 'Preisimport'], ['zahlungen', 'Zahlungen'], ['sicherungen', 'Sicherungen']];
 
 export default function Admin({ route }) {
   const reiter = route.parameter.reiter ?? 'uebersicht';
@@ -36,6 +36,7 @@ export default function Admin({ route }) {
         {reiter === 'zahlungen' && <Zahlungen />}
         {reiter === 'sicherungen' && <Sicherungen />}
         {reiter === 'besucher' && <Besucher />}
+        {reiter === 'markt' && <Marktdaten />}
       </div>
     </Layout>
   );
@@ -489,8 +490,8 @@ function Besucher() {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        {[7, 30, 90, 365].map((t) => (
-          <button key={t} type="button" className={tage === t ? 'chip-aktiv' : 'chip'} onClick={() => { setTage(t); setAktiv(null); }}>{t === 365 ? '1 Jahr' : `${t} Tage`}</button>
+        {[7, 30, 90, 365, 730].map((t) => (
+          <button key={t} type="button" className={tage === t ? 'chip-aktiv' : 'chip'} onClick={() => { setTage(t); setAktiv(null); }}>{t === 365 ? '1 Jahr' : t === 730 ? '2 Jahre' : `${t} Tage`}</button>
         ))}
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -525,6 +526,76 @@ function Besucher() {
         <Liste titel="Suchbegriffe (öffentliche Suche)" zeilen={d.suchen} spalte="begriff"
           wert={(z) => `${anzahl(z.anzahl)}×${z.treffer === 0 ? ' · ohne Treffer' : ''}`} leer="Noch keine Suchen." />
       </div>
+    </div>
+  );
+}
+
+function Marktdaten() {
+  const zeigeHinweis = useHinweis();
+  const [d, setD] = useState(null);
+  const [von, setVon] = useState('');
+  const [bis, setBis] = useState('');
+  useEffect(() => { api.adminMarktdaten().then(setD).catch((e) => zeigeHinweis(e.message, 'fehler')); }, []);
+  if (!d) return <p className="text-leise">Wird geladen …</p>;
+  const euro = (n) => (n == null ? '–' : n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }));
+  const zeitraum = new URLSearchParams({ ...(von ? { von } : {}), ...(bis ? { bis } : {}) }).toString();
+  const max = Math.max(1, ...d.verlauf.map((m) => m.neu));
+  return (
+    <div className="space-y-3">
+      <p className="karte p-4 text-sm">
+        Anonymes Archiv aller Anzeigen der Tauschbörse – ohne Benutzer, Postleitzahl, Texte oder Fotos. Grundlage für
+        Preisentwicklungen und Marktberichte; die Nutzung ist in Datenschutzerklärung und Nutzungsbedingungen beschrieben.
+      </p>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kachel titel="Anzeigen gesamt" wert={anzahl(d.anzeigen)} hinweis={d.seit ? `seit ${datumDe(d.seit)}` : 'noch keine'} />
+        <Kachel titel="Davon verkauft" wert={anzahl(d.verkauft)} hinweis={d.anzeigen ? `${Math.round((d.verkauft / d.anzeigen) * 100)} % Verkaufsquote` : null} />
+        <Kachel titel="Tage bis Verkauf" wert={d.tage_bis_verkauf == null ? '–' : d.tage_bis_verkauf.toLocaleString('de-DE')} hinweis="im Durchschnitt" />
+        <Kachel titel="Titel im Archiv" wert={anzahl(d.titel)} hinweis={`${anzahl(d.laufend)} Anzeigen laufen · ${anzahl(d.gewerblich)} gewerblich`} />
+      </div>
+      {d.verlauf.length > 0 && (
+        <section className="karte space-y-2 p-4 text-sm">
+          <h2 className="font-semibold">Neue Anzeigen und Verkäufe je Monat</h2>
+          <ul className="space-y-1">
+            {d.verlauf.map((m) => (
+              <li key={m.monat} className="grid grid-cols-[4.5rem_1fr] items-center gap-2">
+                <span className="tabular-nums text-leise">{m.monat}</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="h-3 rounded-sm bg-akzent" style={{ width: `${Math.max(2, (m.neu / max) * 60)}%` }} />
+                  <span className="shrink-0 text-xs text-leise tabular-nums">{anzahl(m.neu)} neu · {anzahl(m.verkauft)} verkauft{m.preis_schnitt != null ? ` · Ø ${euro(m.preis_schnitt)}` : ''}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      <section className="karte space-y-2 p-4 text-sm">
+        <h2 className="font-semibold">Meistverkaufte Titel</h2>
+        {d.top.length === 0 ? <p className="text-leise">Noch keine Verkäufe mit Preis.</p> : (
+          <ul className="divide-y divide-rand">
+            {d.top.map((t) => (
+              <li key={t.katalog_id} className="py-1.5">
+                <p className="break-words">{t.titel ?? `Katalogeintrag ${t.katalog_id}`}</p>
+                <p className="text-xs text-leise tabular-nums">{anzahl(t.verkauft)}× verkauft · Ø {euro(t.preis_schnitt)} · {euro(t.preis_min)} – {euro(t.preis_max)}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section className="karte space-y-3 p-4 text-sm">
+        <h2 className="font-semibold">Export (CSV, anonym)</h2>
+        <div className="flex flex-wrap gap-3">
+          <label className="block"><span className="beschriftung">Von</span><input type="date" className="eingabe" value={von} onChange={(e) => setVon(e.target.value)} /></label>
+          <label className="block"><span className="beschriftung">Bis</span><input type="date" className="eingabe" value={bis} onChange={(e) => setBis(e.target.value)} /></label>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <a className="knopf-sekundaer px-3 py-1.5" href={`/api/admin/marktdaten/angebote.csv${zeitraum ? `?${zeitraum}` : ''}`} download>Anzeigen ({anzahl(d.anzeigen)})</a>
+          <a className="knopf-sekundaer px-3 py-1.5" href={`/api/admin/marktdaten/nachfrage.csv${zeitraum ? `?${zeitraum}` : ''}`} download>Nachfrage je Tag ({anzahl(d.nachfrage.tage)} Tage)</a>
+        </div>
+        <p className="text-xs text-leise">
+          Hinweis: Bei sehr seltenen Titeln kann eine einzelne Anzeige Rückschlüsse erlauben. Für die Weitergabe an Dritte
+          empfiehlt sich eine Zusammenfassung (z. B. erst ab mehreren Anzeigen je Titel und Monat).
+        </p>
+      </section>
     </div>
   );
 }

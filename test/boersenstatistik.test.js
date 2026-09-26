@@ -77,8 +77,15 @@ test('Statistik zählt Aufrufe, Anfragen und Treffer ohne Personenbezug', async 
   const auskunft = (await anna.api('/api/export/datenauskunft.json')).json;
   assert.equal(auskunft.tauschboerse.statistik.length, 1);
 
-  // Alte Werte werden aufgeräumt
+  // Alte Werte bleiben erhalten; „Gesamt“ zeigt Monatswerte ab dem ersten Tag
   server.db.prepare("INSERT INTO boerse_statistik (angebot_id, benutzer_id, tag, aufrufe) VALUES (999, 2, date('now', '-500 days'), 5)").run();
   server.kontext.boerse.raeumeAuf();
-  assert.equal(server.db.prepare('SELECT COUNT(*) AS n FROM boerse_statistik WHERE angebot_id = 999').get().n, 0);
+  assert.equal(server.db.prepare('SELECT COUNT(*) AS n FROM boerse_statistik WHERE angebot_id = 999').get().n, 1);
+  const alles = (await anna.api('/api/boerse/statistik?tage=0')).json;
+  assert.equal(alles.tage, 0);
+  assert.equal(alles.einheit, 'monat');
+  assert.equal(alles.gesamt.aufrufe, 7);
+  assert.equal(alles.vorher, null);
+  assert.ok(alles.verlauf.length >= 16 && alles.verlauf.length <= 18, `${alles.verlauf.length} Monate`);
+  assert.equal(alles.verlauf.reduce((n, m) => n + m.aufrufe, 0), 7);
 });

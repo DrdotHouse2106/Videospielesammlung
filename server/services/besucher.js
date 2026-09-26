@@ -5,7 +5,7 @@
 //   Arbeitsspeicher liegt. Nach Mitternacht (oder einem Neustart) ist keine Zuordnung mehr möglich; in der
 //   Datenbank landet nur die Anzahl.
 // - Suchmaschinen-Bots werden getrennt gezählt (hilfreich für SEO), Verweise nur als Domain gespeichert.
-// - Nach 400 Tagen werden die Tageswerte gelöscht.
+// - Die Tageswerte bleiben für Langzeitvergleiche erhalten (reine Zählwerte ohne Personenbezug).
 import crypto from 'node:crypto';
 
 const BOT = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|embedly|preview|monitor|curl|wget|python|headless/i;
@@ -24,8 +24,6 @@ export function erstelleBesucherDienst(db) {
       ON CONFLICT (tag, domain) DO UPDATE SET aufrufe = aufrufe + excluded.aufrufe`),
     suche: db.prepare(`INSERT INTO statistik_suchen (tag, begriff, anzahl, treffer) VALUES (?, ?, ?, ?)
       ON CONFLICT (tag, begriff) DO UPDATE SET anzahl = anzahl + excluded.anzahl, treffer = excluded.treffer`),
-    aufraeumen: ['statistik_seiten', 'statistik_tage', 'statistik_verweise', 'statistik_suchen']
-      .map((t) => db.prepare(`DELETE FROM ${t} WHERE tag < date('now', '-400 days')`)),
   };
 
   let puffer = { seiten: new Map(), verweise: new Map(), suchen: new Map() };
@@ -101,8 +99,7 @@ export function erstelleBesucherDienst(db) {
   /** Auswertung für die Administration. */
   function auswertung(tage = 30) {
     schreibe();
-    q.aufraeumen.forEach((s) => s.run());
-    const ab = `-${Math.max(1, Math.min(400, tage)) - 1} days`;
+    const ab = `-${Math.max(1, Math.min(730, tage)) - 1} days`;
     const verlauf = db.prepare(`
       WITH RECURSIVE t(tag) AS (SELECT date('now', @ab) UNION ALL SELECT date(tag, '+1 day') FROM t WHERE tag < date('now'))
       SELECT t.tag,

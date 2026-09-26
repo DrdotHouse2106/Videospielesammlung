@@ -52,6 +52,8 @@ const SEITEN = [
   ['/community', 'Community'],
   ['/benachrichtigungen', 'Benachrichtigungen'],
   ['/admin', 'Administration'],
+  ['/admin?reiter=markt', 'Administration'],
+  ['/boerse/meine?tab=statistik&tage=0', 'Meine Börse'],
   ['/boerse', 'Tauschbörse'],
   ['/boerse/meine?tab=statistik', 'Meine Börse'],
   ['/boerse/haendler', 'Händlerbereich'],

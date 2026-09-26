@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { KontoFehler } from '../services/konten.js';
 import { erstelleDrossel } from '../services/drossel.js';
+import { erstelleMarktdatenDienst } from '../services/marktdaten.js';
 
 // Nur über die .env änderbar – zur Information in der Oberfläche
 const NUR_ENV = ['APP_SECRET', 'DATABASE_PATH', 'UPLOAD_DIR', 'PORT', 'HOST', 'TRUST_PROXY', 'COOKIE_SECURE', 'SESSION_DAYS', 'REGISTRATIONS_PER_HOUR'];
@@ -120,6 +121,16 @@ export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, be
 
   // Besucherstatistik (anonym, ohne Cookies)
   router.get('/besucher', (req, res) => res.json(besucher.auswertung(Number(req.query.tage) || 30)));
+
+  // ── Anonymes Marktarchiv der Tauschbörse ─────────
+  const marktdaten = erstelleMarktdatenDienst(db);
+  router.get('/marktdaten', (_req, res) => res.json(marktdaten.uebersicht()));
+  for (const [datei, fn] of [['angebote', marktdaten.angeboteCsv], ['nachfrage', marktdaten.nachfrageCsv]]) {
+    router.get(`/marktdaten/${datei}.csv`, (req, res) => {
+      res.type('text/csv; charset=utf-8').attachment(`zockdb-markt-${datei}-${new Date().toISOString().slice(0, 10)}.csv`)
+        .send(fn({ von: req.query.von, bis: req.query.bis }));
+    });
+  }
 
   // ── Datenbank-Sicherungen ─────────
   router.get('/sicherungen', (_req, res) => res.json(sicherung.status()));

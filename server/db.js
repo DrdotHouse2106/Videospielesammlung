@@ -669,6 +669,93 @@ const MIGRATIONEN = [
     PRIMARY KEY (angebot_id, tag)
   );
   CREATE INDEX idx_boerse_statistik_benutzer ON boerse_statistik (benutzer_id, tag);
+  `,  // 26: Anonymes Marktarchiv – jedes Angebot (von Einstellen bis Verkauf/Ende) ohne Bezug zum Anbieter, dazu tägliche
+  //     Nachfrage-Werte. Trigger erfassen alle Wege (Bearbeiten, CSV-Import, Ablauf, Moderation, Konto-Löschung).
+  `
+  CREATE TABLE markt_angebote (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    angebot_id       INTEGER,                  -- nur solange das Angebot existiert; beim Löschen NULL (anonym)
+    katalog_id       INTEGER NOT NULL,         -- bewusst ohne Fremdschlüssel: Archiv bleibt vollständig
+    plattform_id     INTEGER,
+    variante_id      INTEGER,
+    art              TEXT    NOT NULL,
+    zustand          TEXT,
+    vollstaendigkeit TEXT,
+    region           TEXT,
+    anzahl           INTEGER NOT NULL DEFAULT 1,
+    gewerblich       INTEGER NOT NULL DEFAULT 0,
+    preis_start      REAL,
+    preis_ende       REAL,
+    preis_min        REAL,
+    preis_max        REAL,
+    preisaenderungen INTEGER NOT NULL DEFAULT 0,
+    aufrufe          INTEGER NOT NULL DEFAULT 0,
+    anfragen         INTEGER NOT NULL DEFAULT 0,
+    treffer          INTEGER NOT NULL DEFAULT 0,
+    eingestellt_am   TEXT    NOT NULL,         -- nur Datum
+    beendet_am       TEXT,                     -- nur Datum; NULL = läuft noch
+    ergebnis         TEXT                      -- verkauft, beendet, abgelaufen, entfernt, geloescht
+  );
+  CREATE INDEX idx_markt_angebote_katalog ON markt_angebote (katalog_id, beendet_am);
+  CREATE INDEX idx_markt_angebote_offen ON markt_angebote (angebot_id) WHERE beendet_am IS NULL;
+
+  CREATE TABLE markt_nachfrage (
+    tag                 TEXT    NOT NULL,
+    katalog_id          INTEGER NOT NULL,
+    suchende            INTEGER NOT NULL DEFAULT 0,
+    max_preis_schnitt   REAL,
+    angebote_aktiv      INTEGER NOT NULL DEFAULT 0,
+    preis_min           REAL,
+    preis_schnitt       REAL,
+    PRIMARY KEY (tag, katalog_id)
+  );
+
+  CREATE TRIGGER markt_angebot_neu AFTER INSERT ON angebote WHEN NEW.status IN ('aktiv', 'reserviert') BEGIN
+    INSERT INTO markt_angebote (angebot_id, katalog_id, plattform_id, variante_id, art, zustand, vollstaendigkeit, region, anzahl,
+      gewerblich, preis_start, preis_ende, preis_min, preis_max, eingestellt_am)
+    VALUES (NEW.id, NEW.katalog_id, NEW.plattform_id, NEW.variante_id, NEW.art, NEW.zustand, NEW.vollstaendigkeit, NEW.region, NEW.anzahl,
+      COALESCE((SELECT haendler_status IS NOT NULL FROM benutzer WHERE id = NEW.benutzer_id), 0),
+      NEW.preis, NEW.preis, NEW.preis, NEW.preis, date('now'));
+  END;
+
+  CREATE TRIGGER markt_angebot_aenderung AFTER UPDATE ON angebote BEGIN
+    -- Angaben und Preisverlauf der laufenden Anzeige nachführen
+    UPDATE markt_angebote SET plattform_id = NEW.plattform_id, variante_id = NEW.variante_id, art = NEW.art, zustand = NEW.zustand,
+        vollstaendigkeit = NEW.vollstaendigkeit, region = NEW.region, anzahl = NEW.anzahl, preis_ende = NEW.preis,
+        preis_min = CASE WHEN NEW.preis IS NOT NULL AND (preis_min IS NULL OR NEW.preis < preis_min) THEN NEW.preis ELSE preis_min END,
+        preis_max = CASE WHEN NEW.preis IS NOT NULL AND (preis_max IS NULL OR NEW.preis > preis_max) THEN NEW.preis ELSE preis_max END,
+        preisaenderungen = preisaenderungen + (OLD.preis IS NOT NEW.preis)
+      WHERE angebot_id = NEW.id AND beendet_am IS NULL;
+    -- Anzeige endet (verkauft, beendet, abgelaufen, entfernt)
+    UPDATE markt_angebote SET beendet_am = date('now'), ergebnis = NEW.status
+      WHERE angebot_id = NEW.id AND beendet_am IS NULL AND NEW.status NOT IN ('aktiv', 'reserviert');
+    -- Wieder eingestellt: neue Anzeige im Archiv
+    INSERT INTO markt_angebote (angebot_id, katalog_id, plattform_id, variante_id, art, zustand, vollstaendigkeit, region, anzahl,
+      gewerblich, preis_start, preis_ende, preis_min, preis_max, eingestellt_am)
+    SELECT NEW.id, NEW.katalog_id, NEW.plattform_id, NEW.variante_id, NEW.art, NEW.zustand, NEW.vollstaendigkeit, NEW.region, NEW.anzahl,
+      COALESCE((SELECT haendler_status IS NOT NULL FROM benutzer WHERE id = NEW.benutzer_id), 0),
+      NEW.preis, NEW.preis, NEW.preis, NEW.preis, date('now')
+    WHERE NEW.status IN ('aktiv', 'reserviert')
+      AND NOT EXISTS (SELECT 1 FROM markt_angebote WHERE angebot_id = NEW.id AND beendet_am IS NULL);
+  END;
+
+  CREATE TRIGGER markt_angebot_geloescht AFTER DELETE ON angebote BEGIN
+    UPDATE markt_angebote SET beendet_am = date('now'), ergebnis = 'geloescht' WHERE angebot_id = OLD.id AND beendet_am IS NULL;
+    UPDATE markt_angebote SET angebot_id = NULL WHERE angebot_id = OLD.id;
+  END;
+
+  -- Bestehende Angebote übernehmen
+  INSERT INTO markt_angebote (angebot_id, katalog_id, plattform_id, variante_id, art, zustand, vollstaendigkeit, region, anzahl,
+    gewerblich, preis_start, preis_ende, preis_min, preis_max, aufrufe, anfragen, treffer, eingestellt_am, beendet_am, ergebnis)
+  SELECT a.id, a.katalog_id, a.plattform_id, a.variante_id, a.art, a.zustand, a.vollstaendigkeit, a.region, a.anzahl,
+    b.haendler_status IS NOT NULL, a.preis, a.preis, a.preis, a.preis,
+    COALESCE((SELECT SUM(aufrufe) FROM boerse_statistik s WHERE s.angebot_id = a.id), 0),
+    COALESCE((SELECT SUM(anfragen) FROM boerse_statistik s WHERE s.angebot_id = a.id), 0),
+    COALESCE((SELECT SUM(treffer) FROM boerse_statistik s WHERE s.angebot_id = a.id), 0),
+    date(a.erstellt_am),
+    CASE WHEN a.status IN ('aktiv', 'reserviert') THEN NULL ELSE date(a.aktualisiert_am) END,
+    CASE WHEN a.status IN ('aktiv', 'reserviert') THEN NULL ELSE a.status END
+  FROM angebote a JOIN benutzer b ON b.id = a.benutzer_id;
   `,
 ];
 

@@ -596,7 +596,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     }
     kuerzeNachPaketende();
     erinnereTestende();
-    statistik.aufraeumen();
+    statistik.erfasseNachfrage();
     return abgelaufen.length;
   }
 

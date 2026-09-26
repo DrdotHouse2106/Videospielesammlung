@@ -250,6 +250,7 @@ export const api = {
   adminEinstellungen: () => anfrage('/api/admin/einstellungen'),
   adminEinstellungenSpeichern: (daten) => anfrage('/api/admin/einstellungen', { methode: 'PUT', daten }),
   adminBesucher: (tage) => anfrage(`/api/admin/besucher?tage=${tage}`),
+  adminMarktdaten: () => anfrage('/api/admin/marktdaten'),
   adminSicherungen: () => anfrage('/api/admin/sicherungen'),
   adminSicherungStarten: () => anfrage('/api/admin/sicherungen', { methode: 'POST', daten: {} }),
   adminBenutzer: () => anfrage('/api/admin/benutzer'),

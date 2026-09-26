@@ -342,12 +342,17 @@ Bezahlung und Versand vereinbaren die Beteiligten direkt miteinander.
 - **Wunschliste:** „Auf die Wunschliste“ – optional mit Plattform, Region, Mindestzustand, nur CIB und Höchstpreis.
   Wird ein passendes Angebot eingestellt, gibt es eine Benachrichtigung. Die Spieleseiten zeigen, wie viele Sammler
   ein Spiel anbieten oder suchen.
+- **Anonymes Marktarchiv:** Jede Anzeige wird ohne Bezug zum Anbieter archiviert (Spiel, Plattform, Zustand, Region, Preise
+  von Start bis Ende, Laufzeit, Ergebnis wie „verkauft“, Aufrufe/Anfragen), dazu täglich die Nachfrage je Spiel (Suchende,
+  Preisvorstellung, Angebote, Preise). Datenbank-Trigger erfassen dabei jeden Weg – auch CSV-Import, Ablauf und Konto-Löschung.
+  Administratoren sehen unter *Administration → Marktdaten* eine Übersicht und laden die Daten als CSV herunter
+  (Grundlage für Preisentwicklungen und Marktberichte). Rechtstexte weisen auf die Nutzung hin.
 - **Tauschvorschläge:** Die App findet Sammler, die haben, was du suchst, und gleichzeitig suchen, was du tauschen möchtest.
 - **Nachrichten** zu Angeboten innerhalb der App (E-Mail-Adressen bleiben verborgen), danach gegenseitige **Bewertungen**.
 - **Statistik** (*Meine Börse → Statistik*, Teil der Händler-Pakete): Aufrufe, Anfragen und Wunschlisten-Treffer je
   Angebot und Tag, Anfragequote, Vergleich zum Zeitraum davor und die meistgesuchten eigenen Titel. Ohne Paket gibt es nur
   die Gesamtzahlen der letzten 30 Tage; gezählt wird aber immer, sodass nach dem Buchen der Verlauf sofort da ist. Gespeichert werden nur Tageszähler – keine Namen,
-  IP-Adressen oder Cookies; eigene Aufrufe und Bots zählen nicht, nach 400 Tagen wird gelöscht.
+  IP-Adressen oder Cookies; eigene Aufrufe und Bots zählen nicht, die Werte bleiben für Langzeitvergleiche (Zeitraum „Gesamt“ mit Monatswerten) erhalten.
 - **Schutz:** Angebote lassen sich melden, Benutzer blockieren; neue Konten ohne bestätigte E-Mail-Adresse dürfen erst
   nach einer Wartezeit schreiben, Nachrichten sind mengenmäßig begrenzt. Angebote gibt es nur für freigegebene Katalogeinträge.
 - **Händler:** Unter *Meine Börse → Händler & Massen-Upload* hinterlegen gewerbliche Anbieter ihre Anbieterkennzeichnung
