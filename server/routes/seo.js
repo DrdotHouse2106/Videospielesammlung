@@ -2,6 +2,7 @@
 //   /spiel/:id-slug, /konsole/:id-slug, /zubehoer/:id-slug – ein Katalogeintrag
 //   /plattformen, /plattform/:slug                          – Übersichten
 //   /preisindex, /preisindex/:plattform                     – Preisindex aus echten Börsen-Verkäufen
+//   /haendler, /haendler/:id-slug                            – verifizierte Händler (bei Google gelistet mit Paket)
 //   /sitemap.xml, /sitemap-*.xml, /robots.txt
 //
 // Seiten werden erst beim Aufruf erzeugt, nichts wird vorab gespeichert.
@@ -10,13 +11,14 @@
 // Reine IGDB-Suchtreffer bleiben aufrufbar, sind aber für Suchmaschinen gesperrt.
 import { Router } from 'express';
 import { HERSTELLER_REIHENFOLGE, ARTIKELTYPEN, MEDIENARTEN, REGIONEN, ZUSTAENDE, VOLLSTAENDIGKEITEN, beschriftung } from '../../shared/konstanten.js';
-import { katalogPfad, plattformPfad, slug, KATALOG_PRAEFIXE, APP_START, appLink } from '../../shared/seo.js';
+import { katalogPfad, plattformPfad, haendlerPfad, slug, KATALOG_PRAEFIXE, APP_START, appLink } from '../../shared/seo.js';
 import { leseCookies } from '../middleware/auth.js';
 import { COOKIE_NAME } from '../services/konten.js';
 import { erstelleDrossel } from '../services/drossel.js';
 import { MARKE } from '../../shared/marke.js';
 import { katalogZeileZuObjekt } from '../services/katalog.js';
 import { erstellePreisindexDienst, MIN_VERKAEUFE } from '../services/preisindex.js';
+import { paketAktiv } from '../services/boerse.js';
 
 const APP = MARKE.name;
 const PRO_SEITE = 60;
@@ -164,6 +166,7 @@ ${inhalt}
   <a href="/plattformen">Alle Plattformen</a>
   <a href="/suche">Suche</a>
   <a href="/preisindex">Preisindex</a>
+  <a href="/haendler">Händler</a>
   <a href="${appLink('/seite/impressum')}">Impressum</a>
   <a href="${appLink('/seite/datenschutz')}">Datenschutz</a>
   <a href="${appLink('/seite/nutzungsbedingungen')}">Nutzungsbedingungen</a>
@@ -643,6 +646,80 @@ ${plattformen.length ? `<section class="karte"><h2>Preisindex nach Plattform</h2
     preisindexSeite(req, res, { ...p, pfad: `/preisindex/${req.params.slug}` });
   });
 
+  // ── Öffentliche Händlerseiten ────────────────────────────────────────
+  const haendlerZeilen = db.prepare(`SELECT b.id, b.erstellt_am, b.haendler_daten, b.haendler_paket, b.haendler_paket_bis, b.haendler_status,
+      (SELECT COUNT(*) FROM angebote a WHERE a.benutzer_id = b.id AND a.status IN ('aktiv', 'reserviert')) AS angebote
+    FROM benutzer b WHERE b.haendler_status = 'verifiziert' AND b.gesperrt = 0 AND b.haendler_daten IS NOT NULL`);
+  const haendlerDatenVon = (z) => { try { return JSON.parse(z.haendler_daten) || {}; } catch { return {}; } };
+  const alleHaendler = () => haendlerZeilen.all().map((z) => {
+    const d = haendlerDatenVon(z);
+    return { ...z, daten: d, firma: d.firma || 'Händler', pfad: haendlerPfad(z.id, d.firma), gelistet: paketAktiv(z) };
+  });
+  const mehrzeilig = (t) => esc(t).replace(/\r?\n/g, '<br>');
+  const sichereUrl = (u) => (/^https?:\/\/[^\s"<>]+$/i.test(String(u ?? '').trim()) ? String(u).trim() : null);
+  // Bewertungen (+1/0/−1) für schema.org auf 1–5 Sterne abbilden
+  const sterne = (bw) => (bw.gesamt ? Math.round(((bw.positiv * 5 + bw.neutral * 3 + bw.negativ * 1) / bw.gesamt) * 10) / 10 : null);
+
+  router.get('/haendler', (req, res) => {
+    if (!sichtbarOeffentlich()) return res.redirect(302, APP_START);
+    const liste = alleHaendler().filter((h) => h.angebote > 0)
+      .sort((a, b) => Number(b.gelistet) - Number(a.gelistet) || b.angebote - a.angebote || a.firma.localeCompare(b.firma, 'de'));
+    const inhalt = `<h1>Händler für Retro- und Videospiele</h1>
+<p>Verifizierte gewerbliche Anbieter in der ${APP}-Tauschbörse – mit geprüfter Anbieterkennzeichnung und Bewertungen von Sammlern.</p>
+${liste.length ? `<ul class="liste">${liste.map((h) => {
+    const bw = boerse.bewertungFuer(h.id);
+    return `<li><a href="${h.pfad}"><b>${esc(h.firma)}</b></a> <span class="leise">✓ verifiziert · ${zahl(h.angebote)} ${h.angebote === 1 ? 'Angebot' : 'Angebote'}${bw.gesamt ? ` · ${zahl(bw.positiv)} von ${zahl(bw.gesamt)} Bewertungen positiv` : ''}</span></li>`;
+  }).join('')}</ul>` : '<p class="leise">Noch keine Händler mit aktiven Angeboten.</p>'}
+<section class="karte"><h2>Du bist Händler?</h2><p>Stell deinen Bestand per CSV oder Shop-Anbindung ein und erreiche Sammler, die genau diese Spiele auf ihrer Wunschliste haben.</p><p><a class="knopf" href="${appLink('/boerse/haendler')}">Händlerbereich</a></p></section>`;
+    sende(res, seite(req, {
+      titel: `Händler für Retro- und Videospiele – verifiziert & bewertet | ${APP}`,
+      beschreibung: `${zahl(liste.length)} verifizierte Händler mit Retro-Spielen, Konsolen und Zubehör – mit Anbieterkennzeichnung und Sammler-Bewertungen.`,
+      pfad: '/haendler', indexierbar: liste.some((h) => h.gelistet), inhalt,
+    }));
+  });
+
+  router.get('/haendler/:teil', (req, res) => {
+    if (!sichtbarOeffentlich()) return res.redirect(302, APP_START);
+    const id = Number.parseInt(req.params.teil, 10);
+    const h = alleHaendler().find((x) => x.id === id);
+    if (!h) return nichtGefunden(req, res);
+    if (req.path !== h.pfad) return res.redirect(301, h.pfad);
+    const d = h.daten;
+    const bw = boerse.bewertungFuer(h.id);
+    const angebote = db.prepare(`SELECT a.id, a.preis, a.art, a.zustand, a.vollstaendigkeit, k.id AS katalog_id, k.titel, k.typ, k.cover_url, p.kurz AS plattform_kurz
+      FROM angebote a JOIN katalog k ON k.id = a.katalog_id LEFT JOIN plattformen p ON p.id = a.plattform_id
+      WHERE a.benutzer_id = ? AND a.status = 'aktiv' ORDER BY a.aktualisiert_am DESC LIMIT 120`).all(h.id);
+    const shop = sichereUrl(d.shop_url);
+    const kennzeichnung = [['Anschrift', d.anschrift], ['E-Mail', d.email], ['Telefon', d.telefon], ['Vertreten durch', d.vertreten],
+      ['Register', d.register], ['USt-IdNr.', d.ustid]].filter(([, w]) => w);
+    const inhalt = `<nav class="pfad" aria-label="Brotkrumen"><a href="/haendler">Händler</a> › ${esc(h.firma)}</nav>
+<h1>${esc(h.firma)}</h1>
+<p class="chips"><span class="chip">✓ Verifizierter Händler</span>${bw.gesamt ? `<span class="chip">👍 ${zahl(bw.positiv)} · 😐 ${zahl(bw.neutral)} · 👎 ${zahl(bw.negativ)}</span>` : ''}<span class="chip">Dabei seit ${esc(new Date(`${h.erstellt_am.slice(0, 10)}T12:00:00Z`).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }))}</span></p>
+<p>${zahl(h.angebote)} aktive ${h.angebote === 1 ? 'Angebot' : 'Angebote'} in der ${APP}-Tauschbörse.${shop ? ` Eigener Shop: <a href="${esc(shop)}" rel="noopener${h.gelistet ? '' : ' nofollow'}" target="_blank">${esc(shop.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</a>` : ''}</p>
+${angebote.length ? `<section class="karte"><h2>Angebote</h2><ul class="liste">${angebote.map((a) => `<li><a href="${appLink(`/boerse/angebot/${a.id}`)}">${esc(a.titel)}${a.plattform_kurz ? ` (${esc(a.plattform_kurz)})` : ''}</a> – <b>${a.art === 'tausch' ? 'Tausch' : a.preis != null ? euro(a.preis) : 'Preis auf Anfrage'}</b>
+<span class="leise">${esc([beschriftung(ZUSTAENDE, a.zustand), beschriftung(VOLLSTAENDIGKEITEN, a.vollstaendigkeit)].filter(Boolean).join(' · '))} · <a class="leise" href="${katalogPfad(a, a.plattform_kurz)}">Infos & Wert</a></span></li>`).join('')}</ul>
+${h.angebote > angebote.length ? `<p class="leise">… und ${zahl(h.angebote - angebote.length)} weitere in der App.</p>` : ''}
+<p class="leise">Kontakt und Kauf über die ${APP}-App (kostenlose Anmeldung).</p></section>` : ''}
+${d.versandinfo ? `<section class="karte"><h2>Versand und Zahlung</h2><p>${mehrzeilig(d.versandinfo)}</p></section>` : ''}
+<section class="karte"><h2>Anbieterkennzeichnung</h2><p><b>${esc(h.firma)}</b></p><ul class="liste">${kennzeichnung.map(([l, w]) => `<li><span class="leise">${l}</span><br>${l === 'E-Mail' ? `<a href="mailto:${esc(w)}">${esc(w)}</a>` : mehrzeilig(w)}</li>`).join('')}</ul>
+${d.widerruf ? `<h3>Widerrufsbelehrung / AGB</h3><p>${sichereUrl(d.widerruf) ? `<a href="${esc(sichereUrl(d.widerruf))}" rel="nofollow noopener" target="_blank">${esc(d.widerruf)}</a>` : mehrzeilig(d.widerruf)}</p>` : ''}
+<p class="leise">Angaben des Händlers; die Anbieterkennzeichnung wurde vom Betreiber geprüft.</p></section>`;
+    const bewertung = sterne(bw);
+    sende(res, seite(req, {
+      titel: `${h.firma} – Retro-Spiele, Konsolen & Zubehör | ${APP}`,
+      beschreibung: kuerze(`${h.firma}: ${zahl(h.angebote)} Angebote für Retro- und Videospiele. Verifizierter Händler${bw.gesamt ? ` mit ${zahl(bw.gesamt)} Sammler-Bewertungen` : ''} in der ${APP}-Tauschbörse.`, 158),
+      pfad: h.pfad, indexierbar: h.gelistet, inhalt,
+      strukturiert: [{
+        '@context': 'https://schema.org', '@type': 'Store', name: h.firma, url: `${basis(req)}${h.pfad}`,
+        ...(shop ? { sameAs: [shop] } : {}),
+        ...(d.anschrift ? { address: String(d.anschrift).replace(/\s*\n\s*/g, ', ') } : {}),
+        ...(d.email ? { email: d.email } : {}),
+        ...(d.telefon ? { telephone: d.telefon } : {}),
+        ...(bewertung !== null ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: bewertung, bestRating: 5, worstRating: 1, ratingCount: bw.gesamt } } : {}),
+      }],
+    }));
+  });
+
   // ── Sitemap & robots.txt ─────────────────────────────────────────────
   const anzahlIndexierbar = db.prepare(`SELECT COUNT(*) AS n FROM katalog k WHERE ${INDEXIERBAR_SQL}`);
   const sitemapEintraege = db.prepare(`
@@ -673,6 +750,10 @@ ${urlEintrag(`${b}/`)}
 ${liste.length ? urlEintrag(`${b}/plattformen`) : ''}
 ${liste.map((p) => urlEintrag(`${b}${p.pfad}`)).join('\n')}
 ${sichtbarOeffentlich() ? [urlEintrag(`${b}/preisindex`), ...indexPlattformen().map((p) => urlEintrag(`${b}${p.pfad}`))].join('\n') : ''}
+${(() => {
+    const gelistet = sichtbarOeffentlich() ? alleHaendler().filter((h) => h.gelistet && h.angebote > 0) : [];
+    return gelistet.length ? [urlEintrag(`${b}/haendler`), ...gelistet.map((h) => urlEintrag(`${b}${h.pfad}`))].join('\n') : '';
+  })()}
 </urlset>`);
   });
 

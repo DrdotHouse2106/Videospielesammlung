@@ -74,7 +74,8 @@ function Vorteile({ profil }) {
       <ul className="list-disc space-y-1 pl-5">
         <li><strong>Massen-Upload per CSV</strong> – z. B. direkt aus dem Export deines Shops (Shopware, WooCommerce, JTL …) oder einer Tabelle. Mit Artikelnummer wird der Bestand bei jedem Upload abgeglichen.</li>
         <li><strong>Sammler mit passender Wunschliste</strong> werden automatisch über deine Angebote informiert.</li>
-        <li><strong>Händlerprofil</strong> mit Anbieterkennzeichnung, Link zu deinem Shop und Bewertungen.</li>
+        <li><strong>Händlerprofil</strong> mit Anbieterkennzeichnung, Link zu deinem Shop und Bewertungen – nach der Verifizierung als
+          <strong> öffentliche Händlerseite</strong>; mit Händler-Paket wird sie bei Google gelistet und dein Shop-Link zählt als echter Verweis.</li>
         <li><strong>Kostenlos bis {anzahl(profil.kostenlos)} aktive Angebote</strong> – mehr mit einem Händler-Paket, das zusätzlich die vollständige
           <strong> Nachfrage-Auswertung</strong> (welche Spiele gesucht werden, wie viel Sammler zahlen würden, wofür es noch kein Angebot gibt)
           und die <a className="underline" href="#/boerse/meine?tab=statistik"><strong>Statistik</strong></a> zu Aufrufen, Anfragen und Wunschlisten-Treffern je Angebot enthält.</li>
@@ -84,6 +85,12 @@ function Vorteile({ profil }) {
         Status: {profil.status === 'verifiziert' ? '✓ Verifizierter Händler' : profil.status === 'angemeldet' ? 'Als Händler angemeldet – die Verifizierung durch den Betreiber steht noch aus.' : 'Privat'}
         {' · '}{anzahl(profil.aktive_angebote)} von {anzahl(profil.limit)} aktiven Angeboten
       </p>
+      {profil.oeffentlich && (
+        <p className="text-xs text-leise">
+          Deine öffentliche Seite: <a className="text-akzent-hell underline break-all" href={profil.oeffentlich.pfad} target="_blank" rel="noopener">{window.location.host}{profil.oeffentlich.pfad}</a>
+          {profil.oeffentlich.indexiert ? ' · wird bei Google gelistet' : ' · mit Händler-Paket auch bei Google gelistet'}
+        </p>
+      )}
     </section>
   );
 }

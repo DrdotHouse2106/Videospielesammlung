@@ -14,6 +14,7 @@ import { KontoFehler } from './konten.js';
 import { erstelleDrossel } from './drossel.js';
 import { erstelleBoersenStatistik } from './boersenstatistik.js';
 import { erstellePreisindexDienst } from './preisindex.js';
+import { haendlerPfad } from '../../shared/seo.js';
 
 const ARTEN = ANGEBOTSARTEN.map((a) => a.value);
 const EIGENE_STATUS = ['aktiv', 'reserviert', 'verkauft', 'beendet'];
@@ -876,6 +877,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
       aktive_angebote: q.anzahlAktiv.get(b.id).n,
       bewertungen: bewertungenListe(b.id),
       eigenes: Boolean(benutzer && benutzer.id === b.id),
+      oeffentlich_pfad: b.haendler_status === 'verifiziert' ? haendlerPfad(b.id, haendlerDaten(b)?.firma) : null,
       blockiert: Boolean(benutzer && db.prepare('SELECT 1 FROM blockierungen WHERE benutzer_id = ? AND blockiert_id = ?').get(benutzer.id, b.id)),
     };
   }
@@ -905,6 +907,8 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
       test_moeglich: Boolean(k().testTage > 0 && k().pakete.length && b.haendler_status === 'verifiziert' && !b.haendler_test_genutzt_am
         && !paketAktiv(b) && !apiAktiv(b)),
       test_tage: k().testTage,
+      // Öffentliche Händlerseite (nur verifiziert); bei Suchmaschinen gelistet mit aktivem Paket
+      oeffentlich: b.haendler_status === 'verifiziert' ? { pfad: haendlerPfad(b.id, haendlerDaten(b)?.firma), indexiert: paketAktiv(b) } : null,
     };
   }
 

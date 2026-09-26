@@ -356,6 +356,9 @@ Bezahlung und Versand vereinbaren die Beteiligten direkt miteinander.
   Median-Verkaufspreis, Preisaufsteiger (6 Monate gegenüber den 6 davor), meistgesuchte Titel und die Verkäufe je Monat –
   nur aus echten, gemeldeten bzw. bestätigten Verkäufen und erst ab drei Verkäufen je Titel. Die Spieleseiten zeigen den
   Median ebenfalls („Tatsächlich verkauft“).
+- **Öffentliche Händlerseiten** (`/haendler`, `/haendler/<id>-<name>`): Jeder verifizierte Händler bekommt eine Seite mit
+  Angeboten, Versandinfos, Bewertungen und Anbieterkennzeichnung (schema.org `Store`). Bei Suchmaschinen gelistet (Sitemap,
+  `index`) und mit echtem Shop-Link (ohne `nofollow`) nur mit aktivem Händler-Paket – ein weiterer Vorteil der Pakete.
 - **Tauschvorschläge:** Die App findet Sammler, die haben, was du suchst, und gleichzeitig suchen, was du tauschen möchtest.
 - **Nachrichten** zu Angeboten innerhalb der App (E-Mail-Adressen bleiben verborgen), danach gegenseitige **Bewertungen**.
 - **Verkaufsbestätigung:** Beim Markieren als verkauft fragt die App nach dem tatsächlichen Preis und dem Käufer (einer der

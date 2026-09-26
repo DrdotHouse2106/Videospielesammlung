@@ -25,6 +25,9 @@ export function katalogPfad(eintrag, plattformKurz) {
 
 export const plattformPfad = (plattform) => `/plattform/${slug(plattform.kurz || plattform.name)}`;
 
+/** Öffentliche Seite eines verifizierten Händlers, z. B. /haendler/7-retroladen-gmbh */
+export const haendlerPfad = (id, firma) => `/haendler/${id}${slug(firma) ? `-${slug(firma)}` : ''}`;
+
 export const KATALOG_PRAEFIXE = Object.values(PRAEFIX);
 
 /** Startadresse der App (Single-Page-App). „/“ ohne ?app zeigt Besuchern ohne Anmeldung die Startseite. */

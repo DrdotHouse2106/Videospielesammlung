@@ -39,6 +39,9 @@ export default function BoerseAnbieter({ route, id }) {
     <Layout route={route} titel={p.name} zurueck="/boerse">
       <div className="mx-auto max-w-3xl space-y-4 pb-8">
         <AnbieterBox anbieter={p} />
+        {p.oeffentlich_pfad && (
+          <p className="text-sm"><a className="text-akzent-hell underline" href={p.oeffentlich_pfad} target="_blank" rel="noopener">Öffentliche Händlerseite ansehen</a></p>
+        )}
         {!p.eigenes && (
           <p className="text-right"><button type="button" className="text-xs text-leise underline hover:text-gefahr" onClick={blockieren}>{p.blockiert ? 'Blockierung aufheben' : 'Blockieren'}</button></p>
         )}
