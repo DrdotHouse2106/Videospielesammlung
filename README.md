@@ -336,6 +336,9 @@ Bezahlung und Versand vereinbaren die Beteiligten direkt miteinander.
 - **Anbieten:** Auf der Seite eines Spiels oder bei einem Exemplar deiner Sammlung auf „Anbieten“ tippen – zum Verkauf,
   zum Tausch oder beides, mit Preisvorstellung, Zustand, Versand/Abholung. Von der Postleitzahl werden nur die ersten
   zwei Ziffern gespeichert. Angebote laufen nach `MARKET_OFFER_DAYS` Tagen ab und lassen sich mit einem Klick verlängern.
+- **Fotos:** bis zu sechs Fotos je Angebot, direkt mit der Handykamera. Sie werden verkleinert, Standort- und andere
+  Metadaten werden entfernt; beim Anbieten aus der Sammlung wird das Foto des Exemplars übernommen. Fotos zählen zum
+  Speicherkontingent und sind nur angemeldet und nur für aktive Angebote sichtbar.
 - **Wunschliste:** „Auf die Wunschliste“ – optional mit Plattform, Region, Mindestzustand, nur CIB und Höchstpreis.
   Wird ein passendes Angebot eingestellt, gibt es eine Benachrichtigung. Die Spieleseiten zeigen, wie viele Sammler
   ein Spiel anbieten oder suchen.

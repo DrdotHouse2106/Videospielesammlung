@@ -194,6 +194,13 @@ export const api = {
   angebotAnlegen: (daten) => anfrage('/api/boerse/angebote', { methode: 'POST', daten }),
   angebotAendern: (id, daten) => anfrage(`/api/boerse/angebote/${id}`, { methode: 'PUT', daten }),
   angebotLoeschen: (id) => anfrage(`/api/boerse/angebote/${id}`, { methode: 'DELETE' }),
+  angebotFotosHochladen: (id, dateien) => {
+    const formular = new FormData();
+    for (const d of dateien) formular.append('fotos', d);
+    return anfrage(`/api/boerse/angebote/${id}/fotos`, { methode: 'POST', formular });
+  },
+  angebotFotoLoeschen: (id) => anfrage(`/api/boerse/fotos/${id}`, { methode: 'DELETE' }),
+  angebotFotoTitelbild: (id) => anfrage(`/api/boerse/fotos/${id}/titelbild`, { methode: 'POST', daten: {} }),
   angebotAnfragen: (id, text) => anfrage(`/api/boerse/angebote/${id}/anfrage`, { methode: 'POST', daten: { text } }),
   meineAngebote: () => anfrage('/api/boerse/meine'),
   wunschliste: () => anfrage('/api/boerse/wunschliste'),

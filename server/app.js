@@ -33,6 +33,7 @@ import { erstelleBoersenDienst } from './services/boerse.js';
 import { erstelleBoersenImport } from './services/boersenimport.js';
 import { boerseRouter } from './routes/boerse.js';
 import { erstelleAnbindungsDienst } from './services/anbindungen.js';
+import { erstelleAngebotFotoDienst } from './services/angebotfotos.js';
 import { erstelleErpNextDienst } from './services/erpnext.js';
 import { erstelleZahlungsDienst } from './services/zahlung.js';
 import { zahlungRouter, zahlungWebhookRouter, zahlungAdminRouter } from './routes/zahlung.js';
@@ -94,11 +95,12 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const boersenImport = erstelleBoersenImport(db, { boerse, plattformen, konfiguration });
   const anbindungen = erstelleAnbindungsDienst(db, { schluessel, boerse, boersenImport, fetchFn });
   const erpnext = erstelleErpNextDienst(db, { konfiguration, fetchFn });
+  const angebotFotos = erstelleAngebotFotoDienst(db, { dateien, speicher });
   const zahlung = erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, erpnext, fetchFn });
   const neueKi = () => erstelleKiDienst(db, konfiguration.ki ?? { anbieter: 'aus' }, { katalog, fetchFn, anbieterFn: konfiguration.kiAnbieterFn, benachrichtigungen });
   const ki = neueKi();
   const kontext = {
-    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, mail, kontoMail, benachrichtigungen, erfolge, besucher, captcha, boerse, boersenImport, anbindungen, erpnext, zahlung, konfiguration, version,
+    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, mail, kontoMail, benachrichtigungen, erfolge, besucher, captcha, boerse, boersenImport, anbindungen, angebotFotos, erpnext, zahlung, konfiguration, version,
   };
 
   /**

@@ -146,7 +146,9 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
   // Anbieter-Infos und Katalogdaten zu einem Angebot (Alias a)
   const ANGEBOT_SPALTEN = `a.*, k.titel, k.typ, k.cover_url, k.erscheinungsjahr, p.name AS plattform, p.kurz AS plattform_kurz,
     v.bezeichnung AS variante, b.benutzername, b.anzeigename, b.haendler_status, b.haendler_daten,
-    (SELECT COUNT(*) FROM wunschliste w WHERE w.katalog_id = a.katalog_id AND w.benutzer_id != a.benutzer_id) AS gesucht_von`;
+    (SELECT COUNT(*) FROM wunschliste w WHERE w.katalog_id = a.katalog_id AND w.benutzer_id != a.benutzer_id) AS gesucht_von,
+    (SELECT f.vorschau FROM angebot_fotos f WHERE f.angebot_id = a.id ORDER BY f.reihenfolge, f.id LIMIT 1) AS foto_vorschau,
+    (SELECT COUNT(*) FROM angebot_fotos f WHERE f.angebot_id = a.id) AS fotos_anzahl`;
   const ANGEBOT_JOIN = `FROM angebote a JOIN katalog k ON k.id = a.katalog_id JOIN benutzer b ON b.id = a.benutzer_id
     LEFT JOIN plattformen p ON p.id = a.plattform_id LEFT JOIN katalog_varianten v ON v.id = a.variante_id`;
   // Keine Angebote von Benutzern, die man blockiert hat oder von denen man blockiert wurde
@@ -211,11 +213,12 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
   function angebotZuObjekt(zeile, ich) {
     if (!zeile) return null;
     const {
-      benutzername: _n, anzeigename: _a, haendler_status: _h, haendler_daten: _d, sku, artikel_id: artikelId, ...rest
+      benutzername: _n, anzeigename: _a, haendler_status: _h, haendler_daten: _d, sku, artikel_id: artikelId, foto_vorschau: foto, ...rest
     } = zeile;
     const eigenes = Boolean(ich && zeile.benutzer_id === ich.id);
     return {
       ...rest,
+      foto: foto ? `/api/dateien/${foto}` : null,
       verhandelbar: Boolean(zeile.verhandelbar),
       versand: Boolean(zeile.versand),
       abholung: Boolean(zeile.abholung),
@@ -378,6 +381,8 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
       if (benutzer && q.blockiert.get({ a: benutzer.id, b: zeile.benutzer_id })) return null;
     }
     const objekt = angebotZuObjekt(zeile, benutzer);
+    objekt.fotos = db.prepare('SELECT id, datei, vorschau FROM angebot_fotos WHERE angebot_id = ? ORDER BY reihenfolge, id').all(zeile.id)
+      .map((f) => ({ id: f.id, url: `/api/dateien/${f.datei}`, vorschau: `/api/dateien/${f.vorschau}` }));
     objekt.anbieter = {
       ...anbieterInfo(zeile, { mitKennzeichnung: true }),
       aktive_angebote: q.anzahlAktiv.get(zeile.benutzer_id).n,
@@ -412,6 +417,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
       bed.push(`a.zustand IN (${erlaubt})`);
     }
     if (filter.cib === '1' || filter.cib === true) bed.push("a.vollstaendigkeit = 'cib'");
+    if (filter.mit_foto === '1') bed.push('EXISTS (SELECT 1 FROM angebot_fotos f WHERE f.angebot_id = a.id)');
     const maxPreis = leer(filter.max_preis) ? null : leseEuro(filter.max_preis);
     if (maxPreis !== null) { bed.push('a.preis IS NOT NULL AND a.preis <= @maxPreis'); p.maxPreis = maxPreis; }
     if (filter.versand === '1') bed.push('a.versand = 1');

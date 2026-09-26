@@ -37,7 +37,8 @@ export function erstelleSpeicherDienst(db, { standardMb = 1024, dateien }) {
 
   const belegtAbfrage = db.prepare(`
     SELECT (SELECT COALESCE(SUM(groesse_gesamt), 0) FROM medien WHERE benutzer_id = @id AND sichtbarkeit <> 'freigegeben')
-         + (SELECT COALESCE(SUM(bild_groesse), 0) FROM artikel WHERE benutzer_id = @id AND bild_datei IS NOT NULL) AS n`);
+         + (SELECT COALESCE(SUM(bild_groesse), 0) FROM artikel WHERE benutzer_id = @id AND bild_datei IS NOT NULL)
+         + (SELECT COALESCE(SUM(groesse), 0) FROM angebot_fotos WHERE benutzer_id = @id) AS n`);
   const benutzerLimit = db.prepare('SELECT rolle, speicher_limit_mb FROM benutzer WHERE id = ?');
 
   /** Limit in Byte, null = unbegrenzt. Administratoren sind ohne eigenes Limit unbegrenzt. */

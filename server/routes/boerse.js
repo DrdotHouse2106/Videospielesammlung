@@ -1,5 +1,8 @@
 // Tauschbörse: Angebote, Wunschliste, Nachrichten, Bewertungen, gewerbliche Anbieter und Massen-Upload.
+import crypto from 'node:crypto';
 import { Router } from 'express';
+import multer from 'multer';
+import { FOTO_TYPEN, MAX_FOTOS } from '../services/angebotfotos.js';
 import { erstelleDrossel } from '../services/drossel.js';
 import { beschriftung, ZUSTAENDE, VOLLSTAENDIGKEITEN, REGIONEN, ANGEBOTSARTEN, ANGEBOTSSTATUS } from '../../shared/konstanten.js';
 
@@ -11,8 +14,17 @@ const zelle = (wert) => {
   return /[";\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
 };
 
-export function boerseRouter({ boerse, boersenImport, anbindungen }) {
+export function boerseRouter({ db, boerse, boersenImport, anbindungen, angebotFotos, dateien, konfiguration }) {
   const router = Router();
+  // Fotos: Upload in den Upload-Ordner, danach verkleinert/umgewandelt – das Original wird gelöscht
+  const fotoUpload = (req, res, next) => multer({
+    storage: multer.diskStorage({
+      destination: dateien.verzeichnis,
+      filename: (_req, datei, cb) => cb(null, `tmp-${crypto.randomUUID()}${FOTO_TYPEN[datei.mimetype]}`),
+    }),
+    limits: { fileSize: konfiguration.maxUploadMb * 1024 * 1024, files: MAX_FOTOS },
+    fileFilter: (_req, datei, cb) => cb(null, Boolean(FOTO_TYPEN[datei.mimetype])),
+  }).array('fotos', MAX_FOTOS)(req, res, next);
   // Manuelle Abgleiche und Verbindungstests schonen die Systeme der Händler
   const abrufDrossel = erstelleDrossel({ maxVersuche: 10, fensterMs: 60 * 60 * 1000 });
   const gedrosselt = (req, res) => {
@@ -33,10 +45,33 @@ export function boerseRouter({ boerse, boersenImport, anbindungen }) {
     res.json(a);
   });
 
-  router.post('/boerse/angebote', (req, res) => res.status(201).json(boerse.legeAn(req.benutzer, req.body ?? {})));
+  router.post('/boerse/angebote', async (req, res) => {
+    const angebot = boerse.legeAn(req.benutzer, req.body ?? {});
+    // Foto des Exemplars aus der Sammlung übernehmen
+    if (angebot.artikel_id) {
+      const bild = db.prepare('SELECT bild_datei FROM artikel WHERE id = ? AND benutzer_id = ?').get(angebot.artikel_id, req.benutzer.id)?.bild_datei;
+      if (bild) await angebotFotos.fuegeHinzu(req.benutzer, angebot.id, dateien.pfadVon(bild)).catch(() => {});
+    }
+    res.status(201).json(boerse.hole(angebot.id, req.benutzer));
+  });
+
+  router.post('/boerse/angebote/:id/fotos', fotoUpload, async (req, res) => {
+    const temp = (req.files ?? []).map((f) => f.filename);
+    try {
+      if (!temp.length) return res.status(400).json({ fehler: 'Bitte Fotos im Format JPG, PNG oder WebP auswählen.' });
+      for (const datei of temp) await angebotFotos.fuegeHinzu(req.benutzer, req.params.id, dateien.pfadVon(datei));
+      res.json(boerse.hole(req.params.id, req.benutzer));
+    } finally {
+      dateien.loesche(temp);
+    }
+  });
+  router.delete('/boerse/fotos/:id', (req, res) => res.json(boerse.hole(angebotFotos.entferne(req.benutzer, req.params.id), req.benutzer)));
+  router.post('/boerse/fotos/:id/titelbild', (req, res) => res.json(boerse.hole(angebotFotos.alsTitelbild(req.benutzer, req.params.id), req.benutzer)));
   router.put('/boerse/angebote/:id', (req, res) => res.json(boerse.aendere(req.benutzer, req.params.id, req.body ?? {})));
   router.delete('/boerse/angebote/:id', (req, res) => {
+    const fotos = angebotFotos.dateienVon(req.params.id);
     boerse.loesche(req.benutzer, req.params.id);
+    dateien.loesche(fotos);
     res.status(204).end();
   });
 

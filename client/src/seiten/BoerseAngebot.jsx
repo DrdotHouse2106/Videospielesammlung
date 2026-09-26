@@ -52,7 +52,8 @@ export default function BoerseAngebot({ route, id }) {
     <Layout route={route} titel={a.titel} zurueck="/boerse">
       <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-[14rem_minmax(0,1fr)]">
         <div className="min-w-0 space-y-3">
-          <Cover url={a.cover_url} typ={a.typ} alt={a.titel} className="mx-auto aspect-[3/4] w-1/2 rounded-2xl border border-rand md:w-full" />
+          {a.fotos?.length ? <Galerie fotos={a.fotos} titel={a.titel} />
+            : <Cover url={a.cover_url} typ={a.typ} alt={a.titel} className="mx-auto aspect-[3/4] w-1/2 rounded-2xl border border-rand md:w-full" />}
           <a href={`#/katalog/${a.katalog_id}`} className="knopf-sekundaer w-full">Zur Spieleseite</a>
         </div>
         <div className="min-w-0 space-y-4">
@@ -75,6 +76,7 @@ export default function BoerseAngebot({ route, id }) {
           </dl>
           {a.beschreibung && <section className="karte p-4"><h3 className="mb-1 text-sm font-semibold text-leise">Beschreibung</h3><p className="text-sm whitespace-pre-wrap">{a.beschreibung}</p></section>}
 
+          {a.eigenes && a.status !== 'entfernt' && <FotosVerwalten angebot={a} onGeaendert={setA} />}
           {a.eigenes ? (
             <section className="karte space-y-3 p-4">
               <h3 className="font-semibold">Dein Angebot</h3>
@@ -112,6 +114,63 @@ export default function BoerseAngebot({ route, id }) {
           onFertig={(neu) => { setBearbeiten(false); if (neu) setA(neu); }} />
       )}
     </Layout>
+  );
+}
+
+/** Fotos wischen (Handy) bzw. blättern; Antippen öffnet das Foto groß. */
+function Galerie({ fotos, titel }) {
+  return (
+    <div className="space-y-1">
+      <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto rounded-2xl">
+        {fotos.map((f, i) => (
+          <a key={f.id} href={f.url} target="_blank" rel="noopener" className="w-full shrink-0 snap-center">
+            <img src={f.url} alt={`${titel} – Foto ${i + 1}`} className="aspect-square w-full rounded-2xl border border-rand bg-karte-hover object-contain" loading={i ? 'lazy' : 'eager'} />
+          </a>
+        ))}
+      </div>
+      {fotos.length > 1 && <p className="text-center text-xs text-leise">{fotos.length} Fotos – wischen zum Blättern</p>}
+    </div>
+  );
+}
+
+function FotosVerwalten({ angebot: a, onGeaendert }) {
+  const zeigeHinweis = useHinweis();
+  const [laeuft, setLaeuft] = useState(false);
+  const frei = 6 - (a.fotos?.length ?? 0);
+  const ausfuehren = async (fn, meldung) => {
+    setLaeuft(true);
+    try { onGeaendert(await fn()); if (meldung) zeigeHinweis(meldung); } catch (err) { zeigeHinweis(err.message, 'fehler'); } finally { setLaeuft(false); }
+  };
+  return (
+    <section className="karte space-y-2 p-4">
+      <h3 className="font-semibold">Fotos ({a.fotos?.length ?? 0}/6)</h3>
+      {!a.fotos?.length && <p className="text-sm text-leise">Angebote mit Fotos vom echten Exemplar werden deutlich öfter angefragt – zeig Vorder-/Rückseite, Modul/Disc und Anleitung.</p>}
+      {a.fotos?.length > 0 && (
+        <ul className="grid grid-cols-3 gap-2">
+          {a.fotos.map((f, i) => (
+            <li key={f.id} className="space-y-1">
+              <img src={f.vorschau} alt="" className="aspect-square w-full rounded-lg border border-rand object-cover" />
+              <div className="flex justify-between text-[11px]">
+                {i === 0 ? <span className="text-akzent-hell">Titelbild</span>
+                  : <button type="button" className="underline" disabled={laeuft} onClick={() => ausfuehren(() => api.angebotFotoTitelbild(f.id))}>Als Titelbild</button>}
+                <button type="button" className="text-gefahr underline" disabled={laeuft} onClick={() => ausfuehren(() => api.angebotFotoLoeschen(f.id), 'Foto gelöscht.')}>Löschen</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {frei > 0 && (
+        <label className={`knopf-sekundaer w-fit cursor-pointer ${laeuft ? 'opacity-50' : ''}`}>
+          <Symbol name="kamera" className="size-4" />{laeuft ? 'Wird hochgeladen …' : 'Fotos hinzufügen'}
+          <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" disabled={laeuft} onChange={(e) => {
+            const auswahl = [...(e.target.files ?? [])].slice(0, frei);
+            e.target.value = '';
+            if (auswahl.length) ausfuehren(() => api.angebotFotosHochladen(a.id, auswahl), `${auswahl.length} ${auswahl.length === 1 ? 'Foto' : 'Fotos'} hinzugefügt.`);
+          }} />
+        </label>
+      )}
+      <p className="text-xs text-leise">Fotos werden verkleinert; Standortdaten und andere Metadaten werden entfernt.</p>
+    </section>
   );
 }
 

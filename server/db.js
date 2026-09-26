@@ -624,6 +624,20 @@ const MIGRATIONEN = [
   ALTER TABLE abos ADD COLUMN verrechnung_netto REAL NOT NULL DEFAULT 0;    -- bei der Buchung eingeplante Verrechnung
   ALTER TABLE benutzer ADD COLUMN guthaben REAL NOT NULL DEFAULT 0;         -- netto, aus nicht genutzten Zeiträumen
   `,
+  // 23: Fotos an Angeboten (verkleinert, ohne Metadaten wie GPS)
+  `
+  CREATE TABLE angebot_fotos (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    angebot_id  INTEGER NOT NULL REFERENCES angebote (id) ON DELETE CASCADE,
+    benutzer_id INTEGER NOT NULL REFERENCES benutzer (id) ON DELETE CASCADE,
+    datei       TEXT    NOT NULL,          -- WebP, höchstens 1600 px
+    vorschau    TEXT    NOT NULL,          -- WebP, höchstens 480 px
+    groesse     INTEGER NOT NULL,          -- beide Dateien zusammen (Speicherkontingent)
+    reihenfolge INTEGER NOT NULL DEFAULT 0,
+    erstellt_am TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX idx_angebot_fotos ON angebot_fotos (angebot_id, reihenfolge);
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

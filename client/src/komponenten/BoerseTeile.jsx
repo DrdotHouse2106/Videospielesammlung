@@ -50,7 +50,12 @@ export function AngebotKarte({ angebot: a, mitTitel = true }) {
   ].filter(Boolean);
   return (
     <a href={`#/boerse/angebot/${a.id}`} className="karte flex gap-3 p-3 hover:bg-karte-hover">
-      {mitTitel && <Cover url={a.cover_url} typ={a.typ} alt="" className="aspect-[3/4] w-14 shrink-0 rounded-lg" />}
+      {(mitTitel || a.foto) && (
+        <div className="relative shrink-0">
+          <Cover url={a.foto ?? a.cover_url} typ={a.typ} alt="" className="aspect-[3/4] w-14 rounded-lg" />
+          {a.fotos_anzahl > 0 && <span className="absolute right-0.5 bottom-0.5 rounded bg-black/70 px-1 text-[10px] text-white">📷 {a.fotos_anzahl}</span>}
+        </div>
+      )}
       <div className="min-w-0 flex-1">
         {mitTitel && <p className="truncate font-semibold">{a.titel}</p>}
         <p className="truncate text-xs text-leise">{details.join(' · ') || 'Keine Angaben zum Zustand'}</p>
