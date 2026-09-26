@@ -114,7 +114,7 @@ export function boerseRouter({ boerse, boersenImport, anbindungen }) {
     }));
   });
 
-  // ── Automatische Shop-/ERP-Anbindung (Händler-Pro) ───────────
+  // ── Automatische Shop-/ERP-Anbindung (Zusatzpaket API-Anbindung) ─
   router.get('/boerse/haendler/anbindung', (req, res) => res.json(anbindungen.info(req.benutzer.id)));
   router.put('/boerse/haendler/anbindung', (req, res) => res.json(anbindungen.speichere(req.benutzer, req.body ?? {})));
   router.delete('/boerse/haendler/anbindung', (req, res) => {

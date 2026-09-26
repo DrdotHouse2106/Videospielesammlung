@@ -232,9 +232,11 @@ Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 | `AFFILIATE_LINKS`      | `true`                    | „Hier kaufen“-Links anzeigen (`false` = ausblenden) |
 | `MARKET_ENABLED`       | `true`                    | Tauschbörse (Suche/Biete) ein- oder ausschalten |
 | `MARKET_OFFER_DAYS`    | `90`                      | Laufzeit eines Angebots in Tagen |
-| `MARKET_MAX_OFFERS` / `MARKET_DEALER_MAX_OFFERS` | `100` / `5000` | Aktive Angebote je Benutzer bzw. je verifiziertem Händler |
+| `MARKET_MAX_OFFERS`    | `50`                      | Kostenlose aktive Angebote je Benutzer (auch per CSV-Upload) |
+| `MARKET_PACKAGES`      | `500=9,90;1000=14,90;5000=29,90` | Händler-Pakete: Anzahl aktiver Angebote = Monatspreis in € |
+| `MARKET_API_PRICE`     | `19,90`                   | Monatspreis des Zusatzpakets API-Anbindung (Shop/ERP) |
 | `MARKET_MIN_ACCOUNT_DAYS` | `3`                    | Neue Konten ohne bestätigte E-Mail dürfen erst nach X Tagen Nachrichten schreiben |
-| `MARKET_PRO_CONTACT` / `MARKET_PRO_INFO` | –   | Kontakt (E-Mail oder https-Adresse) und Preishinweis für Händler-Pro und individuelle Anbindungen |
+| `MARKET_PRO_CONTACT` / `MARKET_PRO_INFO` | –   | Kontakt (E-Mail oder https-Adresse) für Buchungen und individuelle Anbindungen, Zusatzhinweis zu den Preisen (z. B. „zzgl. MwSt.“) |
 
 Ohne IGDB-Zugangsdaten funktioniert die App vollständig – die Online-Suche entfällt dann,
 und du legst Artikel als eigene Einträge an. Alle weiteren Einträge sind in der
@@ -341,12 +343,17 @@ Bezahlung und Versand vereinbaren die Beteiligten direkt miteinander.
 - **Händler:** Unter *Meine Börse → Händler & Massen-Upload* hinterlegen gewerbliche Anbieter ihre Anbieterkennzeichnung
   und laden Angebote per **CSV** hoch (z. B. aus dem Export eines Onlineshops). Zuordnung über ZockDB-ID, EAN oder
   Titel + Plattform; mit Artikelnummer werden Angebote bei jedem Upload aktualisiert, Bestand 0 beendet sie. Nach Prüfung
-  durch einen Administrator (*Benutzerverwaltung → Anbieterkennzeichnung prüfen*) gelten höhere Limits.
-- **Händler-Pro** (kostenpflichtiges Paket, Freischaltung durch den Administrator mit Ablaufdatum – die Abrechnung erfolgt
-  außerhalb der App): automatischer Bestandsabgleich mit **Shopware 6** (Admin-API) oder einem **CSV-Feed** per https,
-  vollständige Nachfrage-Auswertung. Zugangsdaten der Händler werden verschlüsselt gespeichert; Abrufe gehen nur an
-  öffentliche https-Adressen. Für andere Systeme (ERP, Shopsoftware) weist der Händlerbereich auf individuelle
-  Anbindungen hin – Kontakt und Preishinweis über `MARKET_PRO_CONTACT` und `MARKET_PRO_INFO`.
+  durch einen Administrator (*Benutzerverwaltung → Anbieterkennzeichnung prüfen*) gilt der Händler als verifiziert.
+- **Kostenlos und Pakete:** Ohne Bezahlung sind `MARKET_MAX_OFFERS` (Standard 50) aktive Angebote möglich – auch per CSV.
+  Verifizierte Händler können **Pakete** mit mehr Angeboten buchen (Standard 500, 1.000 oder 5.000; Preise über
+  `MARKET_PACKAGES`), inklusive vollständiger Nachfrage-Auswertung. Läuft ein Paket aus, werden Angebote über dem
+  kostenlosen Limit beendet (die zuletzt bearbeiteten bleiben aktiv).
+- **Zusatzpaket API-Anbindung** (`MARKET_API_PRICE`, Standard 19,90 € im Monat): automatischer Bestandsabgleich mit
+  **Shopware 6** (Admin-API) oder einem **CSV-Feed** per https. Zugangsdaten der Händler werden verschlüsselt gespeichert;
+  Abrufe gehen nur an öffentliche https-Adressen. Für andere Systeme (ERP, Shopsoftware) weist der Händlerbereich auf
+  individuelle Anbindungen hin.
+- Pakete und API-Anbindung schaltet ein Administrator mit Ablaufdatum frei (*Benutzerverwaltung → Anbieterkennzeichnung
+  prüfen*). Die Abrechnung erfolgt außerhalb der App, z. B. per Rechnung.
 
 Wer die Börse nicht braucht, schaltet sie mit `MARKET_ENABLED=false` oder unter *Administration → Einstellungen* ab.
 

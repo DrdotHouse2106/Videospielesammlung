@@ -215,7 +215,15 @@ test('Gewerbliche Anbieter: Kennzeichnung, Verifizierung, Massen-Upload', async 
   const shopId = server.db.prepare("SELECT id FROM benutzer WHERE benutzername = 'retroshop'").get().id;
   assert.equal((await post(admin, `/api/admin/benutzer/${shopId}/haendler`, { verifiziert: true })).status, 200);
   assert.equal((await shop.api('/api/boerse/haendler')).json.status, 'verifiziert');
-  assert.ok((await shop.api('/api/boerse/haendler')).json.limit > 1000);
+  assert.equal((await shop.api('/api/boerse/haendler')).json.limit, 3, 'Verifizierung allein erhöht das Limit nicht');
+  // Händler-Paket: nur eingestellte Pakete, danach gilt dessen Limit
+  assert.equal((await post(admin, `/api/admin/benutzer/${shopId}/paket`, { angebote: 777, bis: '2099-12-31' })).status, 400);
+  assert.equal((await post(admin, `/api/admin/benutzer/${shopId}/paket`, { angebote: 500, bis: '2099-12-31' })).status, 200);
+  const profil = (await shop.api('/api/boerse/haendler')).json;
+  assert.equal(profil.limit, 500);
+  assert.equal(profil.paket, 500);
+  assert.deepEqual(profil.pakete.map((p) => p.angebote), [500, 1000, 5000]);
+  assert.equal(profil.api_preis, 19.9);
 
   const csv = [
     'Artikelnummer;EAN;Titel;Plattform;Preis;Bestand;Zustand;Lieferumfang',
@@ -275,16 +283,26 @@ test('Gewerbliche Anbieter: Kennzeichnung, Verifizierung, Massen-Upload', async 
   assert.match(exp.text, /ZockDB-ID;Titel/);
   assert.match(exp.text, /Super Metroid/);
 
-  // Nachfrage: volle Auswertung nur mit Händler-Pro
-  assert.equal((await shop.api('/api/boerse/nachfrage')).json.voll, false);
-  assert.equal((await post(admin, `/api/admin/benutzer/${shopId}/pro`, { bis: '2099-12-31' })).status, 200);
-  assert.equal((await shop.api('/api/boerse/haendler')).json.pro, true);
+  // Nachfrage: volle Auswertung nur mit Händler-Paket
   const nf = (await shop.api('/api/boerse/nachfrage')).json;
   assert.equal(nf.voll, true);
   assert.ok(nf.eintraege.some((e) => e.titel === 'Super Metroid' && e.max_preis_hoechst === 80));
   const nfPrivat = (await ben.api('/api/boerse/nachfrage')).json;
   assert.equal(nfPrivat.voll, false);
   assert.ok(!('max_preis_hoechst' in nfPrivat.eintraege[0]));
+
+  // Nach Ablauf des Pakets: Angebote über dem kostenlosen Limit werden beendet
+  const csvViele = ['SKU;ZockDB-ID;Preis;Bestand', ...[1, 2, 3, 4, 5].map((i) => `V-${i};${spiel.id};${10 + i};1`)].join('\n');
+  r = await post(shop, '/api/boerse/haendler/import', { text: csvViele, zuordnung: { sku: 0, katalog_id: 1, preis: 2, anzahl: 3 } });
+  assert.equal(r.json.angelegt, 5);
+  server.db.prepare("UPDATE benutzer SET haendler_paket_bis = '2000-01-01' WHERE id = ?").run(shopId);
+  assert.equal(server.kontext.boerse.kuerzeNachPaketende(), 3);
+  assert.equal((await shop.api('/api/boerse/meine')).json.aktive, 3);
+  assert.ok((await shop.api('/api/benachrichtigungen')).json.eintraege.some((b) => b.titel === '3 Angebote wurden beendet'));
+  // Ohne Paket greift das kostenlose Limit auch beim CSV-Upload
+  r = await post(shop, '/api/boerse/haendler/import', { text: csvViele.replace(/V-/g, 'W-'), zuordnung: { sku: 0, katalog_id: 1, preis: 2, anzahl: 3 } });
+  assert.equal(r.json.angelegt, 0);
+  assert.match(r.json.fehlerhaft[0].grund, /Limit von 3/);
 
   // Änderung von Firma/Anschrift hebt die Verifizierung auf
   r = await put(shop, '/api/boerse/haendler', { firma: 'Retro Shop 2 GmbH', anschrift: 'Musterstraße 1, 40213 Düsseldorf', email: 'info@retroshop.example' });

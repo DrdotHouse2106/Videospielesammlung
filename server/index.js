@@ -63,7 +63,7 @@ setInterval(() => {
   try { kontext.boerse.raeumeAuf(); } catch (e) { console.warn('[boerse]', e.message); }
 }, 60 * 60 * 1000).unref();
 
-// Händler-Pro: automatische Shop-/ERP-Anbindungen alle 15 Minuten auf fällige Abgleiche prüfen
+// Zusatzpaket API-Anbindung: automatische Shop-/ERP-Anbindungen alle 15 Minuten auf fällige Abgleiche prüfen
 let anbindungLaeuft = false;
 setInterval(() => {
   if (anbindungLaeuft) return;

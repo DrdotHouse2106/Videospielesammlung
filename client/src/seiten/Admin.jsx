@@ -167,16 +167,7 @@ function Benutzer() {
               <button type="button" className="knopf-sekundaer mt-2 px-3 py-1" onClick={aktion(
                 () => api.adminHaendler(b.id, b.haendler_status !== 'verifiziert'), b.haendler_status === 'verifiziert' ? 'Verifizierung zurückgenommen.' : 'Händler verifiziert.',
               )}>{b.haendler_status === 'verifiziert' ? 'Verifizierung zurücknehmen' : 'Als Händler verifizieren'}</button>
-              {b.haendler_status === 'verifiziert' && (
-                <p className="mt-2 flex flex-wrap items-center gap-2">
-                  <span>Händler-Pro: {b.haendler_pro_bis ? `bis ${datumDe(b.haendler_pro_bis)}` : 'nicht gebucht'}</span>
-                  <button type="button" className="knopf-sekundaer px-3 py-1" onClick={() => {
-                    const vorschlag = new Date(Date.now() + 31 * 86_400_000).toISOString().slice(0, 10);
-                    const bis = window.prompt('Pro freischalten bis (JJJJ-MM-TT), leer = beenden:', b.haendler_pro_bis ?? vorschlag);
-                    if (bis !== null) aktion(() => api.adminPro(b.id, bis.trim() || null), bis.trim() ? 'Pro freigeschaltet.' : 'Pro beendet.')();
-                  }}>{b.haendler_pro_bis ? 'Pro ändern' : 'Pro freischalten'}</button>
-                </p>
-              )}
+              {b.haendler_status === 'verifiziert' && <HaendlerBuchungen b={b} onGeaendert={laden} />}
             </details>
           )}
           <p className="text-xs text-leise">
@@ -225,6 +216,44 @@ function Benutzer() {
         </section>
       ))}
       {liste && gefiltert.length === 0 && <p className="text-sm text-leise">Keine Benutzer gefunden.</p>}
+    </div>
+  );
+}
+
+const inEinemMonat = () => new Date(Date.now() + 31 * 86_400_000).toISOString().slice(0, 10);
+
+/** Händler-Paket und Zusatzpaket API-Anbindung freischalten (Abrechnung außerhalb der App). */
+function HaendlerBuchungen({ b, onGeaendert }) {
+  const zeigeHinweis = useHinweis();
+  const [pakete, setPakete] = useState(null);
+  const [paket, setPaket] = useState(b.haendler_paket ?? '');
+  const [paketBis, setPaketBis] = useState(b.haendler_paket_bis ?? inEinemMonat());
+  const [apiBis, setApiBis] = useState(b.haendler_api_bis ?? inEinemMonat());
+  useEffect(() => { api.adminPakete().then(setPakete).catch(() => setPakete({ pakete: [] })); }, []);
+  const speichern = async (fn, meldung) => {
+    try { await fn(); zeigeHinweis(meldung); onGeaendert(); } catch (e) { zeigeHinweis(Object.values(e.felder ?? {})[0] ?? e.message, 'fehler'); }
+  };
+  const heute = new Date().toISOString().slice(0, 10);
+  const status = (bis) => (!bis ? 'nicht gebucht' : bis >= heute ? `bis ${datumDe(bis)}` : `abgelaufen am ${datumDe(bis)}`);
+  return (
+    <div className="mt-3 space-y-2 border-t border-rand pt-2">
+      <p className="font-semibold">Händler-Paket: {b.haendler_paket ? `${anzahl(b.haendler_paket)} Angebote, ` : ''}{status(b.haendler_paket_bis)}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <select className="eingabe w-auto py-1" value={paket} onChange={(e) => setPaket(e.target.value)} aria-label="Paket">
+          <option value="">Paket wählen</option>
+          {pakete?.pakete.map((p) => <option key={p.angebote} value={p.angebote}>{anzahl(p.angebote)} Angebote – {p.preis.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</option>)}
+        </select>
+        <input className="eingabe w-auto py-1" type="date" value={paketBis} onChange={(e) => setPaketBis(e.target.value)} aria-label="Paket gültig bis" />
+        <button type="button" className="knopf-sekundaer px-3 py-1" disabled={!paket}
+          onClick={() => speichern(() => api.adminPaket(b.id, { angebote: Number(paket), bis: paketBis }), 'Paket freigeschaltet.')}>Freischalten</button>
+        {b.haendler_paket_bis && <button type="button" className="text-xs underline" onClick={() => speichern(() => api.adminPaket(b.id, { bis: null }), 'Paket beendet.')}>Beenden</button>}
+      </div>
+      <p className="font-semibold">API-Anbindung{pakete ? ` (${pakete.api_preis.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €/Monat)` : ''}: {status(b.haendler_api_bis)}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <input className="eingabe w-auto py-1" type="date" value={apiBis} onChange={(e) => setApiBis(e.target.value)} aria-label="API-Anbindung gültig bis" />
+        <button type="button" className="knopf-sekundaer px-3 py-1" onClick={() => speichern(() => api.adminApiZugang(b.id, apiBis), 'API-Anbindung freigeschaltet.')}>Freischalten</button>
+        {b.haendler_api_bis && <button type="button" className="text-xs underline" onClick={() => speichern(() => api.adminApiZugang(b.id, null), 'API-Anbindung beendet.')}>Beenden</button>}
+      </div>
     </div>
   );
 }

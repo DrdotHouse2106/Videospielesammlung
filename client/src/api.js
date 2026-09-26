@@ -221,7 +221,9 @@ export const api = {
   anbindungEntfernen: () => anfrage('/api/boerse/haendler/anbindung', { methode: 'DELETE' }),
   anbindungTesten: () => anfrage('/api/boerse/haendler/anbindung/test', { methode: 'POST', daten: {} }),
   anbindungAbgleichen: () => anfrage('/api/boerse/haendler/anbindung/abgleich', { methode: 'POST', daten: {} }),
-  adminPro: (id, bis) => anfrage(`/api/admin/benutzer/${id}/pro`, { methode: 'POST', daten: { bis } }),
+  adminPakete: () => anfrage('/api/admin/pakete'),
+  adminPaket: (id, daten) => anfrage(`/api/admin/benutzer/${id}/paket`, { methode: 'POST', daten }),
+  adminApiZugang: (id, bis) => anfrage(`/api/admin/benutzer/${id}/api-zugang`, { methode: 'POST', daten: { bis } }),
   adminHaendler: (id, verifiziert) => anfrage(`/api/admin/benutzer/${id}/haendler`, { methode: 'POST', daten: { verifiziert } }),
 
   // Administration

@@ -1,4 +1,4 @@
-// Automatische Shop-/ERP-Anbindungen für Händler mit Pro-Paket: Der Bestand wird regelmäßig aus dem System
+// Automatische Shop-/ERP-Anbindungen für Händler mit Zusatzpaket „API-Anbindung“: Der Bestand wird regelmäßig aus dem System
 // des Händlers gelesen und mit seinen Angeboten abgeglichen (wie beim CSV-Upload, per Artikelnummer).
 //
 // Unterstützt:
@@ -59,8 +59,8 @@ export function erstelleAnbindungsDienst(db, { schluessel, boerse, boersenImport
 
   function sicherPro(benutzerId) {
     boerse.sicherAktiv();
-    if (!boerse.istPro(benutzerId)) {
-      throw new KontoFehler('Automatische Anbindungen sind Teil von Händler-Pro. Bitte wende dich an den Betreiber.', 402, 'kein_pro');
+    if (!boerse.apiAktiv(benutzerId)) {
+      throw new KontoFehler('Automatische Anbindungen gibt es mit dem Zusatzpaket „API-Anbindung“. Bitte wende dich an den Betreiber.', 402, 'kein_api');
     }
   }
 
@@ -238,11 +238,11 @@ export function erstelleAnbindungsDienst(db, { schluessel, boerse, boersenImport
     }
   }
 
-  /** Zeitgesteuert: alle fälligen Anbindungen (nur mit gültigem Pro-Paket) nacheinander abgleichen. */
+  /** Zeitgesteuert: alle fälligen Anbindungen (nur mit gültigem Zusatzpaket) nacheinander abgleichen. */
   async function lauf() {
     let erledigt = 0;
     for (const { benutzer_id: id } of q.faellige.all()) {
-      if (!boerse.aktiv() || !boerse.istPro(id)) continue;
+      if (!boerse.aktiv() || !boerse.apiAktiv(id)) continue;
       try { await synchronisiere(id); erledigt++; } catch (e) { console.warn(`[anbindung ${id}]`, e.message); }
     }
     return erledigt;

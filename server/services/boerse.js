@@ -111,10 +111,18 @@ export function pruefeHaendlerDaten(eingabe = {}) {
 
 const heute = () => new Date().toISOString().slice(0, 10);
 
-/** Hat der Händler ein gültiges Pro-Paket? (Nur verifizierte Händler, bis einschließlich Ablaufdatum.) */
-export function istPro(b) {
-  return Boolean(b?.haendler_status === 'verifiziert' && b.haendler_pro_bis && b.haendler_pro_bis >= heute());
+/** Gebuchtes Händler-Paket (Anzahl Angebote) gültig? Nur verifizierte Händler, bis einschließlich Ablaufdatum. */
+export function paketAktiv(b) {
+  return Boolean(b?.haendler_status === 'verifiziert' && b.haendler_paket > 0 && b.haendler_paket_bis && b.haendler_paket_bis >= heute());
 }
+
+/** Zusatzpaket API-Anbindung (Shop/ERP) gültig? */
+export function apiAktiv(b) {
+  return Boolean(b?.haendler_status === 'verifiziert' && b.haendler_api_bis && b.haendler_api_bis >= heute());
+}
+
+const datumText = (iso) => iso.split('-').reverse().join('.');
+const euroText = (n) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 
 /** Passt ein Angebot zu einem Wunsch? (Katalogeintrag wird vorher verglichen.) */
 export function passtZuWunsch(wunsch, angebot) {
@@ -146,7 +154,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     OR (x.benutzer_id = a.benutzer_id AND x.blockiert_id = @ich))`;
 
   const q = {
-    benutzer: db.prepare('SELECT id, benutzername, anzeigename, email, rolle, gesperrt, erstellt_am, haendler_status, haendler_daten, haendler_pro_bis, boerse_plz FROM benutzer WHERE id = ?'),
+    benutzer: db.prepare('SELECT id, benutzername, anzeigename, email, rolle, gesperrt, erstellt_am, haendler_status, haendler_daten, haendler_paket, haendler_paket_bis, haendler_api_bis, boerse_plz FROM benutzer WHERE id = ?'),
     angebot: db.prepare(`SELECT ${ANGEBOT_SPALTEN} ${ANGEBOT_JOIN} WHERE a.id = ?`),
     angebotRoh: db.prepare('SELECT * FROM angebote WHERE id = ?'),
     anzahlAktiv: db.prepare(`SELECT COUNT(*) AS n FROM angebote WHERE benutzer_id = ? AND status IN ${SICHTBARE_STATUS}`),
@@ -167,7 +175,8 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
   };
 
   const jetztPlus = (tage) => new Date(Date.now() + tage * TAG_MS).toISOString().replace('T', ' ').slice(0, 19);
-  const limitFuer = (b) => (b.haendler_status === 'verifiziert' ? k().maxAngeboteHaendler : k().maxAngebote);
+  // Kostenlos gilt das Grundlimit – mit gebuchtem Paket dessen Anzahl (mindestens aber das Grundlimit)
+  const limitFuer = (b) => (paketAktiv(b) ? Math.max(b.haendler_paket, k().maxAngebote) : k().maxAngebote);
 
   function sicherAktiv() {
     if (!k().aktiv) throw new KontoFehler('Die Tauschbörse ist auf diesem Server abgeschaltet.', 404, 'boerse_aus');
@@ -272,7 +281,8 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     const aktiv = q.anzahlAktiv.get(benutzer.id).n;
     const limit = limitFuer(benutzer);
     if (aktiv + zusaetzlich > limit) {
-      throw new KontoFehler(`Du kannst höchstens ${limit.toLocaleString('de-DE')} aktive Angebote haben (derzeit ${aktiv}). Beende zuerst ältere Angebote.`, 409, 'limit');
+      const tipp = benutzer.haendler_status && k().pakete.some((p) => p.angebote > limit) ? ' Mehr Angebote gibt es mit einem Händler-Paket.' : '';
+      throw new KontoFehler(`Du kannst höchstens ${limit.toLocaleString('de-DE')} aktive Angebote haben (derzeit ${aktiv}). Beende zuerst ältere Angebote.${tipp}`, 409, 'limit');
     }
   }
 
@@ -519,7 +529,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
    */
   function nachfrage(benutzerRoh, filter = {}) {
     const benutzer = q.benutzer.get(benutzerRoh.id);
-    const voll = istPro(benutzer) || istModerator(benutzer);
+    const voll = paketAktiv(benutzer) || istModerator(benutzer);
     const bed = ["k.status = 'freigegeben'"];
     const p = {};
     if (filter.plattform_id) {
@@ -574,6 +584,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
         text: 'Du kannst abgelaufene Angebote unter „Meine Börse“ mit einem Klick verlängern.', link: '#/boerse/meine',
       });
     }
+    kuerzeNachPaketende();
     return abgelaufen.length;
   }
 
@@ -758,28 +769,87 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
       plz: b.boerse_plz,
       limit: limitFuer(b),
       aktive_angebote: q.anzahlAktiv.get(b.id).n,
-      pro: istPro(b),
-      pro_bis: b.haendler_pro_bis,
-      pro_kontakt: k().proKontakt || null,
-      pro_info: k().proInfo || null,
+      kostenlos: k().maxAngebote,
+      paket: paketAktiv(b) ? b.haendler_paket : null,
+      paket_bis: b.haendler_paket_bis,
+      paket_gebucht: b.haendler_paket,
+      api: apiAktiv(b),
+      api_bis: b.haendler_api_bis,
+      pakete: k().pakete,
+      api_preis: k().apiPreis,
+      kontakt: k().proKontakt || null,
+      preis_hinweis: k().proInfo || null,
     };
   }
 
-  /** Admin: Pro-Paket bis zu einem Datum freischalten (null = beenden). Abrechnung erfolgt außerhalb der App. */
-  function setzePro(benutzerId, bis) {
+  function pruefeDatum(bis) {
+    if (bis !== null && !/^\d{4}-\d{2}-\d{2}$/.test(String(bis))) throw new ValidierungsFehler({ bis: 'Bitte ein Datum im Format JJJJ-MM-TT angeben.' });
+  }
+
+  function verifizierterHaendler(benutzerId, bis) {
     const b = q.benutzer.get(Number(benutzerId));
     if (!b) throw new KontoFehler('Benutzer nicht gefunden.', 404);
-    if (bis !== null && !/^\d{4}-\d{2}-\d{2}$/.test(String(bis))) throw new ValidierungsFehler({ bis: 'Bitte ein Datum im Format JJJJ-MM-TT angeben.' });
-    if (bis && b.haendler_status !== 'verifiziert') throw new KontoFehler('Pro gibt es nur für verifizierte Händler.', 409);
-    db.prepare('UPDATE benutzer SET haendler_pro_bis = ? WHERE id = ?').run(bis, b.id);
+    pruefeDatum(bis);
+    if (bis && b.haendler_status !== 'verifiziert') throw new KontoFehler('Pakete gibt es nur für verifizierte Händler.', 409);
+    return b;
+  }
+
+  /** Admin: Händler-Paket (Anzahl Angebote) bis zu einem Datum freischalten; bis = null beendet es. Abrechnung außerhalb der App. */
+  function setzePaket(benutzerId, { angebote, bis }) {
+    const b = verifizierterHaendler(benutzerId, bis);
+    const anzahl = bis ? Number(angebote) : null;
+    if (bis && !k().pakete.some((p) => p.angebote === anzahl)) throw new ValidierungsFehler({ angebote: 'Bitte eines der eingestellten Pakete wählen.' });
+    db.prepare('UPDATE benutzer SET haendler_paket = ?, haendler_paket_bis = ? WHERE id = ?').run(anzahl, bis, b.id);
     if (bis && bis >= heute()) {
       benachrichtigungen.sende(b.id, {
-        art: 'boerse', titel: 'Händler-Pro ist freigeschaltet',
-        text: `Gültig bis ${bis.split('-').reverse().join('.')}: automatische Shop-Anbindung und vollständige Nachfrage-Auswertung.`,
+        art: 'boerse', titel: `Händler-Paket ${anzahl.toLocaleString('de-DE')} ist freigeschaltet`,
+        text: `Gültig bis ${datumText(bis)}: bis zu ${anzahl.toLocaleString('de-DE')} aktive Angebote und die vollständige Nachfrage-Auswertung.`,
         link: '#/boerse/haendler',
       });
     }
   }
+
+  /** Admin: Zusatzpaket API-Anbindung bis zu einem Datum freischalten (null = beenden). */
+  function setzeApi(benutzerId, bis) {
+    const b = verifizierterHaendler(benutzerId, bis);
+    db.prepare('UPDATE benutzer SET haendler_api_bis = ? WHERE id = ?').run(bis, b.id);
+    if (bis && bis >= heute()) {
+      benachrichtigungen.sende(b.id, {
+        art: 'boerse', titel: 'API-Anbindung ist freigeschaltet',
+        text: `Gültig bis ${datumText(bis)}: Richte im Händlerbereich die automatische Anbindung an deinen Shop oder dein ERP ein.`,
+        link: '#/boerse/haendler',
+      });
+    }
+  }
+
+  /**
+   * Nach Ablauf eines Pakets: Angebote über dem kostenlosen Limit beenden (die zuletzt geänderten bleiben aktiv)
+   * und den Händler informieren. Beendete Angebote lassen sich nach erneuter Buchung wieder einstellen.
+   */
+  function kuerzeNachPaketende() {
+    let beendet = 0;
+    const kandidaten = db.prepare(`SELECT b.id FROM benutzer b WHERE (SELECT COUNT(*) FROM angebote a WHERE a.benutzer_id = b.id
+      AND a.status IN ${SICHTBARE_STATUS}) > ?`).all(k().maxAngebote);
+    for (const { id } of kandidaten) {
+      const b = q.benutzer.get(id);
+      const limit = limitFuer(b);
+      const zuViel = db.prepare(`SELECT id FROM angebote WHERE benutzer_id = ? AND status IN ${SICHTBARE_STATUS}
+        ORDER BY aktualisiert_am DESC, id DESC LIMIT -1 OFFSET ?`).all(id, limit);
+      if (!zuViel.length) continue;
+      db.transaction(() => {
+        for (const a of zuViel) db.prepare("UPDATE angebote SET status = 'beendet', aktualisiert_am = datetime('now') WHERE id = ?").run(a.id);
+      })();
+      beendet += zuViel.length;
+      benachrichtigungen.sende(id, {
+        art: 'boerse', titel: `${zuViel.length} Angebote wurden beendet`,
+        text: `Dein Händler-Paket ist abgelaufen. Ohne Paket sind ${limit.toLocaleString('de-DE')} aktive Angebote möglich – nach einer neuen Buchung kannst du die Angebote wieder einstellen.`,
+        link: '#/boerse/haendler',
+      });
+    }
+    return beendet;
+  }
+
+  /** Admin: Pro-Paket bis zu einem Datum freischalten (null = beenden). Abrechnung erfolgt außerhalb der App. */
 
   /** Als gewerblich kennzeichnen (mit Anbieterkennzeichnung) oder zurück auf privat. */
   function setzeHaendler(benutzer, eingabe) {
@@ -813,7 +883,9 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     if (ja) {
       benachrichtigungen.sende(b.id, {
         art: 'boerse', titel: 'Dein Händlerkonto wurde verifiziert',
-        text: `Du kannst jetzt bis zu ${k().maxAngeboteHaendler.toLocaleString('de-DE')} Angebote einstellen und siehst die vollständige Nachfrage-Auswertung.`,
+        text: k().pakete.length
+          ? `Du kannst jetzt ein Händler-Paket buchen – z. B. ${k().pakete.map((p) => `${p.angebote.toLocaleString('de-DE')} Angebote für ${euroText(p.preis)}`).join(', ')} im Monat.`
+          : 'Deine Angebote werden jetzt als „verifizierter Händler“ gekennzeichnet.',
         link: '#/boerse/haendler',
       });
     }
@@ -828,6 +900,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     blockiere, entblocke, blockierte,
     frageAn, antworte, unterhaltungen, unterhaltung, ungeleseneNachrichten,
     bewerte, bewertungFuer, anbieterProfil,
-    haendlerProfil, setzeHaendler, setzePlz, verifiziere, setzePro, istPro: (id) => istPro(q.benutzer.get(id)),
+    haendlerProfil, setzeHaendler, setzePlz, verifiziere, setzePaket, setzeApi, kuerzeNachPaketende,
+    apiAktiv: (id) => apiAktiv(q.benutzer.get(id)),
   };
 }

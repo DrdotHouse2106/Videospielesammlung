@@ -158,7 +158,7 @@ In der Tauschbörse können Benutzer Spiele, Konsolen und Zubehör zum Verkauf o
 - Angebote müssen wahrheitsgemäß sein und den tatsächlichen Zustand beschreiben. Verboten sind insbesondere Raubkopien, Reproduktionen und Nachdrucke ohne klare Kennzeichnung, Flash- und Kopiermodule, gestohlene Ware sowie Angebote ohne Bezug zu Videospielen.
 - **Gewerbliche Anbieter** müssen sich als solche kennzeichnen und die gesetzlich vorgeschriebenen Angaben (Anbieterkennzeichnung) hinterlegen. Sie sind für die Einhaltung der Verbraucherrechte (u. a. Widerrufsrecht, Gewährleistung, Preisangaben) selbst verantwortlich. Private Anbieter dürfen nicht gewerblich handeln.
 - Nachrichten dienen ausschließlich der Abwicklung von Angeboten. Werbung, Belästigung und das Abwerben auf andere Plattformen zu Betrugszwecken sind untersagt. Bewertungen müssen sich auf einen tatsächlichen Kontakt beziehen und sachlich sein.
-- Kostenpflichtige Zusatzleistungen für Händler (z. B. „Händler-Pro“ mit automatischer Shop-Anbindung oder individuelle Anbindungen an Warenwirtschaft und Shopsoftware) werden gesondert vereinbart. [Preise, Laufzeit und Kündigung ergänzen.]
+- Kostenpflichtige Zusatzleistungen für Händler (Händler-Pakete mit mehr Angeboten, Zusatzpaket API-Anbindung an Shop oder Warenwirtschaft, individuelle Anbindungen) werden gesondert vereinbart. [Preise, Laufzeit und Kündigung ergänzen.]
 - Wir können Angebote, die gegen diese Bedingungen oder geltendes Recht verstoßen, entfernen und Konten sperren. Angebote können über „Melden“ gemeldet werden.
 
 ## 8. Affiliate-Links

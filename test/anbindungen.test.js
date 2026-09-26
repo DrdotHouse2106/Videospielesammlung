@@ -55,16 +55,16 @@ test('Interne Adressen werden erkannt', () => {
   for (const ip of ['93.184.216.34', '2a00:1450:4001:80b::200e']) assert.equal(istInterneAdresse(ip), false, ip);
 });
 
-test('Anbindung nur mit Händler-Pro', async () => {
+test('Anbindung nur mit Zusatzpaket API-Anbindung', async () => {
   const r = await put(shop, '/api/boerse/haendler/anbindung', { typ: 'csv_url', url: 'https://feed.example.com/export.csv' });
   assert.equal(r.status, 402);
-  assert.equal(r.json.code, 'kein_pro');
-  // Abgelaufenes Pro zählt nicht
-  await post(admin, `/api/admin/benutzer/${shopId}/pro`, { bis: '2000-01-01' });
+  assert.equal(r.json.code, 'kein_api');
+  // Abgelaufenes Zusatzpaket zählt nicht
+  await post(admin, `/api/admin/benutzer/${shopId}/api-zugang`, { bis: '2000-01-01' });
   assert.equal((await put(shop, '/api/boerse/haendler/anbindung', { typ: 'csv_url', url: 'https://feed.example.com/export.csv' })).status, 402);
-  await post(admin, `/api/admin/benutzer/${shopId}/pro`, { bis: '2099-12-31' });
+  await post(admin, `/api/admin/benutzer/${shopId}/api-zugang`, { bis: '2099-12-31' });
   const n = (await shop.api('/api/benachrichtigungen')).json.eintraege;
-  assert.ok(n.some((b) => b.titel === 'Händler-Pro ist freigeschaltet'));
+  assert.ok(n.some((b) => b.titel === 'API-Anbindung ist freigeschaltet'));
 });
 
 test('Shopware 6: Zugang verschlüsselt, Test und Abgleich', async () => {
@@ -121,8 +121,8 @@ test('CSV-Feed, Schutz vor internen Zielen und Weiterleitungen, Zeitsteuerung', 
   const meine = (await shop.api('/api/boerse/meine')).json.angebote;
   assert.ok(meine.some((x) => x.sku === 'CSV-1' && x.preis === 49));
 
-  // Ohne Pro kein automatischer Abgleich
-  await post(admin, `/api/admin/benutzer/${shopId}/pro`, { bis: null });
+  // Ohne Zusatzpaket kein automatischer Abgleich
+  await post(admin, `/api/admin/benutzer/${shopId}/api-zugang`, { bis: null });
   server.db.prepare('UPDATE haendler_anbindungen SET letzter_lauf = NULL').run();
   assert.equal(await server.kontext.anbindungen.lauf(), 0);
 });

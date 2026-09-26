@@ -28,6 +28,22 @@ function pfad(wert, standard) {
   return path.isAbsolute(p) ? p : path.join(PROJEKT_WURZEL, p);
 }
 
+/** Preis in Euro aus „19,90“ oder „19.90“ (ungültig = null). */
+function preis(wert) {
+  const n = Number(String(wert ?? '').trim().replace(/\s*€$/, '').replace(',', '.'));
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
+}
+
+/** Händler-Pakete aus „500=9,90;1000=14,90;5000=29,90“ → [{ angebote, preis }], aufsteigend. */
+export function lesePakete(wert) {
+  return String(wert ?? '').split(/[;|]/).map((teil) => {
+    const [anzahl, betrag] = teil.split('=');
+    const angebote = Number.parseInt(String(anzahl ?? '').replace(/\D/g, ''), 10);
+    return { angebote, preis: preis(betrag) };
+  }).filter((p) => Number.isInteger(p.angebote) && p.angebote > 0 && p.preis !== null)
+    .sort((a, b) => a.angebote - b.angebote);
+}
+
 /** Basis-URL der Seite (für Canonical-Links und Sitemap), ohne abschließenden Schrägstrich. */
 function basisUrl(wert) {
   const roh = String(wert ?? '').trim().replace(/\/+$/, '');
@@ -129,11 +145,15 @@ export function ladeKonfiguration(env = process.env) {
     boerse: {
       aktiv: jaNein(env.MARKET_ENABLED, true),
       laufzeitTage: Math.min(365, Math.max(1, zahl(env.MARKET_OFFER_DAYS, 90))),
-      maxAngebote: Math.max(1, zahl(env.MARKET_MAX_OFFERS, 100)),
-      maxAngeboteHaendler: Math.max(1, zahl(env.MARKET_DEALER_MAX_OFFERS, 5000)),
+      // Kostenlos: so viele aktive Angebote je Benutzer (auch per CSV-Upload)
+      maxAngebote: Math.max(1, zahl(env.MARKET_MAX_OFFERS, 50)),
+      // Kostenpflichtige Händler-Pakete (Anzahl aktiver Angebote = Monatspreis in Euro)
+      pakete: lesePakete(env.MARKET_PACKAGES ?? '500=9,90;1000=14,90;5000=29,90'),
+      // Zusatzpaket „API-Anbindung“ (Shop/ERP) – Monatspreis in Euro
+      apiPreis: preis(env.MARKET_API_PRICE ?? '19,90') ?? 19.9,
       // Neue Konten dürfen erst nach X Tagen Nachrichten schreiben – mit bestätigter E-Mail-Adresse sofort
       mindestKontoalterTage: Math.max(0, zahl(env.MARKET_MIN_ACCOUNT_DAYS, 3)),
-      // Händler-Pro: Kontakt (E-Mail oder https-Adresse) und kurzer Text zu Preisen/Leistungen
+      // Kontakt für Pakete und individuelle Anbindungen (E-Mail oder https-Adresse) und Zusatzhinweis (z. B. „zzgl. MwSt.“)
       proKontakt: (env.MARKET_PRO_CONTACT || '').trim(),
       proInfo: (env.MARKET_PRO_INFO || '').trim(),
     },

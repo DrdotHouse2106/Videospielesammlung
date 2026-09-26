@@ -132,7 +132,7 @@ export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, be
   router.get('/benutzer', (_req, res) => {
     res.json(db.prepare(`
       SELECT b.id, b.benutzername, b.anzeigename, b.email, b.rolle, b.gesperrt, b.totp_aktiv, b.sammlung_oeffentlich,
-             b.erstellt_am, b.letzte_anmeldung, b.haendler_status, b.haendler_daten, b.haendler_pro_bis, COUNT(a.id) AS eintraege
+             b.erstellt_am, b.letzte_anmeldung, b.haendler_status, b.haendler_daten, b.haendler_paket, b.haendler_paket_bis, b.haendler_api_bis, COUNT(a.id) AS eintraege
       FROM benutzer b LEFT JOIN artikel a ON a.benutzer_id = b.id
       GROUP BY b.id ORDER BY b.erstellt_am`).all().map(({ haendler_daten: daten, ...b }) => ({
         ...b, speicher: speicher.info(b.id), haendler: daten ? JSON.parse(daten) : null,
@@ -146,12 +146,18 @@ export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, be
     res.json({ ok: true });
   });
 
-  // Händler-Pro bis zu einem Datum freischalten (Abrechnung außerhalb der App, z. B. per Rechnung)
-  router.post('/benutzer/:id/pro', (req, res) => {
+  // Händler-Paket bzw. Zusatzpaket API-Anbindung bis zu einem Datum freischalten (Abrechnung außerhalb der App, z. B. per Rechnung)
+  router.post('/benutzer/:id/paket', (req, res) => {
     const b = ziel(req);
-    boerse.setzePro(b.id, req.body?.bis || null);
+    boerse.setzePaket(b.id, { angebote: req.body?.angebote, bis: req.body?.bis || null });
     res.json({ ok: true });
   });
+  router.post('/benutzer/:id/api-zugang', (req, res) => {
+    const b = ziel(req);
+    boerse.setzeApi(b.id, req.body?.bis || null);
+    res.json({ ok: true });
+  });
+  router.get('/pakete', (_req, res) => res.json({ pakete: konfiguration.boerse.pakete, api_preis: konfiguration.boerse.apiPreis }));
 
   router.put('/benutzer/:id', (req, res) => {
     const b = ziel(req);

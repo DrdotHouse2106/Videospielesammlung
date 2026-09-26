@@ -555,6 +555,12 @@ const MIGRATIONEN = [
     geaendert_am      TEXT    NOT NULL DEFAULT (datetime('now'))
   );
   `,
+  // 18: Händler-Pakete (Anzahl Angebote) und Zusatzpaket API-Anbindung getrennt buchbar
+  `
+  ALTER TABLE benutzer RENAME COLUMN haendler_pro_bis TO haendler_api_bis;
+  ALTER TABLE benutzer ADD COLUMN haendler_paket INTEGER;       -- gebuchte Anzahl aktiver Angebote
+  ALTER TABLE benutzer ADD COLUMN haendler_paket_bis TEXT;      -- JJJJ-MM-TT
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

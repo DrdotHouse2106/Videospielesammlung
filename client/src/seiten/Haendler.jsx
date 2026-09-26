@@ -36,7 +36,8 @@ export default function Haendler({ route }) {
             <Vorteile profil={profil} />
             <Kennzeichnung profil={profil} onGespeichert={setProfil} />
             {profil.status && <MassenUpload profil={profil} />}
-            {profil.status && <ProBereich profil={profil} />}
+            <Pakete profil={profil} />
+            {profil.status && <ApiBereich profil={profil} />}
             <IndividuelleAnbindung profil={profil} />
           </>
         )}
@@ -52,10 +53,10 @@ function Vorteile({ profil }) {
       <ul className="list-disc space-y-1 pl-5">
         <li><strong>Massen-Upload per CSV</strong> – z. B. direkt aus dem Export deines Shops (Shopware, WooCommerce, JTL …) oder einer Tabelle. Mit Artikelnummer wird der Bestand bei jedem Upload abgeglichen.</li>
         <li><strong>Sammler mit passender Wunschliste</strong> werden automatisch über deine Angebote informiert.</li>
-        <li><strong>Nachfrage-Auswertung</strong>: Welche Spiele gesucht werden, wie viel Sammler zahlen würden und wofür es noch kein Angebot gibt (mit Händler-Pro).</li>
         <li><strong>Händlerprofil</strong> mit Anbieterkennzeichnung, Link zu deinem Shop und Bewertungen.</li>
-        <li>Verifizierte Händler: bis zu {profil.status === 'verifiziert' ? anzahl(profil.limit) : 'mehrere tausend'} aktive Angebote.</li>
-        <li><strong>Händler-Pro:</strong> automatischer Bestandsabgleich mit deinem Shop oder ERP und die vollständige Nachfrage-Auswertung.</li>
+        <li><strong>Kostenlos bis {anzahl(profil.kostenlos)} aktive Angebote</strong> – mehr mit einem Händler-Paket, das zusätzlich die vollständige
+          <strong> Nachfrage-Auswertung</strong> enthält (welche Spiele gesucht werden, wie viel Sammler zahlen würden, wofür es noch kein Angebot gibt).</li>
+        <li><strong>API-Anbindung</strong> an deinen Shop oder dein ERP als Zusatzpaket: Der Bestand wird automatisch abgeglichen.</li>
       </ul>
       <p className="text-xs text-leise">
         Status: {profil.status === 'verifiziert' ? '✓ Verifizierter Händler' : profil.status === 'angemeldet' ? 'Als Händler angemeldet – die Verifizierung durch den Betreiber steht noch aus.' : 'Privat'}
@@ -258,6 +259,44 @@ function MassenUpload({ profil }) {
   );
 }
 
+const datum = (iso) => iso.split('-').reverse().join('.');
+const euroMonat = (n) => `${n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })} / Monat`;
+
+/** Kostenloses Kontingent und buchbare Händler-Pakete. */
+function Pakete({ profil }) {
+  const stufen = [{ angebote: profil.kostenlos, preis: 0 }, ...profil.pakete];
+  const aktuell = profil.paket ?? profil.kostenlos;
+  return (
+    <section className="karte space-y-3 p-4 text-sm">
+      <h2 className="flex items-center gap-2 font-semibold"><Symbol name="wert" className="size-5 text-akzent-hell" />Pakete</h2>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {stufen.map((s) => {
+          const gewaehlt = s.angebote === aktuell;
+          return (
+            <div key={s.angebote} className={`rounded-xl border p-3 ${gewaehlt ? 'border-akzent bg-akzent/10' : 'border-rand'}`}>
+              <p className="font-semibold">{s.preis ? `Händler ${anzahl(s.angebote)}` : 'Kostenlos'}</p>
+              <p className="text-lg font-bold">{s.preis ? euroMonat(s.preis) : '0 €'}</p>
+              <p className="text-xs text-leise">bis {anzahl(s.angebote)} aktive Angebote{s.preis ? ' · volle Nachfrage-Auswertung' : ' · auch per CSV-Upload'}</p>
+              {gewaehlt && <p className="mt-1 text-xs font-semibold text-akzent-hell">{s.preis ? `Gebucht bis ${datum(profil.paket_bis)}` : 'Aktuell'}</p>}
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-xs text-leise">
+        Zusatzpaket API-Anbindung: {euroMonat(profil.api_preis)}. {profil.preis_hinweis ?? ''}
+        {' '}Läuft ein Paket aus, bleiben die {anzahl(profil.kostenlos)} zuletzt bearbeiteten Angebote aktiv; die übrigen werden beendet und lassen sich nach einer neuen Buchung wieder einstellen.
+      </p>
+      {profil.pakete.length > 0 && (
+        <p>
+          {profil.status === 'verifiziert' ? 'Paket buchen oder wechseln: ' : 'Pakete sind nach der Verifizierung deines Händlerkontos buchbar. Kontakt: '}
+          <KontaktLink kontakt={profil.kontakt} betreff={`${MARKE.name}: Händler-Paket`} />
+        </p>
+      )}
+      {!profil.paket && profil.paket_gebucht && profil.paket_bis && <p className="text-xs text-warnung">Dein Paket ist am {datum(profil.paket_bis)} abgelaufen.</p>}
+    </section>
+  );
+}
+
 /** Kontaktangabe des Betreibers als Link (E-Mail oder https-Adresse). */
 function KontaktLink({ kontakt, betreff }) {
   if (!kontakt) return <span>über das <a className="underline" href="#/seite/impressum">Impressum</a></span>;
@@ -274,7 +313,7 @@ function IndividuelleAnbindung({ profil }) {
         WooCommerce, Plentymarkets, Xentral, Magento oder eine eigene Lösung. Danach trägst du hier im Händlerbereich nur noch deinen
         API-Schlüssel ein, und dein Bestand wird automatisch abgeglichen.
       </p>
-      <p>Anfragen: <KontaktLink kontakt={profil.pro_kontakt} betreff={`${MARKE.name}: Individuelle Anbindung`} /></p>
+      <p>Anfragen: <KontaktLink kontakt={profil.kontakt} betreff={`${MARKE.name}: Individuelle Anbindung`} /></p>
     </section>
   );
 }
@@ -284,7 +323,7 @@ const SYSTEME = [
   ['csv_url', 'CSV-Feed (Adresse eines Produktexports)'],
 ];
 
-function ProBereich({ profil }) {
+function ApiBereich({ profil }) {
   const zeigeHinweis = useHinweis();
   const [info, setInfo] = useState(undefined);
   const [w, setW] = useState(null);
@@ -294,23 +333,26 @@ function ProBereich({ profil }) {
     setInfo(i);
     setW({ typ: i?.typ ?? 'shopware6', url: i?.url ?? '', client_id: i?.client_id ?? '', client_secret: '', token: '', intervall_stunden: i?.intervall_stunden ?? 6, beende_fehlende: i?.beende_fehlende ?? false, aktiv: i?.aktiv ?? true });
   }).catch(() => setInfo(null));
-  useEffect(() => { if (profil.pro) laden(); }, [profil.pro]);
+  useEffect(() => { if (profil.api) laden(); }, [profil.api]);
 
-  if (!profil.pro) {
+  if (!profil.api) {
     return (
       <section className="karte space-y-2 p-4 text-sm">
-        <h2 className="flex items-center gap-2 font-semibold"><Symbol name="schloss" className="size-5 text-akzent-hell" />Händler-Pro</h2>
+        <h2 className="flex flex-wrap items-center gap-2 font-semibold">
+          <Symbol name="schloss" className="size-5 text-akzent-hell" />Zusatzpaket API-Anbindung
+          <span className="abzeichen text-akzent-hell">{euroMonat(profil.api_preis)}</span>
+        </h2>
         <ul className="list-disc space-y-1 pl-5">
-          <li><strong>Automatische Anbindung</strong> an Shopware 6 oder einen CSV-Produktexport: Bestand, Preise und neue Artikel werden regelmäßig übernommen.</li>
-          <li><strong>Vollständige Nachfrage-Auswertung</strong> mit Preisbereitschaft und Spielen, für die es noch kein Angebot gibt.</li>
-          <li>Auf Wunsch eine <strong>individuelle Anbindung</strong> an dein ERP oder Shopsystem.</li>
+          <li><strong>Automatischer Abgleich</strong> mit Shopware 6 oder einem CSV-Produktexport deiner Warenwirtschaft: neue Artikel, Preise und Bestand werden regelmäßig übernommen.</li>
+          <li>Deine Zugangsdaten trägst du selbst ein; sie werden verschlüsselt gespeichert.</li>
+          <li>Andere Systeme binden wir auf Wunsch individuell an (siehe unten).</li>
         </ul>
-        {profil.pro_info && <p className="font-medium">{profil.pro_info}</p>}
+        {profil.preis_hinweis && <p className="text-xs text-leise">{profil.preis_hinweis}</p>}
         <p>
-          {profil.status !== 'verifiziert' ? 'Händler-Pro ist nach der Verifizierung deines Händlerkontos verfügbar. ' : ''}
-          Freischalten: <KontaktLink kontakt={profil.pro_kontakt} betreff={`${MARKE.name}: Händler-Pro`} />
+          {profil.status !== 'verifiziert' ? 'Verfügbar nach der Verifizierung deines Händlerkontos. ' : ''}
+          Buchen: <KontaktLink kontakt={profil.kontakt} betreff={`${MARKE.name}: Zusatzpaket API-Anbindung`} />
         </p>
-        {profil.pro_bis && <p className="text-xs text-leise">Dein Pro-Paket ist am {profil.pro_bis.split('-').reverse().join('.')} abgelaufen.</p>}
+        {profil.api_bis && <p className="text-xs text-leise">Dein Zusatzpaket ist am {datum(profil.api_bis)} abgelaufen.</p>}
       </section>
     );
   }
@@ -330,7 +372,7 @@ function ProBereich({ profil }) {
 
   return (
     <section className="karte space-y-3 p-4 text-sm">
-      <h2 className="flex items-center gap-2 font-semibold"><Symbol name="aktualisieren" className="size-5 text-akzent-hell" />Automatische Anbindung <span className="abzeichen text-erfolg">Pro bis {profil.pro_bis.split('-').reverse().join('.')}</span></h2>
+      <h2 className="flex items-center gap-2 font-semibold"><Symbol name="aktualisieren" className="size-5 text-akzent-hell" />Automatische Anbindung <span className="abzeichen text-erfolg">gebucht bis {datum(profil.api_bis)}</span></h2>
       <p className="text-leise">
         Deine Zugangsdaten werden verschlüsselt gespeichert und nie wieder angezeigt. Es werden nur Produktdaten gelesen – lege dafür
         möglichst einen Zugang mit reinen Leserechten an.

@@ -39,8 +39,8 @@ model revisions).
 - **CSV import** from CLZ Games, Excel/LibreOffice or the app's own export with automatic column mapping
 - **Automatic database backups** (7 daily, 12 monthly)
 - **Trading market (buy/sell/trade)** without payment processing: offers, wishlist with match notifications, trade suggestions,
-  in-app messages, ratings, dealer profiles with CSV bulk upload and stock sync (`MARKET_ENABLED=false` switches it off); paid “Dealer Pro” with automatic
-  Shopware 6 / CSV feed synchronisation (credentials stored encrypted)
+  in-app messages, ratings, dealer profiles with CSV bulk upload and stock sync (`MARKET_ENABLED=false` switches it off); 50 free active offers, paid dealer
+  packages (500/1,000/5,000 offers) and a paid API add-on for automatic Shopware 6 / CSV feed synchronisation (credentials stored encrypted)
 
 **Stack:** Node.js 22 · Express 5 · SQLite (better-sqlite3) · sharp · React 19 · Vite · Tailwind CSS 4
 

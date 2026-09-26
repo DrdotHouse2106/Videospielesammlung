@@ -122,13 +122,15 @@ services:
 
       # ── Tauschbörse (Suche/Biete, ohne Zahlungsabwicklung) ──────
       MARKET_ENABLED: "true"
-      # Laufzeit eines Angebots (Tage) und aktive Angebote je Benutzer bzw. verifiziertem Händler
+      # Laufzeit eines Angebots (Tage) und kostenlose aktive Angebote je Benutzer (auch per CSV-Upload)
       MARKET_OFFER_DAYS: "90"
-      MARKET_MAX_OFFERS: "100"
-      MARKET_DEALER_MAX_OFFERS: "5000"
+      MARKET_MAX_OFFERS: "50"
+      # Händler-Pakete (Anzahl aktiver Angebote = Monatspreis in €) und Zusatzpaket API-Anbindung (€/Monat)
+      MARKET_PACKAGES: "500=9,90;1000=14,90;5000=29,90"
+      MARKET_API_PRICE: "19,90"
       # Neue Konten ohne bestätigte E-Mail dürfen erst nach X Tagen Nachrichten schreiben
       MARKET_MIN_ACCOUNT_DAYS: "3"
-      # Händler-Pro und individuelle Anbindungen: Kontakt (E-Mail oder https-Adresse) und Preishinweis
+      # Kontakt für Buchungen und individuelle Anbindungen (E-Mail oder https-Adresse) und Zusatzhinweis, z. B. "zzgl. MwSt."
       MARKET_PRO_CONTACT: ""
       MARKET_PRO_INFO: ""
 
