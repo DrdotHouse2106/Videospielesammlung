@@ -19,6 +19,7 @@ import StatusAbzeichen from '../komponenten/StatusAbzeichen.jsx';
 import VariantenListe from '../komponenten/VariantenListe.jsx';
 import PreisVerlauf from '../komponenten/PreisVerlauf.jsx';
 import KaufenBox from '../komponenten/KaufenBox.jsx';
+import { BoerseBox } from '../komponenten/BoerseTeile.jsx';
 import Kommentare from '../komponenten/Kommentare.jsx';
 import Scans from '../komponenten/Scans.jsx';
 import { useHinweis } from '../komponenten/Hinweise.jsx';
@@ -173,6 +174,8 @@ export default function KatalogSeite({ route, id }) {
               {c.median_kaufpreis != null && <> · Median Kaufpreis <strong>{euro(c.median_kaufpreis)}</strong></>}
             </p>
           </section>
+
+          <BoerseBox katalog={e} info={daten.boerse} plattformen={daten.plattformen} varianten={daten.varianten} angemeldet={Boolean(benutzer)} onGeaendert={laden} />
 
           <KaufenBox links={daten.kaufen} ebay={daten.ebayAngebote} />
 

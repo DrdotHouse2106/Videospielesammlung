@@ -4,6 +4,7 @@ import { navigiere } from '../router.js';
 import { useSitzung } from '../sitzung.js';
 import Fusszeile from './Fusszeile.jsx';
 import Glocke from './Glocke.jsx';
+import { NachrichtenKnopf } from '../seiten/Nachrichten.jsx';
 
 const NAVIGATION = [
   { pfad: '/', label: 'Sammlung', symbol: 'sammlung' },
@@ -17,9 +18,10 @@ const NAVIGATION = [
 const NUR_DESKTOP = [
   { pfad: '/katalog', label: 'Katalog', symbol: 'suche' },
   { pfad: '/community', label: 'Community', symbol: 'community' },
+  { pfad: '/boerse', label: 'Börse', symbol: 'boerse', boerse: true },
 ];
 
-const MEHR_PFADE = ['/einstellungen', '/konto', '/statistik', '/admin', '/druck', '/moderation', '/katalog', '/community', '/seite'];
+const MEHR_PFADE = ['/einstellungen', '/konto', '/statistik', '/admin', '/druck', '/moderation', '/katalog', '/community', '/seite', '/boerse', '/nachrichten'];
 
 function istAktiv(eintrag, route) {
   if (eintrag.pfad === '/') return route.pfad === '/' || route.pfad.startsWith('/artikel');
@@ -30,7 +32,8 @@ function istAktiv(eintrag, route) {
 }
 
 export default function Layout({ route, titel, zurueck, aktionen, children }) {
-  const { benutzer } = useSitzung();
+  const { benutzer, auth } = useSitzung();
+  const desktop = NUR_DESKTOP.filter((e) => !e.boerse || auth?.boerse);
   // Öffentliche Katalogseiten ohne Anmeldung: schlanker Rahmen ohne Navigation
   if (!benutzer) {
     return (
@@ -71,9 +74,10 @@ export default function Layout({ route, titel, zurueck, aktionen, children }) {
           )}
           <h1 className="min-w-0 flex-1 truncate text-lg font-bold sm:text-center md:text-left">{titel}</h1>
           {aktionen}
+          <NachrichtenKnopf />
           <Glocke />
           <nav className="ml-4 hidden items-center gap-1 md:flex" aria-label="Hauptnavigation">
-            {[...NAVIGATION.slice(0, 2), ...NUR_DESKTOP, ...NAVIGATION.slice(2)].map((eintrag) => (
+            {[...NAVIGATION.slice(0, 2), ...desktop, ...NAVIGATION.slice(2)].map((eintrag) => (
               <a
                 key={eintrag.pfad}
                 href={`#${eintrag.pfad}`}

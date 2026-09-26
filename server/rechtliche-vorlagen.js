@@ -74,6 +74,10 @@ Für Statistiken (z. B. „12 Sammler besitzen dieses Spiel“, Median-Preise) w
 
 Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
 
+### Tauschbörse
+
+Wenn du ein Angebot einstellst, sehen angemeldete Benutzer deinen Anzeigenamen, die Angaben zum Angebot und – falls angegeben – die ersten zwei Ziffern deiner Postleitzahl. Einträge auf deiner Wunschliste sind privat; andere sehen nur anonyme Summen („12 Sammler suchen das“). Nachrichten zu Angeboten können nur die beiden Beteiligten lesen; deine E-Mail-Adresse wird dabei nicht weitergegeben. Bewertungen nach einem Kontakt sind mit dem Namen des Bewertenden für angemeldete Benutzer sichtbar. Gewerbliche Anbieter veröffentlichen ihre Anbieterkennzeichnung (Name, Anschrift, Kontakt) bei ihren Angeboten. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO. Angebote, Nachrichten und Bewertungen werden mit dem Konto gelöscht; Nachrichten bleiben für den Gesprächspartner ohne Zuordnung zu deinem Konto erhalten.
+
 ### Besucherstatistik
 
 Um zu sehen, welche Seiten genutzt werden, zählen wir Seitenaufrufe **ohne Cookies und ohne Speicherung deiner IP-Adresse**. Zur Unterscheidung von Besuchern innerhalb eines Tages wird aus IP-Adresse und Browserkennung zusammen mit einem täglich neu erzeugten Zufallswert ein Hash gebildet, der nur im Arbeitsspeicher liegt und nicht gespeichert wird; gespeichert werden ausschließlich Summen je Tag (Aufrufe je Seite, Anzahl Besucher, verweisende Domains und anonyme Suchbegriffe der öffentlichen Suche). Rückschlüsse auf einzelne Personen sind nicht möglich. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer bedarfsgerechten Gestaltung). Die Tageswerte werden nach 400 Tagen gelöscht.
@@ -147,15 +151,24 @@ Eingereichte Inhalte können vom Moderationsteam geprüft, bearbeitet, abgelehnt
 
 Wert- und Preisangaben (Marktpreise, Community-Werte, Meldungen) sind unverbindliche Schätzungen ohne Gewähr.
 
-## 7. Affiliate-Links
+## 7. Tauschbörse
+
+In der Tauschbörse können Benutzer Spiele, Konsolen und Zubehör zum Verkauf oder Tausch anbieten und Wunschlisten führen. **Wir sind nicht Vertragspartei.** Kauf, Tausch, Bezahlung und Versand vereinbaren die Beteiligten ausschließlich untereinander; wir wickeln keine Zahlungen ab und übernehmen keine Gewähr für Angebote, Angaben oder die Erfüllung von Verträgen.
+
+- Angebote müssen wahrheitsgemäß sein und den tatsächlichen Zustand beschreiben. Verboten sind insbesondere Raubkopien, Reproduktionen und Nachdrucke ohne klare Kennzeichnung, Flash- und Kopiermodule, gestohlene Ware sowie Angebote ohne Bezug zu Videospielen.
+- **Gewerbliche Anbieter** müssen sich als solche kennzeichnen und die gesetzlich vorgeschriebenen Angaben (Anbieterkennzeichnung) hinterlegen. Sie sind für die Einhaltung der Verbraucherrechte (u. a. Widerrufsrecht, Gewährleistung, Preisangaben) selbst verantwortlich. Private Anbieter dürfen nicht gewerblich handeln.
+- Nachrichten dienen ausschließlich der Abwicklung von Angeboten. Werbung, Belästigung und das Abwerben auf andere Plattformen zu Betrugszwecken sind untersagt. Bewertungen müssen sich auf einen tatsächlichen Kontakt beziehen und sachlich sein.
+- Wir können Angebote, die gegen diese Bedingungen oder geltendes Recht verstoßen, entfernen und Konten sperren. Angebote können über „Melden“ gemeldet werden.
+
+## 8. Affiliate-Links
 
 Links unter „Hier zum Kauf verfügbar“ sind Werbung (Partnerlinks). Kaufverträge kommen ausschließlich mit dem jeweiligen Anbieter zustande.
 
-## 8. Kündigung
+## 9. Kündigung
 
 Du kannst dein Konto jederzeit selbst löschen. Wir können Konten bei Verstößen gegen diese Bedingungen sperren.
 
-## 9. Haftung
+## 10. Haftung
 
 Wir haften unbeschränkt bei Vorsatz und grober Fahrlässigkeit sowie nach dem Produkthaftungsgesetz. Im Übrigen haften wir nur bei Verletzung wesentlicher Pflichten, begrenzt auf den vorhersehbaren Schaden.
 

@@ -436,6 +436,108 @@ const MIGRATIONEN = [
   CREATE TABLE statistik_verweise (tag TEXT NOT NULL, domain TEXT NOT NULL, aufrufe INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (tag, domain));
   CREATE TABLE statistik_suchen (tag TEXT NOT NULL, begriff TEXT NOT NULL, anzahl INTEGER NOT NULL DEFAULT 0, treffer INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (tag, begriff));
   `,
+  // 16: Tauschbörse (Suche/Biete), Nachrichten, Bewertungen, gewerbliche Anbieter
+  `
+  CREATE TABLE angebote (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    benutzer_id      INTEGER NOT NULL REFERENCES benutzer (id) ON DELETE CASCADE,
+    katalog_id       INTEGER NOT NULL REFERENCES katalog (id) ON DELETE CASCADE,
+    artikel_id       INTEGER REFERENCES artikel (id) ON DELETE SET NULL,   -- Exemplar aus der eigenen Sammlung
+    plattform_id     INTEGER REFERENCES plattformen (id) ON DELETE SET NULL,
+    variante_id      INTEGER REFERENCES katalog_varianten (id) ON DELETE SET NULL,
+    art              TEXT    NOT NULL DEFAULT 'verkauf',   -- verkauf, tausch, beides
+    preis            REAL,                                 -- Preisvorstellung in Euro (NULL = Preis auf Anfrage)
+    verhandelbar     INTEGER NOT NULL DEFAULT 0,
+    zustand          TEXT,
+    vollstaendigkeit TEXT,
+    region           TEXT,
+    beschreibung     TEXT,
+    anzahl           INTEGER NOT NULL DEFAULT 1,
+    versand          INTEGER NOT NULL DEFAULT 1,
+    abholung         INTEGER NOT NULL DEFAULT 0,
+    plz_bereich      TEXT,                                 -- nur die ersten zwei Ziffern
+    sku              TEXT,                                 -- Artikelnummer gewerblicher Anbieter (Abgleich beim Massen-Upload)
+    status           TEXT    NOT NULL DEFAULT 'aktiv',     -- aktiv, reserviert, verkauft, beendet, abgelaufen, entfernt
+    laeuft_ab        TEXT    NOT NULL,
+    erstellt_am      TEXT    NOT NULL DEFAULT (datetime('now')),
+    aktualisiert_am  TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX idx_angebote_katalog ON angebote (katalog_id, status);
+  CREATE INDEX idx_angebote_benutzer ON angebote (benutzer_id, status);
+  CREATE INDEX idx_angebote_status ON angebote (status, laeuft_ab);
+  CREATE UNIQUE INDEX idx_angebote_sku ON angebote (benutzer_id, sku) WHERE sku IS NOT NULL;
+
+  CREATE TABLE wunschliste (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    benutzer_id  INTEGER NOT NULL REFERENCES benutzer (id) ON DELETE CASCADE,
+    katalog_id   INTEGER NOT NULL REFERENCES katalog (id) ON DELETE CASCADE,
+    plattform_id INTEGER REFERENCES plattformen (id) ON DELETE SET NULL,  -- NULL = egal
+    region       TEXT,                                                    -- NULL = egal
+    min_zustand  TEXT,                                                    -- NULL = egal
+    nur_cib      INTEGER NOT NULL DEFAULT 0,
+    max_preis    REAL,                                                    -- NULL = egal
+    notiz        TEXT,
+    erstellt_am  TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (benutzer_id, katalog_id)
+  );
+  CREATE INDEX idx_wunschliste_katalog ON wunschliste (katalog_id);
+
+  -- Merkt sich, über welche Treffer ein Sammler schon informiert wurde
+  CREATE TABLE boerse_treffer (
+    wunsch_id   INTEGER NOT NULL REFERENCES wunschliste (id) ON DELETE CASCADE,
+    angebot_id  INTEGER NOT NULL REFERENCES angebote (id) ON DELETE CASCADE,
+    erstellt_am TEXT    NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (wunsch_id, angebot_id)
+  );
+
+  CREATE TABLE unterhaltungen (
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    angebot_id           INTEGER REFERENCES angebote (id) ON DELETE SET NULL,
+    titel                TEXT    NOT NULL,
+    anfragender_id       INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    anbieter_id          INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    gelesen_anfragender  INTEGER NOT NULL DEFAULT 0,   -- ID der zuletzt gelesenen Nachricht
+    gelesen_anbieter     INTEGER NOT NULL DEFAULT 0,
+    erstellt_am          TEXT    NOT NULL DEFAULT (datetime('now')),
+    letzte_nachricht_am  TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE UNIQUE INDEX idx_unterhaltungen_angebot ON unterhaltungen (angebot_id, anfragender_id) WHERE angebot_id IS NOT NULL;
+  CREATE INDEX idx_unterhaltungen_anfragender ON unterhaltungen (anfragender_id);
+  CREATE INDEX idx_unterhaltungen_anbieter ON unterhaltungen (anbieter_id);
+
+  CREATE TABLE nachrichten (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    unterhaltung_id INTEGER NOT NULL REFERENCES unterhaltungen (id) ON DELETE CASCADE,
+    absender_id     INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    text            TEXT    NOT NULL,
+    erstellt_am     TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX idx_nachrichten_unterhaltung ON nachrichten (unterhaltung_id, id);
+
+  CREATE TABLE bewertungen (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    unterhaltung_id INTEGER REFERENCES unterhaltungen (id) ON DELETE SET NULL,
+    von_id          INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    fuer_id         INTEGER NOT NULL REFERENCES benutzer (id) ON DELETE CASCADE,
+    wert            INTEGER NOT NULL,             -- 1 positiv, 0 neutral, -1 negativ
+    text            TEXT,
+    erstellt_am     TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (unterhaltung_id, von_id)
+  );
+  CREATE INDEX idx_bewertungen_fuer ON bewertungen (fuer_id);
+
+  CREATE TABLE blockierungen (
+    benutzer_id  INTEGER NOT NULL REFERENCES benutzer (id) ON DELETE CASCADE,
+    blockiert_id INTEGER NOT NULL REFERENCES benutzer (id) ON DELETE CASCADE,
+    erstellt_am  TEXT    NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (benutzer_id, blockiert_id)
+  );
+
+  -- Gewerbliche Anbieter: NULL = privat, 'angemeldet' = selbst als gewerblich gekennzeichnet, 'verifiziert' = vom Admin geprüft
+  ALTER TABLE benutzer ADD COLUMN haendler_status TEXT;
+  ALTER TABLE benutzer ADD COLUMN haendler_daten TEXT;     -- JSON: Anbieterkennzeichnung, Shop-Adresse …
+  ALTER TABLE benutzer ADD COLUMN boerse_plz TEXT;         -- Standard-PLZ-Bereich für eigene Angebote
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

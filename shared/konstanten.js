@@ -156,3 +156,39 @@ export const MARKTPREIS_STUFEN = [
   { value: 'cib', label: 'CIB' },
   { value: 'neu', label: 'Neu/OVP' },
 ];
+
+// ── Tauschbörse (Suche/Biete) ─────────────────────────────────────
+export const ANGEBOTSARTEN = [
+  { value: 'verkauf', label: 'Verkauf' },
+  { value: 'tausch', label: 'Tausch' },
+  { value: 'beides', label: 'Verkauf oder Tausch' },
+];
+
+export const ANGEBOTSSTATUS = [
+  { value: 'aktiv', label: 'Aktiv' },
+  { value: 'reserviert', label: 'Reserviert' },
+  { value: 'verkauft', label: 'Verkauft/getauscht' },
+  { value: 'beendet', label: 'Beendet' },
+  { value: 'abgelaufen', label: 'Abgelaufen' },
+  { value: 'entfernt', label: 'Vom Moderationsteam entfernt' },
+];
+
+export const BEWERTUNGSWERTE = [
+  { value: 1, label: 'Positiv', icon: '👍' },
+  { value: 0, label: 'Neutral', icon: '😐' },
+  { value: -1, label: 'Negativ', icon: '👎' },
+];
+
+/** Pflichtangaben gewerblicher Anbieter (Anbieterkennzeichnung) und freiwillige Zusatzangaben. */
+export const HAENDLER_FELDER = [
+  { feld: 'firma', label: 'Firma bzw. Name', pflicht: true },
+  { feld: 'anschrift', label: 'Anschrift (Straße, PLZ, Ort)', pflicht: true, mehrzeilig: true },
+  { feld: 'email', label: 'E-Mail-Adresse', pflicht: true },
+  { feld: 'telefon', label: 'Telefon' },
+  { feld: 'vertreten', label: 'Vertretungsberechtigt' },
+  { feld: 'register', label: 'Handelsregister (Gericht und Nummer)' },
+  { feld: 'ustid', label: 'USt-IdNr.' },
+  { feld: 'shop_url', label: 'Eigener Shop (Adresse)' },
+  { feld: 'versandinfo', label: 'Versand und Zahlung', mehrzeilig: true },
+  { feld: 'widerruf', label: 'Widerrufsbelehrung/AGB (Text oder Link)', mehrzeilig: true },
+];

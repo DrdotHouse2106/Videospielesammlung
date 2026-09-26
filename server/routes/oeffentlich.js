@@ -7,7 +7,7 @@ import { linkZuObjekt } from './links.js';
 
 const SEITENGROESSE = 48;
 
-export function oeffentlichRouter({ db, katalog, plattformen, preise, affiliate, preisimport, konfiguration }) {
+export function oeffentlichRouter({ db, katalog, plattformen, preise, affiliate, preisimport, boerse, konfiguration }) {
   const router = Router();
 
   // Ohne Anmeldung nur, wenn der öffentliche Katalog eingeschaltet ist.
@@ -122,6 +122,7 @@ export function oeffentlichRouter({ db, katalog, plattformen, preise, affiliate,
       links: db.prepare(`SELECT * FROM externe_links WHERE katalog_id = @k AND (status = 'freigegeben' OR benutzer_id = @b)
         ORDER BY art, erstellt_am`).all({ k: eintrag.id, b: b?.id ?? -1 }).map((l) => linkZuObjekt(l, b)),
       ebayAngebote,
+      boerse: eintrag.status === 'freigegeben' ? boerse.zusammenfassung(eintrag.id, b) : null,
       angemeldet: Boolean(b),
     });
   });

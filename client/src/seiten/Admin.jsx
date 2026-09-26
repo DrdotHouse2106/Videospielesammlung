@@ -150,7 +150,25 @@ function Benutzer() {
             {b.totp_aktiv ? <span className="abzeichen text-erfolg">2FA</span> : <span className="abzeichen">ohne 2FA</span>}
             {b.sammlung_oeffentlich ? <span className="abzeichen">öffentlich</span> : null}
             {b.gesperrt ? <span className="abzeichen text-gefahr">gesperrt</span> : null}
+            {b.haendler_status === 'verifiziert' && <span className="abzeichen text-erfolg">✓ Händler</span>}
+            {b.haendler_status === 'angemeldet' && <span className="abzeichen text-warnung">Händler – ungeprüft</span>}
           </div>
+          {b.haendler && (
+            <details className="rounded-lg border border-rand p-2 text-xs">
+              <summary className="cursor-pointer font-medium">Anbieterkennzeichnung prüfen</summary>
+              <div className="mt-1 space-y-0.5">
+                <p className="font-semibold">{b.haendler.firma}</p>
+                <p className="whitespace-pre-line">{b.haendler.anschrift}</p>
+                <p>{b.haendler.email}{b.haendler.telefon ? ` · ${b.haendler.telefon}` : ''}</p>
+                {b.haendler.register && <p>Register: {b.haendler.register}</p>}
+                {b.haendler.ustid && <p>USt-IdNr.: {b.haendler.ustid}</p>}
+                {b.haendler.shop_url && <p>Shop: {b.haendler.shop_url}</p>}
+              </div>
+              <button type="button" className="knopf-sekundaer mt-2 px-3 py-1" onClick={aktion(
+                () => api.adminHaendler(b.id, b.haendler_status !== 'verifiziert'), b.haendler_status === 'verifiziert' ? 'Verifizierung zurückgenommen.' : 'Händler verifiziert.',
+              )}>{b.haendler_status === 'verifiziert' ? 'Verifizierung zurücknehmen' : 'Als Händler verifizieren'}</button>
+            </details>
+          )}
           <p className="text-xs text-leise">
             {b.email ? `${b.email} · ` : 'ohne E-Mail · '}{b.eintraege} Einträge · registriert {datumDe(b.erstellt_am)} · zuletzt angemeldet {b.letzte_anmeldung ? datumDe(b.letzte_anmeldung) : 'nie'}
           </p>

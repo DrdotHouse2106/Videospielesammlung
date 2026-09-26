@@ -29,6 +29,9 @@ import { erstelleBenachrichtigungsDienst } from './services/benachrichtigungen.j
 import { benachrichtigungenRouter } from './routes/benachrichtigungen.js';
 import { erstelleErfolgeDienst } from './services/erfolge.js';
 import { importCsvRouter } from './routes/importcsv.js';
+import { erstelleBoersenDienst } from './services/boerse.js';
+import { erstelleBoersenImport } from './services/boersenimport.js';
+import { boerseRouter } from './routes/boerse.js';
 import { erstelleBesucherDienst } from './services/besucher.js';
 import { seoRouter } from './routes/seo.js';
 import { seitenRouter, seitenAdminRouter } from './routes/seiten.js';
@@ -83,10 +86,12 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const benachrichtigungen = erstelleBenachrichtigungsDienst(db, { mail, konfiguration });
   const erfolge = erstelleErfolgeDienst(db, { benachrichtigungen });
   const besucher = erstelleBesucherDienst(db);
+  const boerse = erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, katalog });
+  const boersenImport = erstelleBoersenImport(db, { boerse, plattformen, konfiguration });
   const neueKi = () => erstelleKiDienst(db, konfiguration.ki ?? { anbieter: 'aus' }, { katalog, fetchFn, anbieterFn: konfiguration.kiAnbieterFn, benachrichtigungen });
   const ki = neueKi();
   const kontext = {
-    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, mail, kontoMail, benachrichtigungen, erfolge, besucher, captcha, konfiguration, version,
+    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, mail, kontoMail, benachrichtigungen, erfolge, besucher, captcha, boerse, boersenImport, konfiguration, version,
   };
 
   /**
@@ -167,7 +172,7 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   app.use('/api/admin', angemeldet, erfordereAdmin, adminRouter(kontext), seitenAdminRouter(kontext));
   app.use('/api/moderation', angemeldet, (req, res, next) => (istModerator(req.benutzer)
     ? next() : res.status(403).json({ fehler: 'Nur für das Moderationsteam.' })), moderationRouter(kontext), meldungenModerationRouter(kontext));
-  app.use('/api', angemeldet, katalogUnterRouter(kontext), linksRouter(kontext), benachrichtigungenRouter(kontext), importCsvRouter(kontext));
+  app.use('/api', angemeldet, katalogUnterRouter(kontext), linksRouter(kontext), benachrichtigungenRouter(kontext), importCsvRouter(kontext), boerseRouter(kontext));
   app.use('/api', angemeldet, medienRouter(kontext), werteRouter(kontext), communityRouter(kontext), exportRouter(kontext));
   app.use('/api', (_req, res) => res.status(404).json({ fehler: 'Unbekannter API-Endpunkt.' }));
 

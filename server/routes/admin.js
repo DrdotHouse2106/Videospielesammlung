@@ -5,7 +5,7 @@ import { erstelleDrossel } from '../services/drossel.js';
 // Nur über die .env änderbar – zur Information in der Oberfläche
 const NUR_ENV = ['APP_SECRET', 'DATABASE_PATH', 'UPLOAD_DIR', 'PORT', 'HOST', 'TRUST_PROXY', 'COOKIE_SECURE', 'SESSION_DAYS', 'REGISTRATIONS_PER_HOUR'];
 
-export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, benachrichtigungen, besucher, preisimport, igdb, ebay, preise, affiliate, ki, einstellungen, konfiguration }) {
+export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, benachrichtigungen, besucher, preisimport, igdb, ebay, preise, affiliate, ki, einstellungen, boerse, konfiguration }) {
   const router = Router();
   const bestaetigungsDrossel = erstelleDrossel({ maxVersuche: 5 });
   const anzahlAdmins = () => db.prepare("SELECT COUNT(*) AS n FROM benutzer WHERE rolle = 'admin' AND gesperrt = 0").get().n;
@@ -132,9 +132,18 @@ export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, be
   router.get('/benutzer', (_req, res) => {
     res.json(db.prepare(`
       SELECT b.id, b.benutzername, b.anzeigename, b.email, b.rolle, b.gesperrt, b.totp_aktiv, b.sammlung_oeffentlich,
-             b.erstellt_am, b.letzte_anmeldung, COUNT(a.id) AS eintraege
+             b.erstellt_am, b.letzte_anmeldung, b.haendler_status, b.haendler_daten, COUNT(a.id) AS eintraege
       FROM benutzer b LEFT JOIN artikel a ON a.benutzer_id = b.id
-      GROUP BY b.id ORDER BY b.erstellt_am`).all().map((b) => ({ ...b, speicher: speicher.info(b.id) })));
+      GROUP BY b.id ORDER BY b.erstellt_am`).all().map(({ haendler_daten: daten, ...b }) => ({
+        ...b, speicher: speicher.info(b.id), haendler: daten ? JSON.parse(daten) : null,
+      })));
+  });
+
+  // Gewerblichen Anbieter verifizieren (nach Prüfung der Anbieterkennzeichnung)
+  router.post('/benutzer/:id/haendler', (req, res) => {
+    const b = ziel(req);
+    boerse.verifiziere(b.id, req.body?.verifiziert === true);
+    res.json({ ok: true });
   });
 
   router.put('/benutzer/:id', (req, res) => {

@@ -15,6 +15,8 @@ import WertBox from '../komponenten/WertBox.jsx';
 import Kommentare from '../komponenten/Kommentare.jsx';
 import ExterneLinks from '../komponenten/ExterneLinks.jsx';
 import StatusAbzeichen from '../komponenten/StatusAbzeichen.jsx';
+import { AngebotFormular } from '../komponenten/BoerseTeile.jsx';
+import { useSitzung } from '../sitzung.js';
 
 /**
  * Detailansicht eines Artikels. Mit „sammlerName“ wird ein Artikel aus einer
@@ -29,10 +31,13 @@ export default function ArtikelDetail({ route, id, sammlerName }) {
   const [laedtBild, setLaedtBild] = useState(false);
 
   const [exemplare, setExemplare] = useState([]);
+  const [katalogDaten, setKatalogDaten] = useState(null);
+  const [anbieten, setAnbieten] = useState(false);
+  const { auth } = useSitzung();
   const laden = () => (eigener
     ? api.artikel(id).then((a) => {
       setArtikel(a);
-      if (a.katalog_id) api.katalogSeite(a.katalog_id).then((d) => setExemplare(d.meineExemplare)).catch(() => {});
+      if (a.katalog_id) api.katalogSeite(a.katalog_id).then((d) => { setExemplare(d.meineExemplare); setKatalogDaten(d); }).catch(() => {});
     })
     : api.communityArtikel(sammlerName, id).then((d) => { setArtikel(d.artikel); setSammler(d.sammler); })
   ).catch((e) => setFehler(e.message));
@@ -164,7 +169,16 @@ export default function ArtikelDetail({ route, id, sammlerName }) {
                 <a href={`#/katalog/${artikel.katalog_id}`} className="knopf-sekundaer px-3 py-1.5">Katalogseite & Preisverlauf</a>
               )}
               {artikel.katalog_status && artikel.katalog_status !== 'freigegeben' && <StatusAbzeichen status={artikel.katalog_status} />}
+              {auth?.boerse && artikel.katalog_status === 'freigegeben' && (
+                <button type="button" className="knopf-sekundaer px-3 py-1.5" onClick={() => setAnbieten(true)}>
+                  <Symbol name="boerse" className="size-4" />Anbieten
+                </button>
+              )}
             </div>
+          )}
+          {anbieten && (
+            <AngebotFormular artikel={artikel} plattformen={katalogDaten?.plattformen ?? []} varianten={katalogDaten?.varianten ?? []}
+              onFertig={(a) => { setAnbieten(false); if (a) navigiere(`/boerse/angebot/${a.id}`); }} />
           )}
 
           <dl className="karte divide-y divide-rand">

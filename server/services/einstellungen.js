@@ -74,6 +74,14 @@ export const EINSTELLUNGEN = [
   { schluessel: 'SMTP_FROM', gruppe: 'E-Mail (SMTP)', titel: 'Absender', typ: 'text', platzhalter: 'ZockDB <noreply@zockdb.de>' },
   { schluessel: 'REQUIRE_EMAIL', gruppe: 'Konten & Sicherheit', titel: 'E-Mail-Adresse bei der Registrierung Pflicht', ...JA_NEIN,
     hinweis: 'Nur wirksam, wenn der E-Mail-Versand eingerichtet ist.' },
+  // Tauschbörse
+  { schluessel: 'MARKET_ENABLED', gruppe: 'Tauschbörse', titel: 'Tauschbörse (Suche/Biete) aktiv', ...JA_NEIN,
+    hinweis: 'Angebote, Wunschlisten und Nachrichten zwischen Benutzern. Es werden keine Zahlungen abgewickelt.' },
+  { schluessel: 'MARKET_OFFER_DAYS', gruppe: 'Tauschbörse', titel: 'Laufzeit eines Angebots (Tage)', typ: 'zahl', min: 1, max: 365 },
+  { schluessel: 'MARKET_MAX_OFFERS', gruppe: 'Tauschbörse', titel: 'Aktive Angebote je privatem Benutzer', typ: 'zahl', min: 1, max: 100000 },
+  { schluessel: 'MARKET_DEALER_MAX_OFFERS', gruppe: 'Tauschbörse', titel: 'Aktive Angebote je verifiziertem Händler', typ: 'zahl', min: 1, max: 1000000 },
+  { schluessel: 'MARKET_MIN_ACCOUNT_DAYS', gruppe: 'Tauschbörse', titel: 'Nachrichten erst ab Kontoalter (Tage)', typ: 'zahl', min: 0, max: 60,
+    hinweis: 'Schutz vor Spam. Mit bestätigter E-Mail-Adresse sofort möglich.' },
   // Affiliate
   { schluessel: 'AFFILIATE_LINKS', gruppe: 'Affiliate-Links („Hier kaufen“)', titel: 'Kauflinks anzeigen', ...JA_NEIN,
     hinweis: 'Nein = keine Amazon-/eBay-Suchlinks und keine eBay-Angebote mit Partner-ID.' },

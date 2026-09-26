@@ -10,7 +10,7 @@ import { useHinweis } from '../komponenten/Hinweise.jsx';
 
 export default function Einstellungen({ route }) {
   const zeigeHinweis = useHinweis();
-  const { status, benutzer, abmelden } = useSitzung();
+  const { status, benutzer, auth, abmelden } = useSitzung();
   const [eigene, setEigene] = useState([]);
   const [importiert, setImportiert] = useState(null);
 
@@ -49,6 +49,7 @@ export default function Einstellungen({ route }) {
           {[
             ['#/konto', 'benutzer', 'Konto & Sicherheit', benutzer?.totp_aktiv ? 'Passwort, 2FA aktiv, Sichtbarkeit' : 'Passwort, Zwei-Faktor-Anmeldung, Sichtbarkeit'],
             ['#/katalog', 'suche', 'Katalog', 'Alle Spiele, Konsolen & Zubehör nach Plattform'],
+            ...(auth?.boerse ? [['#/boerse', 'boerse', 'Tauschbörse', 'Kaufen, verkaufen, tauschen, Wunschliste'], ['#/nachrichten', 'nachricht', 'Nachrichten', 'Anfragen zu Angeboten']] : []),
             ['#/community', 'community', 'Community', 'Öffentliche Sammlungen anderer Benutzer'],
             ['#/erfolge', 'pokal', 'Erfolge & Sammlungsziele', 'Abzeichen freischalten, Fortschritt je Plattform'],
             ['#/statistik', 'statistik', 'Statistik', 'Verteilung nach Plattform, Region, Zustand'],

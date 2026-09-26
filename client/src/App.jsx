@@ -25,6 +25,12 @@ import KatalogSeite from './seiten/KatalogSeite.jsx';
 import Moderation from './seiten/Moderation.jsx';
 import RechtlicheSeite from './seiten/RechtlicheSeite.jsx';
 import { PasswortVergessen, PasswortNeu, EmailBestaetigen } from './seiten/KontoLinks.jsx';
+import Boerse from './seiten/Boerse.jsx';
+import BoerseAngebot from './seiten/BoerseAngebot.jsx';
+import BoerseMeine from './seiten/BoerseMeine.jsx';
+import BoerseAnbieter from './seiten/BoerseAnbieter.jsx';
+import Haendler from './seiten/Haendler.jsx';
+import Nachrichten, { Unterhaltung } from './seiten/Nachrichten.jsx';
 
 function Seite({ route }) {
   const { pfad } = route;
@@ -42,6 +48,10 @@ function Seite({ route }) {
   if (pfad === '/admin') return <Admin route={route} />;
   if (pfad === '/moderation') return <Moderation route={route} />;
   if (pfad === '/katalog') return <Katalog route={route} />;
+  if (pfad === '/boerse') return <Boerse route={route} />;
+  if (pfad === '/boerse/meine') return <BoerseMeine route={route} />;
+  if (pfad === '/boerse/haendler') return <Haendler route={route} />;
+  if (pfad === '/nachrichten') return <Nachrichten route={route} />;
   let t = passt('/artikel/:id/bearbeiten', pfad);
   if (t) return <ArtikelFormular key={`b${t.id}`} route={route} artikelId={t.id} />;
   t = passt('/artikel/:id', pfad);
@@ -52,6 +62,12 @@ function Seite({ route }) {
   if (t) return <CommunitySammlung key={t.name} route={route} name={t.name} />;
   t = passt('/katalog/:id', pfad);
   if (t) return <KatalogSeite key={t.id} route={route} id={t.id} />;
+  t = passt('/boerse/angebot/:id', pfad);
+  if (t) return <BoerseAngebot key={t.id} route={route} id={t.id} />;
+  t = passt('/boerse/anbieter/:id', pfad);
+  if (t) return <BoerseAnbieter key={t.id} route={route} id={t.id} />;
+  t = passt('/nachrichten/:id', pfad);
+  if (t) return <Unterhaltung key={t.id} route={route} id={t.id} />;
   t = passt('/seite/:slug', pfad);
   if (t) return <RechtlicheSeite key={t.slug} route={route} slug={t.slug} />;
   t = passt('/druck/:id', pfad);

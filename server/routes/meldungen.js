@@ -7,7 +7,7 @@ import { ValidierungsFehler } from '../services/validierung.js';
 export const MELDEGRUENDE = ['urheberrecht', 'rechtswidrig', 'falsch', 'spam', 'ergaenzung', 'sonstiges'];
 
 /** Öffentlich (auch ohne Konto), damit Rechteinhaber Inhalte melden können. */
-export function meldenRouter({ db, katalog }) {
+export function meldenRouter({ db, katalog, boerse }) {
   const router = Router();
   const drossel = erstelleDrossel({ maxVersuche: 20, fensterMs: 60 * 60 * 1000 });
 
@@ -16,7 +16,7 @@ export function meldenRouter({ db, katalog }) {
     const { bereich, grund } = req.body ?? {};
     const zielId = Number(req.body?.ziel_id);
     const fehler = {};
-    if (!['medien', 'katalog', 'preis', 'link'].includes(bereich)) fehler.bereich = 'Ungültiger Bereich.';
+    if (!['medien', 'katalog', 'preis', 'link', 'angebot'].includes(bereich)) fehler.bereich = 'Ungültiger Bereich.';
     if (!MELDEGRUENDE.includes(grund)) fehler.grund = 'Bitte einen Grund wählen.';
     const text = String(req.body?.text ?? '').trim().slice(0, 3000);
     if (!text) fehler.text = 'Bitte beschreibe kurz das Problem.';
@@ -28,6 +28,7 @@ export function meldenRouter({ db, katalog }) {
     if (bereich === 'katalog') sichtbar = Boolean(katalog.holeSichtbar(zielId, req.benutzer));
     if (bereich === 'preis') sichtbar = Boolean(db.prepare("SELECT 1 FROM preis_historie h JOIN katalog k ON k.id = h.katalog_id WHERE h.id = ? AND k.status = 'freigegeben'").get(zielId));
     if (bereich === 'link') sichtbar = Boolean(db.prepare("SELECT 1 FROM externe_links WHERE id = ? AND status = 'freigegeben'").get(zielId));
+    if (bereich === 'angebot') sichtbar = Boolean(boerse.aktiv() && boerse.hole(zielId, req.benutzer));
     if (bereich === 'medien') {
       const m = db.prepare('SELECT benutzer_id, sichtbarkeit FROM medien WHERE id = ?').get(zielId);
       sichtbar = Boolean(m && req.benutzer && (m.sichtbarkeit === 'freigegeben' || m.benutzer_id === req.benutzer.id));
@@ -56,12 +57,14 @@ export function meldungenModerationRouter({ db, benachrichtigungen }) {
           WHEN 'katalog' THEN (SELECT titel FROM katalog WHERE id = m.ziel_id)
           WHEN 'preis' THEN (SELECT printf('%.2f € (%s) – ', h.preis, h.quelle) || k.titel FROM preis_historie h JOIN katalog k ON k.id = h.katalog_id WHERE h.id = m.ziel_id)
           WHEN 'link' THEN (SELECT 'Link zu ' || l.domain || ' – ' || k.titel FROM externe_links l JOIN katalog k ON k.id = l.katalog_id WHERE l.id = m.ziel_id)
+          WHEN 'angebot' THEN (SELECT 'Angebot von ' || COALESCE(b2.anzeigename, b2.benutzername) || ' – ' || k.titel FROM angebote a JOIN katalog k ON k.id = a.katalog_id JOIN benutzer b2 ON b2.id = a.benutzer_id WHERE a.id = m.ziel_id)
         END AS ziel_titel,
         CASE m.bereich
           WHEN 'medien' THEN (SELECT katalog_id FROM medien WHERE id = m.ziel_id)
           WHEN 'katalog' THEN m.ziel_id
           WHEN 'preis' THEN (SELECT katalog_id FROM preis_historie WHERE id = m.ziel_id)
           WHEN 'link' THEN (SELECT katalog_id FROM externe_links WHERE id = m.ziel_id)
+          WHEN 'angebot' THEN (SELECT katalog_id FROM angebote WHERE id = m.ziel_id)
         END AS katalog_id
       FROM inhalt_meldungen m LEFT JOIN benutzer b ON b.id = m.benutzer_id
       WHERE m.status = ? ORDER BY m.erstellt_am DESC LIMIT 200`).all(status);
@@ -86,6 +89,13 @@ export function meldungenModerationRouter({ db, benachrichtigungen }) {
         } else if (m.bereich === 'link') {
           db.prepare(`UPDATE externe_links SET status = 'abgelehnt', pruefung_notiz = ?, geprueft_von = ? WHERE id = ?`)
             .run(`Nach Meldung entfernt: ${ergebnis}`, req.benutzer.id, m.ziel_id);
+        } else if (m.bereich === 'angebot') {
+          const a = db.prepare("UPDATE angebote SET status = 'entfernt', aktualisiert_am = datetime('now') WHERE id = ? RETURNING benutzer_id, katalog_id").get(m.ziel_id);
+          if (a) {
+            benachrichtigungen.sende(a.benutzer_id, {
+              art: 'ablehnung', titel: 'Ein Angebot wurde vom Moderationsteam entfernt', text: ergebnis, link: '#/boerse/meine',
+            });
+          }
         } else if (m.bereich === 'preis') {
           db.prepare('DELETE FROM preis_historie WHERE id = ?').run(m.ziel_id);
         } else if (m.bereich === 'katalog' && istModerator(req.benutzer)) {
@@ -101,6 +111,7 @@ export function meldungenModerationRouter({ db, benachrichtigungen }) {
       katalog: () => m.ziel_id,
       medien: () => db.prepare('SELECT katalog_id FROM medien WHERE id = ?').get(m.ziel_id)?.katalog_id,
       link: () => db.prepare('SELECT katalog_id FROM externe_links WHERE id = ?').get(m.ziel_id)?.katalog_id,
+      angebot: () => db.prepare('SELECT katalog_id FROM angebote WHERE id = ?').get(m.ziel_id)?.katalog_id,
       preis: () => null,
     }[m.bereich]?.();
     for (const { benutzer_id: b, grund } of meldende) {

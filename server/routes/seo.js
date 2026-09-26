@@ -93,7 +93,7 @@ ul.liste{list-style:none;padding:0;margin:0}ul.liste li{padding:8px 0;border-top
 footer{max-width:860px;margin:24px auto;padding:16px;color:var(--leise);font-size:14px;display:flex;flex-wrap:wrap;gap:12px}footer a{color:var(--leise)}
 `;
 
-export function seoRouter({ db, konfiguration, preise, affiliate, preisimport, katalog, igdb, besucher }) {
+export function seoRouter({ db, konfiguration, preise, affiliate, preisimport, katalog, igdb, besucher, boerse }) {
   const router = Router();
   // Ohne PUBLIC_URL aus der Anfrage – aber nur mit gültigem Hostnamen (Schutz vor manipulierten Host-Headern)
   const basis = (req) => {
@@ -273,6 +273,7 @@ ${inhalt}
     if (!wertText.length) wertText.push('Für diesen Eintrag liegen noch keine Preisdaten vor. Sammler können in der App Preise melden.');
 
     const medienAnzahl = medien.reduce((s, m) => s + m.anzahl, 0);
+    const boerseInfo = boerse?.zusammenfassung(e.id) ?? null;
     const appZiel = appLink(`/katalog/${e.id}?app=1`);
     const inhalt = `
 <nav class="pfad" aria-label="Brotkrumen"><a href="/plattformen">Plattformen</a>${plattformen[0] ? ` › <a href="${plattformPfad(plattformen[0])}">${esc(plattformen[0].name)}</a>` : ''} › ${esc(e.titel)}</nav>
@@ -299,6 +300,10 @@ ${e.sammlerhinweise ? `<section class="karte"><h2>Sammlerhinweise</h2>${markdown
 ${vars.length ? `<section class="karte"><h2>Varianten & Revisionen (${vars.length})</h2><ul class="liste">${vars.map((v) => `<li><b>${esc(v.bezeichnung)}</b>${[v.modellnummer, v.region, v.edition, v.farbe, v.erscheinungsjahr].filter(Boolean).length ? ` <span class="leise">· ${esc([v.modellnummer, v.region, v.edition, v.farbe, v.erscheinungsjahr].filter(Boolean).join(' · '))}</span>` : ''}${v.beschreibung ? `<br><span class="leise">${esc(kuerze(v.beschreibung, 300))}</span>` : ''}</li>`).join('')}</ul></section>` : ''}
 ${links.length ? `<section class="karte"><h2>Cover & Handbücher im Netz</h2><ul class="liste">${links.map((l) => `<li><a href="${esc(l.url)}" rel="nofollow ugc noopener" target="_blank">${esc(l.titel || beschriftung(MEDIENARTEN, l.art))}</a> <span class="leise">· ${esc(l.domain)}</span></li>`).join('')}</ul><p class="leise">Externe Seiten – für deren Inhalte sind die jeweiligen Betreiber verantwortlich.</p></section>` : ''}
 ${medienAnzahl ? `<section class="karte"><h2>Scans & Dokumente</h2><p>${medien.map((m) => `${zahl(m.anzahl)} × ${esc(beschriftung(MEDIENARTEN, m.art))}`).join(' · ')}</p><p class="leise">Von Sammlern hochgeladene Scans sind nach der Anmeldung sichtbar.</p><p><a class="knopf zweit" href="${appZiel}">Anmelden und ansehen</a></p></section>` : ''}
+${boerseInfo && (boerseInfo.angebote || boerseInfo.gesucht) ? `<section class="karte"><h2>Tauschbörse</h2><p>${[
+    boerseInfo.angebote ? `<b>${zahl(boerseInfo.angebote)}</b> ${boerseInfo.angebote === 1 ? 'Angebot' : 'Angebote'} von Sammlern${boerseInfo.ab_preis != null ? ` ab ${euro(boerseInfo.ab_preis)}` : ''}` : '',
+    boerseInfo.gesucht ? `<b>${zahl(boerseInfo.gesucht)}</b> ${boerseInfo.gesucht === 1 ? 'Sammler sucht' : 'Sammler suchen'} das` : '',
+  ].filter(Boolean).join(' · ')}.</p><p class="leise">Kaufen, tauschen oder auf die Wunschliste setzen – Angebote und Kontakt nach kostenloser Anmeldung.</p><p><a class="knopf zweit" href="${appLink(`/katalog/${e.id}?app=1`)}">Angebote ansehen</a></p></section>` : ''}
 ${kaufen.length || angebotListe.length ? `<section class="karte"><h2>Hier kaufen <span class="werbung">Anzeige</span></h2><ul class="liste">
 ${angebotListe.slice(0, 5).map((a) => `<li><a href="${esc(a.url)}" rel="sponsored noopener" target="_blank">${esc(kuerze(a.titel, 90))}</a> – <b>${euro(a.preis)}</b></li>`).join('')}
 ${kaufen.map((k) => `<li><a href="${esc(k.url)}" rel="sponsored noopener" target="_blank">${esc(k.titel)}</a>${k.preis ? ` – <b>${euro(k.preis)}</b>` : ''}</li>`).join('')}

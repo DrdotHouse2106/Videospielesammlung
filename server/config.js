@@ -125,6 +125,15 @@ export function ladeKonfiguration(env = process.env) {
       automatischAblehnen: jaNein(env.AI_AUTO_REJECT, true),
       mindestKonfidenz: Math.min(1, Math.max(0.5, Number.parseFloat(env.AI_MIN_CONFIDENCE || '') || 0.85)),
     },
+    // Tauschbörse (Suche/Biete) – ohne Zahlungsabwicklung
+    boerse: {
+      aktiv: jaNein(env.MARKET_ENABLED, true),
+      laufzeitTage: Math.min(365, Math.max(1, zahl(env.MARKET_OFFER_DAYS, 90))),
+      maxAngebote: Math.max(1, zahl(env.MARKET_MAX_OFFERS, 100)),
+      maxAngeboteHaendler: Math.max(1, zahl(env.MARKET_DEALER_MAX_OFFERS, 5000)),
+      // Neue Konten dürfen erst nach X Tagen Nachrichten schreiben – mit bestätigter E-Mail-Adresse sofort
+      mindestKontoalterTage: Math.max(0, zahl(env.MARKET_MIN_ACCOUNT_DAYS, 3)),
+    },
     vertrauteProxies: env.TRUST_PROXY || '',
     affiliate: ladeAffiliateKonfiguration(env),
   };

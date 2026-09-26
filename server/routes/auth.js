@@ -10,7 +10,7 @@ import { zufallsToken } from '../services/sicherheit.js';
 
 const ZU_VIELE = 'Zu viele Fehlversuche. Bitte warte 15 Minuten und versuche es dann erneut.';
 
-export function authRouter({ db, konten, konfiguration, dateien, speicher, kontoMail, captcha, erfolge }) {
+export function authRouter({ db, konten, konfiguration, dateien, speicher, kontoMail, captcha, erfolge, boerse }) {
   const router = Router();
   const { cookieSicher } = konfiguration.konten;
   // Live-Werte (über Admin → Einstellungen änderbar)
@@ -39,6 +39,7 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher, konto
       emailAktiv: kontoMail.bereit(),
       emailPflicht: emailPflicht(),
       captcha: captcha.oeffentlich(),
+      boerse: boerse.aktiv(),
     });
   });
 

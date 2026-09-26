@@ -57,6 +57,11 @@ const sichern = () => {
   if (kontext.sicherung.status().aktiv) kontext.sicherung.lauf().catch((e) => console.warn('[sicherung]', e.message));
 };
 setTimeout(sichern, 60_000).unref();
+
+// Tauschbörse: abgelaufene Angebote stündlich beenden
+setInterval(() => {
+  try { kontext.boerse.raeumeAuf(); } catch (e) { console.warn('[boerse]', e.message); }
+}, 60 * 60 * 1000).unref();
 setInterval(sichern, 60 * 60 * 1000).unref();
 
 function beenden(signal) {

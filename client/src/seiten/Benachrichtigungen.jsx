@@ -5,7 +5,7 @@ import Layout from '../komponenten/Layout.jsx';
 import Symbol from '../komponenten/Symbole.jsx';
 import { useHinweis } from '../komponenten/Hinweise.jsx';
 
-const SYMBOL = { freigabe: 'haken', ablehnung: 'warnung', meldung: 'info', rolle: 'schild', erfolg: 'pokal' };
+const SYMBOL = { freigabe: 'haken', ablehnung: 'warnung', meldung: 'info', rolle: 'schild', erfolg: 'pokal', boerse: 'boerse', nachricht: 'nachricht' };
 
 export default function Benachrichtigungen({ route }) {
   const zeigeHinweis = useHinweis();

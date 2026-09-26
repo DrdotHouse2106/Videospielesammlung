@@ -37,6 +37,7 @@ eigener Eintrag für Raritäten, die in keiner Datenbank stehen.
 - [Schnellstart mit Docker](#schnellstart-mit-docker)
 - [Konfiguration (.env)](#konfiguration-env)
 - [Benutzerkonten & Zwei-Faktor-Anmeldung](#benutzerkonten--zwei-faktor-anmeldung)
+- [Tauschbörse (Suche/Biete)](#tauschbörse-suchebiete)
 - [Katalog, Moderation & Rollen](#katalog-moderation--rollen)
 - [Plattformen, Varianten & Exemplare](#plattformen-varianten--exemplare)
 - [Administration & Einstellungen](#administration--einstellungen)
@@ -89,6 +90,8 @@ eigener Eintrag für Raritäten, die in keiner Datenbank stehen.
 - **Sammlung per Link teilen** – auch mit Menschen ohne Konto, Preise und Notizen bleiben privat
 - **Erfolge & Sammlungsziele** je Plattform, **Benachrichtigungen** und E-Mail für „Passwort vergessen“
 - **Automatische Datensicherung** (7 Tage täglich, 12 Monate monatlich)
+- **Tauschbörse:** Spiele zum Verkauf oder Tausch anbieten, Wunschliste mit Treffer-Benachrichtigung, Tauschvorschläge,
+  Nachrichten, Bewertungen – und für Händler ein CSV-Massen-Upload
 - **PWA:** Installierbar auf Android, iOS und Desktop; zuletzt geladene Daten auch offline sichtbar
 - **Hell & dunkel:** folgt automatisch dem Farbschema des Geräts
 - **Administration:** Benutzer sperren, Rollen vergeben, 2FA zurücksetzen, Registrierung schließen
@@ -227,6 +230,10 @@ Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 | `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` | –        | Zugang zur offiziellen eBay-API für den automatischen Preisimport |
 | `PRICE_IMPORT_HOURS`   | `24`                      | Automatischer Preisimport alle X Stunden (`0` = aus) |
 | `AFFILIATE_LINKS`      | `true`                    | „Hier kaufen“-Links anzeigen (`false` = ausblenden) |
+| `MARKET_ENABLED`       | `true`                    | Tauschbörse (Suche/Biete) ein- oder ausschalten |
+| `MARKET_OFFER_DAYS`    | `90`                      | Laufzeit eines Angebots in Tagen |
+| `MARKET_MAX_OFFERS` / `MARKET_DEALER_MAX_OFFERS` | `100` / `5000` | Aktive Angebote je Benutzer bzw. je verifiziertem Händler |
+| `MARKET_MIN_ACCOUNT_DAYS` | `3`                    | Neue Konten ohne bestätigte E-Mail dürfen erst nach X Tagen Nachrichten schreiben |
 
 Ohne IGDB-Zugangsdaten funktioniert die App vollständig – die Online-Suche entfällt dann,
 und du legst Artikel als eigene Einträge an. Alle weiteren Einträge sind in der
@@ -312,6 +319,30 @@ Die **Glocke** oben in der App zeigt neue Benachrichtigungen, z. B. wenn eine Ei
 Link) freigegeben oder abgelehnt wurde, wenn eine Meldung oder ein Vorschlag
 bearbeitet wurde oder sich die eigene Rolle geändert hat. Wer eine bestätigte E-Mail-Adresse hat, kann unter *Konto*
 zusätzlich **E-Mail-Benachrichtigungen** einschalten (standardmäßig aus). Je Benutzer werden die letzten 200 gespeichert.
+
+---
+
+## Tauschbörse (Suche/Biete)
+
+Unter *Mehr → Tauschbörse* finden Sammler Käufer und Tauschpartner. ZockDB wickelt **keine Zahlungen** ab – Kauf,
+Bezahlung und Versand vereinbaren die Beteiligten direkt miteinander.
+
+- **Anbieten:** Auf der Seite eines Spiels oder bei einem Exemplar deiner Sammlung auf „Anbieten“ tippen – zum Verkauf,
+  zum Tausch oder beides, mit Preisvorstellung, Zustand, Versand/Abholung. Von der Postleitzahl werden nur die ersten
+  zwei Ziffern gespeichert. Angebote laufen nach `MARKET_OFFER_DAYS` Tagen ab und lassen sich mit einem Klick verlängern.
+- **Wunschliste:** „Auf die Wunschliste“ – optional mit Plattform, Region, Mindestzustand, nur CIB und Höchstpreis.
+  Wird ein passendes Angebot eingestellt, gibt es eine Benachrichtigung. Die Spieleseiten zeigen, wie viele Sammler
+  ein Spiel anbieten oder suchen.
+- **Tauschvorschläge:** Die App findet Sammler, die haben, was du suchst, und gleichzeitig suchen, was du tauschen möchtest.
+- **Nachrichten** zu Angeboten innerhalb der App (E-Mail-Adressen bleiben verborgen), danach gegenseitige **Bewertungen**.
+- **Schutz:** Angebote lassen sich melden, Benutzer blockieren; neue Konten ohne bestätigte E-Mail-Adresse dürfen erst
+  nach einer Wartezeit schreiben, Nachrichten sind mengenmäßig begrenzt. Angebote gibt es nur für freigegebene Katalogeinträge.
+- **Händler:** Unter *Meine Börse → Händler & Massen-Upload* hinterlegen gewerbliche Anbieter ihre Anbieterkennzeichnung
+  und laden Angebote per **CSV** hoch (z. B. aus dem Export eines Onlineshops). Zuordnung über ZockDB-ID, EAN oder
+  Titel + Plattform; mit Artikelnummer werden Angebote bei jedem Upload aktualisiert, Bestand 0 beendet sie. Nach Prüfung
+  durch einen Administrator (*Benutzerverwaltung → Anbieterkennzeichnung prüfen*) gelten höhere Limits.
+
+Wer die Börse nicht braucht, schaltet sie mit `MARKET_ENABLED=false` oder unter *Administration → Einstellungen* ab.
 
 ---
 

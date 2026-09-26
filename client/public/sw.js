@@ -3,7 +3,7 @@
 // - Gebaute Assets & Coverbilder: Cache zuerst (Dateinamen enthalten Hashes)
 // - API-GET-Anfragen: Netzwerk zuerst, offline die zuletzt gesehene Antwort
 
-const VERSION = 'v6';
+const VERSION = 'v7';
 // Server-gerenderte öffentliche Seiten (Suchmaschinen) nicht durch die App-Hülle ersetzen
 const SERVERSEITEN = /^\/(spiel|konsole|zubehoer|plattform|plattformen|suche|sammlung)(\/|$)|^\/(sitemap[^/]*\.xml|robots\.txt)$/;
 const HUELLE = `huelle-${VERSION}`;
@@ -72,7 +72,7 @@ self.addEventListener('fetch', (event) => {
 
   if (url.pathname.startsWith('/api/')) {
     // Anmeldung, Exporte und Online-Suchen nie zwischenspeichern.
-    if (['/api/auth/', '/api/konto', '/api/admin', '/api/export', '/api/katalog/suche', '/api/katalog/barcode']
+    if (['/api/auth/', '/api/konto', '/api/admin', '/api/export', '/api/katalog/suche', '/api/katalog/barcode', '/api/boerse/meine.csv', '/api/boerse/nachrichten/anzahl']
       .some((p) => url.pathname.startsWith(p))) return;
     event.respondWith(netzwerkZuerst(request, DATEN));
     return;

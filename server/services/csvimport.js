@@ -52,17 +52,17 @@ export const IMPORT_FELDER = [
 const norm = (t) => String(t ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 
 /** Ordnet Überschriften automatisch den Feldern zu: { feld: spaltenIndex }. */
-export function erkenneZuordnung(kopf) {
+export function erkenneZuordnung(kopf, felder = IMPORT_FELDER) {
   const zuordnung = {};
   const vergeben = new Set();
-  for (const f of IMPORT_FELDER) {
+  for (const f of felder) {
     for (const name of f.namen) {
       const index = kopf.findIndex((k, i) => !vergeben.has(i) && norm(k) === name);
       if (index >= 0) { zuordnung[f.feld] = index; vergeben.add(index); break; }
     }
   }
   // Zweiter Durchgang: Überschrift enthält den Namen (z. B. „Purchase Price (USD)“)
-  for (const f of IMPORT_FELDER) {
+  for (const f of felder) {
     if (zuordnung[f.feld] !== undefined) continue;
     const index = kopf.findIndex((k, i) => !vergeben.has(i) && f.namen.some((n) => n.length > 3 && norm(k).includes(n)));
     if (index >= 0) { zuordnung[f.feld] = index; vergeben.add(index); }
@@ -82,7 +82,7 @@ function typVon(wert, standard) {
   return standard;
 }
 
-function regionVon(wert) {
+export function regionVon(wert) {
   const t = norm(wert);
   if (!t) return null;
   const w = new Set(t.split(/[^a-z0-9äöü]+/).filter(Boolean));
@@ -94,7 +94,7 @@ function regionVon(wert) {
   return null;
 }
 
-function vollstaendigkeitVon(wert) {
+export function vollstaendigkeitVon(wert) {
   const t = norm(wert);
   if (!t) return null;
   if (enthaelt(t, 'ohne anl', 'no manual', 'missing manual', 'fehlt anleitung', 'o. anl')) return 'fehlt_anleitung';
@@ -104,7 +104,7 @@ function vollstaendigkeitVon(wert) {
   return null;
 }
 
-function zustandVon(wert, vollstaendigkeitRoh) {
+export function zustandVon(wert, vollstaendigkeitRoh) {
   const t = norm(wert);
   const v = norm(vollstaendigkeitRoh);
   if (enthaelt(t, 'sealed', 'versiegelt', 'neu/ovp', 'new') || enthaelt(v, 'sealed', 'new', 'neu')) return 'neu_ovp';
@@ -127,7 +127,7 @@ function datumVon(wert) {
   return null;
 }
 
-function betragVon(wert) {
+export function betragVon(wert) {
   const t = String(wert ?? '').replace(/[^\d.,-]/g, '');
   if (!t) return null;
   // „1,234.56“ (englisch) → „1234.56“; „1.234,56“ (deutsch) bleibt für leseEuro

@@ -120,6 +120,15 @@ services:
       # „Hier kaufen“-Links auf Katalogseiten ausblenden: "false"
       AFFILIATE_LINKS: "true"
 
+      # ── Tauschbörse (Suche/Biete, ohne Zahlungsabwicklung) ──────
+      MARKET_ENABLED: "true"
+      # Laufzeit eines Angebots (Tage) und aktive Angebote je Benutzer bzw. verifiziertem Händler
+      MARKET_OFFER_DAYS: "90"
+      MARKET_MAX_OFFERS: "100"
+      MARKET_DEALER_MAX_OFFERS: "5000"
+      # Neue Konten ohne bestätigte E-Mail dürfen erst nach X Tagen Nachrichten schreiben
+      MARKET_MIN_ACCOUNT_DAYS: "3"
+
     # Ein Healthcheck (GET /api/health) ist bereits im Image hinterlegt –
     # „docker compose ps“ zeigt „healthy“, sobald die App bereit ist.
 
