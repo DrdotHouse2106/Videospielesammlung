@@ -230,6 +230,7 @@ function HaendlerBuchungen({ b, onGeaendert }) {
   const [individuell, setIndividuell] = useState('');
   const [paketBis, setPaketBis] = useState(b.haendler_paket_bis ?? inEinemMonat());
   const [apiBis, setApiBis] = useState(b.haendler_api_bis ?? inEinemMonat());
+  const [testTage, setTestTage] = useState(30);
   useEffect(() => { api.adminPakete().then(setPakete).catch(() => setPakete({ pakete: [] })); }, []);
   const speichern = async (fn, meldung) => {
     try { await fn(); zeigeHinweis(meldung); onGeaendert(); } catch (e) { zeigeHinweis(Object.values(e.felder ?? {})[0] ?? e.message, 'fehler'); }
@@ -238,6 +239,16 @@ function HaendlerBuchungen({ b, onGeaendert }) {
   const status = (bis) => (!bis ? 'nicht gebucht' : bis >= heute ? `bis ${datumDe(bis)}` : `abgelaufen am ${datumDe(bis)}`);
   return (
     <div className="mt-3 space-y-2 border-t border-rand pt-2">
+      <p className="font-semibold">
+        Testzugang: {b.haendler_test_bis && b.haendler_test_bis >= heute ? `läuft bis ${datumDe(b.haendler_test_bis)}` : 'keiner aktiv'}
+        {b.haendler_test_genutzt_am && <span className="font-normal text-leise"> · zuletzt begonnen am {datumDe(b.haendler_test_genutzt_am)}</span>}
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <input className="eingabe w-20 py-1" type="number" min={1} max={365} value={testTage} onChange={(e) => setTestTage(e.target.value)} aria-label="Testzugang in Tagen" />
+        <span>Tage größtes Paket + API-Anbindung</span>
+        <button type="button" className="knopf-sekundaer px-3 py-1"
+          onClick={() => speichern(() => api.adminTestzugang(b.id, { tage: Number(testTage) }), `Testzugang für ${testTage} Tage eingerichtet.`)}>Testzugang einrichten</button>
+      </div>
       <p className="font-semibold">Händler-Paket: {b.haendler_paket ? `${anzahl(b.haendler_paket)} Angebote, ` : ''}{status(b.haendler_paket_bis)}</p>
       <div className="flex flex-wrap items-center gap-2">
         <select className="eingabe w-auto py-1" value={paket} onChange={(e) => setPaket(e.target.value)} aria-label="Paket">

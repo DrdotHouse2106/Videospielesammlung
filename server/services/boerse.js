@@ -154,7 +154,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     OR (x.benutzer_id = a.benutzer_id AND x.blockiert_id = @ich))`;
 
   const q = {
-    benutzer: db.prepare('SELECT id, benutzername, anzeigename, email, rolle, gesperrt, erstellt_am, haendler_status, haendler_daten, haendler_paket, haendler_paket_bis, haendler_api_bis, boerse_plz FROM benutzer WHERE id = ?'),
+    benutzer: db.prepare('SELECT id, benutzername, anzeigename, email, rolle, gesperrt, erstellt_am, haendler_status, haendler_daten, haendler_paket, haendler_paket_bis, haendler_api_bis, haendler_test_bis, haendler_test_genutzt_am, boerse_plz FROM benutzer WHERE id = ?'),
     angebot: db.prepare(`SELECT ${ANGEBOT_SPALTEN} ${ANGEBOT_JOIN} WHERE a.id = ?`),
     angebotRoh: db.prepare('SELECT * FROM angebote WHERE id = ?'),
     anzahlAktiv: db.prepare(`SELECT COUNT(*) AS n FROM angebote WHERE benutzer_id = ? AND status IN ${SICHTBARE_STATUS}`),
@@ -585,6 +585,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
       });
     }
     kuerzeNachPaketende();
+    erinnereTestende();
     return abgelaufen.length;
   }
 
@@ -779,7 +780,58 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
       api_preis: k().apiPreis,
       kontakt: k().proKontakt || null,
       preis_hinweis: k().proInfo || null,
+      test_bis: b.haendler_test_bis && b.haendler_test_bis >= heute() ? b.haendler_test_bis : null,
+      test_genutzt_am: b.haendler_test_genutzt_am,
+      // Selbststart möglich: eingeschaltet, verifiziert, noch nie getestet und nichts gebucht
+      test_moeglich: Boolean(k().testTage > 0 && k().pakete.length && b.haendler_status === 'verifiziert' && !b.haendler_test_genutzt_am
+        && !paketAktiv(b) && !apiAktiv(b)),
+      test_tage: k().testTage,
     };
+  }
+
+  /**
+   * Kostenloser Testzugang: Paket (Standard: größtes Paket) und API-Anbindung für `tage` Tage.
+   * Durch Administratoren jederzeit, durch Händler selbst nur einmal und nur wenn eingeschaltet.
+   */
+  function starteTest(benutzerId, { tage, angebote = null, durchAdmin = false } = {}) {
+    const b = q.benutzer.get(Number(benutzerId));
+    if (!b) throw new KontoFehler('Benutzer nicht gefunden.', 404);
+    if (b.haendler_status !== 'verifiziert') throw new KontoFehler('Testzugänge gibt es nur für verifizierte Händler.', 409);
+    if (!durchAdmin) {
+      if (!haendlerProfil(b.id).test_moeglich) throw new KontoFehler('Ein kostenloser Test ist für dein Konto nicht (mehr) verfügbar.', 409);
+      tage = k().testTage;
+      angebote = null;
+    }
+    const n = Number(tage);
+    if (!Number.isInteger(n) || n < 1 || n > 365) throw new ValidierungsFehler({ tage: 'Bitte 1 bis 365 Tage angeben.' });
+    const groesstes = Math.max(0, ...k().pakete.map((p) => p.angebote));
+    const anzahl = angebote === null || angebote === undefined || angebote === '' ? groesstes : Number(angebote);
+    if (!Number.isInteger(anzahl) || anzahl < 1 || anzahl > 1_000_000) throw new ValidierungsFehler({ angebote: 'Ungültige Anzahl Angebote.' });
+    const bis = new Date(Date.now() + n * TAG_MS).toISOString().slice(0, 10);
+    db.prepare(`UPDATE benutzer SET haendler_paket = ?, haendler_paket_bis = ?, haendler_api_bis = ?, haendler_test_bis = ?,
+      haendler_test_genutzt_am = ?, haendler_test_erinnert = 0 WHERE id = ?`).run(anzahl || null, bis, bis, bis, heute(), b.id);
+    benachrichtigungen.sende(b.id, {
+      art: 'boerse', titel: `Dein kostenloser Testzugang läuft bis ${datumText(bis)}`,
+      text: `Du kannst bis zu ${anzahl.toLocaleString('de-DE')} Angebote einstellen, die volle Nachfrage-Auswertung nutzen und deinen Shop per API anbinden.`,
+      link: '#/boerse/haendler',
+    });
+    return haendlerProfil(b.id);
+  }
+
+  /** Drei Tage vor Ende eines Testzugangs einmal erinnern. */
+  function erinnereTestende() {
+    const grenze = new Date(Date.now() + 3 * TAG_MS).toISOString().slice(0, 10);
+    const faellig = db.prepare(`SELECT id, haendler_test_bis FROM benutzer WHERE haendler_test_bis IS NOT NULL AND haendler_test_erinnert = 0
+      AND haendler_test_bis >= ? AND haendler_test_bis <= ?`).all(heute(), grenze);
+    for (const b of faellig) {
+      db.prepare('UPDATE benutzer SET haendler_test_erinnert = 1 WHERE id = ?').run(b.id);
+      benachrichtigungen.sende(b.id, {
+        art: 'boerse', titel: `Dein Testzugang endet am ${datumText(b.haendler_test_bis)}`,
+        text: 'Buche jetzt ein Paket, damit deine Angebote und die API-Anbindung aktiv bleiben.',
+        link: '#/boerse/haendler',
+      });
+    }
+    return faellig.length;
   }
 
   function pruefeDatum(bis) {
@@ -804,7 +856,8 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     if (bis && !k().pakete.some((p) => p.angebote === anzahl) && !individuell) {
       throw new ValidierungsFehler({ angebote: `Bitte eines der eingestellten Pakete wählen oder individuell mehr als ${groesstes.toLocaleString('de-DE')} Angebote.` });
     }
-    db.prepare('UPDATE benutzer SET haendler_paket = ?, haendler_paket_bis = ? WHERE id = ?').run(anzahl, bis, b.id);
+    // Eine reguläre Buchung beendet den Teststatus
+    db.prepare('UPDATE benutzer SET haendler_paket = ?, haendler_paket_bis = ?, haendler_test_bis = NULL WHERE id = ?').run(anzahl, bis, b.id);
     if (bis && bis >= heute()) {
       benachrichtigungen.sende(b.id, {
         art: 'boerse', titel: `Händler-Paket ${anzahl.toLocaleString('de-DE')} ist freigeschaltet`,
@@ -817,7 +870,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
   /** Admin: Zusatzpaket API-Anbindung bis zu einem Datum freischalten (null = beenden). */
   function setzeApi(benutzerId, bis) {
     const b = verifizierterHaendler(benutzerId, bis);
-    db.prepare('UPDATE benutzer SET haendler_api_bis = ? WHERE id = ?').run(bis, b.id);
+    db.prepare('UPDATE benutzer SET haendler_api_bis = ?, haendler_test_bis = NULL WHERE id = ?').run(bis, b.id);
     if (bis && bis >= heute()) {
       benachrichtigungen.sende(b.id, {
         art: 'boerse', titel: 'API-Anbindung ist freigeschaltet',
@@ -905,7 +958,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     blockiere, entblocke, blockierte,
     frageAn, antworte, unterhaltungen, unterhaltung, ungeleseneNachrichten,
     bewerte, bewertungFuer, anbieterProfil,
-    haendlerProfil, setzeHaendler, setzePlz, verifiziere, setzePaket, setzeApi, kuerzeNachPaketende,
+    haendlerProfil, setzeHaendler, setzePlz, verifiziere, setzePaket, setzeApi, kuerzeNachPaketende, starteTest, erinnereTestende,
     apiAktiv: (id) => apiAktiv(q.benutzer.get(id)),
   };
 }

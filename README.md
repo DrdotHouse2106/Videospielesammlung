@@ -235,6 +235,7 @@ Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 | `MARKET_MAX_OFFERS`    | `50`                      | Kostenlose aktive Angebote je Benutzer (auch per CSV-Upload) |
 | `MARKET_PACKAGES`      | `500=9,90;1000=14,90;5000=29,90` | Händler-Pakete: Anzahl aktiver Angebote = Monatspreis in € |
 | `MARKET_API_PRICE`     | `19,90`                   | Monatspreis des Zusatzpakets API-Anbindung (Shop/ERP) |
+| `MARKET_TRIAL_DAYS`    | `0`                       | Testzugang, den verifizierte Händler einmalig selbst starten können (Tage, `0` = nur durch Administratoren) |
 | `MARKET_MIN_ACCOUNT_DAYS` | `3`                    | Neue Konten ohne bestätigte E-Mail dürfen erst nach X Tagen Nachrichten schreiben |
 | `MARKET_PRO_CONTACT` / `MARKET_PRO_INFO` | –   | Kontakt (E-Mail oder https-Adresse) für Buchungen und individuelle Anbindungen, Zusatzhinweis zu den Preisen (z. B. „zzgl. MwSt.“) |
 
@@ -352,6 +353,9 @@ Bezahlung und Versand vereinbaren die Beteiligten direkt miteinander.
   **Shopware 6** (Admin-API) oder einem **CSV-Feed** per https. Zugangsdaten der Händler werden verschlüsselt gespeichert;
   Abrufe gehen nur an öffentliche https-Adressen. Für andere Systeme (ERP, Shopsoftware) weist der Händlerbereich auf
   individuelle Anbindungen hin.
+- **Testzugang:** Administratoren richten Händlern einen kostenlosen Test für beliebig viele Tage ein (größtes Paket +
+  API-Anbindung). Mit `MARKET_TRIAL_DAYS` können verifizierte Händler zusätzlich einmalig selbst einen Test starten.
+  Drei Tage vor Ende gibt es eine Erinnerung, danach endet der Test automatisch.
 - Pakete und API-Anbindung schaltet ein Administrator mit Ablaufdatum frei (*Benutzerverwaltung → Anbieterkennzeichnung
   prüfen*). Die Abrechnung erfolgt außerhalb der App, z. B. per Rechnung.
 

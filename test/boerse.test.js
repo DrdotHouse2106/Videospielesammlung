@@ -294,6 +294,36 @@ test('Gewerbliche Anbieter: Kennzeichnung, Verifizierung, Massen-Upload', async 
   assert.equal(nfPrivat.voll, false);
   assert.ok(!('max_preis_hoechst' in nfPrivat.eintraege[0]));
 
+  // Testzugang: Selbststart nur wenn eingeschaltet und nichts gebucht; Admin jederzeit
+  assert.equal((await post(shop, '/api/boerse/haendler/test', {})).status, 409);
+  let h = (await shop.api('/api/boerse/haendler')).json;
+  assert.equal(h.test_moeglich, false);
+  assert.equal((await post(admin, `/api/admin/benutzer/${shopId}/testzugang`, { tage: 14 })).status, 200);
+  h = (await shop.api('/api/boerse/haendler')).json;
+  assert.equal(h.paket, 5000, 'Test = größtes Paket');
+  assert.equal(h.api, true, 'Test enthält die API-Anbindung');
+  assert.ok(h.test_bis);
+  // Erinnerung drei Tage vor Ende – genau einmal
+  server.db.prepare("UPDATE benutzer SET haendler_test_bis = date('now', '+2 days'), haendler_paket_bis = date('now', '+2 days') WHERE id = ?").run(shopId);
+  assert.equal(server.kontext.boerse.erinnereTestende(), 1);
+  assert.equal(server.kontext.boerse.erinnereTestende(), 0);
+  // Reguläre Buchung beendet den Teststatus
+  await post(admin, `/api/admin/benutzer/${shopId}/paket`, { angebote: 500, bis: '2099-12-31' });
+  assert.equal((await shop.api('/api/boerse/haendler')).json.test_bis, null);
+  // Selbststart: nur einmal, nur ohne gebuchtes Paket
+  server.kontext.konfiguration.boerse.testTage = 30;
+  assert.equal((await shop.api('/api/boerse/haendler')).json.test_moeglich, false, 'bereits getestet');
+  server.db.prepare('UPDATE benutzer SET haendler_test_genutzt_am = NULL WHERE id = ?').run(shopId);
+  assert.equal((await shop.api('/api/boerse/haendler')).json.test_moeglich, false, 'Paket gebucht');
+  const paketVorher = server.db.prepare('SELECT haendler_paket, haendler_paket_bis FROM benutzer WHERE id = ?').get(shopId);
+  server.db.prepare('UPDATE benutzer SET haendler_paket = NULL, haendler_paket_bis = NULL, haendler_api_bis = NULL WHERE id = ?').run(shopId);
+  r = await post(shop, '/api/boerse/haendler/test', {});
+  assert.equal(r.status, 200, r.text);
+  assert.equal(r.json.paket, 5000);
+  assert.equal((await post(shop, '/api/boerse/haendler/test', {})).status, 409, 'nur einmal');
+  server.kontext.konfiguration.boerse.testTage = 0;
+  server.db.prepare('UPDATE benutzer SET haendler_paket = ?, haendler_paket_bis = ?, haendler_test_bis = NULL WHERE id = ?').run(paketVorher.haendler_paket, paketVorher.haendler_paket_bis, shopId);
+
   // Nach Ablauf des Pakets: Angebote über dem kostenlosen Limit werden beendet
   const csvViele = ['SKU;ZockDB-ID;Preis;Bestand', ...[1, 2, 3, 4, 5].map((i) => `V-${i};${spiel.id};${10 + i};1`)].join('\n');
   r = await post(shop, '/api/boerse/haendler/import', { text: csvViele, zuordnung: { sku: 0, katalog_id: 1, preis: 2, anzahl: 3 } });

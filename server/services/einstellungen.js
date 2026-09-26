@@ -82,6 +82,8 @@ export const EINSTELLUNGEN = [
     hinweis: 'Gilt für alle ohne gebuchtes Händler-Paket – auch beim CSV-Upload.' },
   { schluessel: 'MARKET_PACKAGES', gruppe: 'Tauschbörse', titel: 'Händler-Pakete (Angebote = Monatspreis in €)', typ: 'text',
     platzhalter: '500=9,90;1000=14,90;5000=29,90', hinweis: 'Mit Semikolon getrennt. Die Pakete schaltet ein Administrator in der Benutzerverwaltung frei.' },
+  { schluessel: 'MARKET_TRIAL_DAYS', gruppe: 'Tauschbörse', titel: 'Testzugang zum Selbststarten (Tage)', typ: 'zahl', min: 0, max: 365,
+    hinweis: '0 = aus. Sonst können verifizierte Händler einmalig selbst einen kostenlosen Test (größtes Paket + API-Anbindung) starten. Administratoren können Testzugänge immer vergeben.' },
   { schluessel: 'MARKET_API_PRICE', gruppe: 'Tauschbörse', titel: 'Zusatzpaket API-Anbindung (Monatspreis in €)', typ: 'text', platzhalter: '19,90' },
   { schluessel: 'MARKET_MIN_ACCOUNT_DAYS', gruppe: 'Tauschbörse', titel: 'Nachrichten erst ab Kontoalter (Tage)', typ: 'zahl', min: 0, max: 60,
     hinweis: 'Schutz vor Spam. Mit bestätigter E-Mail-Adresse sofort möglich.' },

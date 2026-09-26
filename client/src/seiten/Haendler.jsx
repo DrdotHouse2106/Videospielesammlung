@@ -36,7 +36,7 @@ export default function Haendler({ route }) {
             <Vorteile profil={profil} />
             <Kennzeichnung profil={profil} onGespeichert={setProfil} />
             {profil.status && <MassenUpload profil={profil} />}
-            <Pakete profil={profil} />
+            <Pakete profil={profil} onGeaendert={setProfil} />
             {profil.status && <ApiBereich profil={profil} />}
             <IndividuelleAnbindung profil={profil} />
           </>
@@ -263,12 +263,29 @@ const datum = (iso) => iso.split('-').reverse().join('.');
 const euroMonat = (n) => `${n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })} / Monat`;
 
 /** Kostenloses Kontingent und buchbare Händler-Pakete. */
-function Pakete({ profil }) {
+function Pakete({ profil, onGeaendert }) {
+  const zeigeHinweis = useHinweis();
+  const testStarten = async () => {
+    if (!window.confirm(`${profil.test_tage} Tage kostenlos testen? Der Test kann nur einmal genutzt werden und endet automatisch – ohne Kosten und ohne Kündigung.`)) return;
+    try { onGeaendert(await api.haendlerTestStarten()); zeigeHinweis('Testzugang gestartet – viel Spaß!'); } catch (e) { zeigeHinweis(e.message, 'fehler'); }
+  };
   const stufen = [{ angebote: profil.kostenlos, preis: 0 }, ...profil.pakete];
   const aktuell = profil.paket ?? profil.kostenlos;
   return (
     <section className="karte space-y-3 p-4 text-sm">
       <h2 className="flex items-center gap-2 font-semibold"><Symbol name="wert" className="size-5 text-akzent-hell" />Pakete</h2>
+      {profil.test_bis && (
+        <p className="rounded-xl border border-erfolg/50 bg-erfolg/10 p-3">
+          <strong>Kostenloser Testzugang bis {datum(profil.test_bis)}</strong> – inklusive API-Anbindung. Danach endet er automatisch;
+          buche rechtzeitig ein Paket, damit deine Angebote aktiv bleiben.
+        </p>
+      )}
+      {profil.test_moeglich && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-akzent/50 bg-akzent/10 p-3">
+          <p className="min-w-0 flex-1"><strong>{profil.test_tage} Tage kostenlos testen:</strong> größtes Paket und API-Anbindung, endet automatisch.</p>
+          <button type="button" className="knopf-primaer px-3 py-1.5" onClick={testStarten}>Test starten</button>
+        </div>
+      )}
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         {stufen.map((s) => {
           const gewaehlt = s.angebote === aktuell;
@@ -277,7 +294,7 @@ function Pakete({ profil }) {
               <p className="font-semibold">{s.preis ? `Händler ${anzahl(s.angebote)}` : 'Kostenlos'}</p>
               <p className="text-lg font-bold">{s.preis ? euroMonat(s.preis) : '0 €'}</p>
               <p className="text-xs text-leise">bis {anzahl(s.angebote)} aktive Angebote{s.preis ? ' · volle Nachfrage-Auswertung' : ' · auch per CSV-Upload'}</p>
-              {gewaehlt && <p className="mt-1 text-xs font-semibold text-akzent-hell">{s.preis ? `Gebucht bis ${datum(profil.paket_bis)}` : 'Aktuell'}</p>}
+              {gewaehlt && <p className="mt-1 text-xs font-semibold text-akzent-hell">{s.preis ? `${profil.test_bis ? 'Test' : 'Gebucht'} bis ${datum(profil.paket_bis)}` : 'Aktuell'}</p>}
             </div>
           );
         })}
@@ -382,7 +399,7 @@ function ApiBereich({ profil }) {
 
   return (
     <section className="karte space-y-3 p-4 text-sm">
-      <h2 className="flex items-center gap-2 font-semibold"><Symbol name="aktualisieren" className="size-5 text-akzent-hell" />Automatische Anbindung <span className="abzeichen text-erfolg">gebucht bis {datum(profil.api_bis)}</span></h2>
+      <h2 className="flex items-center gap-2 font-semibold"><Symbol name="aktualisieren" className="size-5 text-akzent-hell" />Automatische Anbindung <span className="abzeichen text-erfolg">{profil.test_bis ? 'Test' : 'gebucht'} bis {datum(profil.api_bis)}</span></h2>
       <p className="text-leise">
         Deine Zugangsdaten werden verschlüsselt gespeichert und nie wieder angezeigt. Es werden nur Produktdaten gelesen – lege dafür
         möglichst einen Zugang mit reinen Leserechten an.

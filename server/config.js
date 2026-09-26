@@ -151,6 +151,8 @@ export function ladeKonfiguration(env = process.env) {
       pakete: lesePakete(env.MARKET_PACKAGES ?? '500=9,90;1000=14,90;5000=29,90'),
       // Zusatzpaket „API-Anbindung“ (Shop/ERP) – Monatspreis in Euro
       apiPreis: preis(env.MARKET_API_PRICE ?? '19,90') ?? 19.9,
+      // Kostenloser Testzugang, den verifizierte Händler einmal selbst starten können (0 = nur durch Administratoren)
+      testTage: Math.min(365, Math.max(0, zahl(env.MARKET_TRIAL_DAYS, 0))),
       // Neue Konten dürfen erst nach X Tagen Nachrichten schreiben – mit bestätigter E-Mail-Adresse sofort
       mindestKontoalterTage: Math.max(0, zahl(env.MARKET_MIN_ACCOUNT_DAYS, 3)),
       // Kontakt für Pakete und individuelle Anbindungen (E-Mail oder https-Adresse) und Zusatzhinweis (z. B. „zzgl. MwSt.“)

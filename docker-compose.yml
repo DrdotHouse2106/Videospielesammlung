@@ -128,6 +128,8 @@ services:
       # Händler-Pakete (Anzahl aktiver Angebote = Monatspreis in €) und Zusatzpaket API-Anbindung (€/Monat)
       MARKET_PACKAGES: "500=9,90;1000=14,90;5000=29,90"
       MARKET_API_PRICE: "19,90"
+      # Kostenloser Test, den verifizierte Händler einmal selbst starten können (Tage, 0 = nur durch Administratoren)
+      MARKET_TRIAL_DAYS: "0"
       # Neue Konten ohne bestätigte E-Mail dürfen erst nach X Tagen Nachrichten schreiben
       MARKET_MIN_ACCOUNT_DAYS: "3"
       # Kontakt für Buchungen und individuelle Anbindungen (E-Mail oder https-Adresse) und Zusatzhinweis, z. B. "zzgl. MwSt."

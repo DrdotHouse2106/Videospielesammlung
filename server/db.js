@@ -561,6 +561,12 @@ const MIGRATIONEN = [
   ALTER TABLE benutzer ADD COLUMN haendler_paket INTEGER;       -- gebuchte Anzahl aktiver Angebote
   ALTER TABLE benutzer ADD COLUMN haendler_paket_bis TEXT;      -- JJJJ-MM-TT
   `,
+  // 19: Kostenloser Testzugang für Händler (Paket + API-Anbindung auf Zeit)
+  `
+  ALTER TABLE benutzer ADD COLUMN haendler_test_bis TEXT;          -- gesetzt, solange die Buchungen ein Testzugang sind
+  ALTER TABLE benutzer ADD COLUMN haendler_test_genutzt_am TEXT;   -- wann zuletzt ein Testzugang begonnen wurde
+  ALTER TABLE benutzer ADD COLUMN haendler_test_erinnert INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

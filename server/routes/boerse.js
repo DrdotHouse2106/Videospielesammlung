@@ -103,6 +103,7 @@ export function boerseRouter({ boerse, boersenImport, anbindungen }) {
   // ── Gewerbliche Anbieter ──────────────────────────────────────
   router.get('/boerse/haendler', (req, res) => res.json(boerse.haendlerProfil(req.benutzer.id)));
   router.put('/boerse/haendler', (req, res) => res.json(boerse.setzeHaendler(req.benutzer, req.body?.privat ? null : req.body ?? {})));
+  router.post('/boerse/haendler/test', (req, res) => res.json(boerse.starteTest(req.benutzer.id)));
   router.put('/boerse/plz', (req, res) => res.json({ plz: boerse.setzePlz(req.benutzer, req.body?.plz) }));
   router.post('/boerse/haendler/import/analyse', (req, res) => res.json(boersenImport.analyse(req.benutzer, req.body?.text)));
   router.post('/boerse/haendler/import', (req, res) => {
