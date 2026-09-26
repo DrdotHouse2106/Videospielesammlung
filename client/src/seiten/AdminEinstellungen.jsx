@@ -93,6 +93,7 @@ export default function AdminEinstellungen() {
         <section key={gruppe} className="karte space-y-4 p-4">
           <h2 className="font-semibold">{gruppe}</h2>
           {gruppe.startsWith('Affiliate') && daten.affiliate && <AffiliateStatus a={daten.affiliate} />}
+          {gruppe.startsWith('E-Mail') && <TestMail />}
           {liste.map((e) => (
             <Feld key={e.schluessel} e={e} wert={werte[e.schluessel]} fehler={fehler[e.schluessel]}
               zuruecksetzenVorgemerkt={zuruecksetzen.has(e.schluessel)} entfernenVorgemerkt={entfernen.has(e.schluessel)}
@@ -251,5 +252,20 @@ function AffiliateStatus({ a }) {
         die im Partnerkonto angemeldet sind – trage hier deshalb eigene IDs ein, wenn du eine eigene Installation betreibst.
       </p>
     </div>
+  );
+}
+
+function TestMail() {
+  const zeigeHinweis = useHinweis();
+  const [an, setAn] = useState('');
+  return (
+    <form className="flex flex-wrap gap-2 rounded-xl border border-rand p-3" onSubmit={async (e) => {
+      e.preventDefault();
+      try { const r = await api.adminTestMail(an); zeigeHinweis(`Test-E-Mail an ${r.an} verschickt.`); } catch (err) { zeigeHinweis(err.message, 'fehler'); }
+    }}>
+      <input type="email" className="eingabe min-w-0 flex-1" placeholder="Empfänger (leer = deine Kontoadresse)" value={an} onChange={(e) => setAn(e.target.value)} />
+      <button type="submit" className="knopf-sekundaer">Test-E-Mail senden</button>
+      <p className="w-full text-xs text-leise">Erst speichern, dann testen.</p>
+    </form>
   );
 }

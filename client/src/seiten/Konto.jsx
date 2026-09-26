@@ -39,6 +39,7 @@ export default function Konto({ route }) {
         {!konto ? <p className="text-leise">Wird geladen …</p> : (
           <>
             <Profil konto={konto} onSpeichern={speichereProfil} />
+            {!pflicht && <EmailAdresse konto={konto} onGeaendert={laden} />}
             <ZweiFaktor konto={konto} pflicht={auth?.zweiFaktorPflicht} onGeaendert={() => { laden(); aktualisiere(); }} />
             {!pflicht && (
               <>
@@ -318,5 +319,72 @@ function Aktionen({ fehler, onAbbrechen, text, gefahr }) {
         <button type="submit" className={gefahr ? 'knopf-gefahr' : 'knopf-primaer'}>{text}</button>
       </div>
     </>
+  );
+}
+
+function EmailAdresse({ konto, onGeaendert }) {
+  const zeigeHinweis = useHinweis();
+  const [offen, setOffen] = useState(false);
+  const [w, setW] = useState({ email: '', passwort: '' });
+  const [fehler, setFehler] = useState(null);
+
+  async function speichern(e) {
+    e.preventDefault();
+    setFehler(null);
+    try {
+      await api.emailSetzen(w.email, w.passwort);
+      zeigeHinweis('Wir haben dir einen Bestätigungslink geschickt. Die Adresse gilt, sobald du ihn öffnest.');
+      setOffen(false);
+      setW({ email: '', passwort: '' });
+      onGeaendert();
+    } catch (err) {
+      setFehler(Object.values(err.felder ?? {})[0] ?? err.message);
+    }
+  }
+  async function entfernen() {
+    const passwort = window.prompt('Zum Entfernen bitte dein Passwort eingeben:');
+    if (!passwort) return;
+    try {
+      await api.emailEntfernen(passwort);
+      zeigeHinweis('E-Mail-Adresse entfernt.');
+      onGeaendert();
+    } catch (err) {
+      zeigeHinweis(Object.values(err.felder ?? {})[0] ?? err.message, 'fehler');
+    }
+  }
+
+  return (
+    <section className="karte space-y-3 p-4">
+      <h2 className="flex items-center gap-2 font-semibold"><Symbol name="dokument" className="size-5" />E-Mail-Adresse</h2>
+      {!konto.emailAktiv ? (
+        <p className="text-sm text-leise">Der E-Mail-Versand ist auf diesem Server nicht eingerichtet.</p>
+      ) : (
+        <>
+          <p className="text-sm">
+            {konto.email ? <>Bestätigt: <strong className="break-all">{konto.email}</strong></> : 'Noch keine E-Mail-Adresse hinterlegt.'}
+          </p>
+          {konto.ausstehendeEmail && (
+            <p className="text-sm text-warnung">Wartet auf Bestätigung: <span className="break-all">{konto.ausstehendeEmail}</span> – bitte den Link in der E-Mail öffnen.</p>
+          )}
+          <p className="text-xs text-leise">Wird nur für „Passwort vergessen“, Sicherheitshinweise und – wenn du es möchtest – Benachrichtigungen verwendet. Nie für Werbung, nie für andere sichtbar.</p>
+          {offen ? (
+            <form className="space-y-2" onSubmit={speichern}>
+              <input type="email" className="eingabe" placeholder="neue@adresse.de" value={w.email} onChange={(e) => setW({ ...w, email: e.target.value })} autoComplete="email" required />
+              <input type="password" className="eingabe" placeholder="Dein Passwort zur Bestätigung" value={w.passwort} onChange={(e) => setW({ ...w, passwort: e.target.value })} autoComplete="current-password" required />
+              {fehler && <p className="text-sm text-gefahr" role="alert">{fehler}</p>}
+              <div className="flex gap-2">
+                <button type="button" className="knopf-sekundaer" onClick={() => setOffen(false)}>Abbrechen</button>
+                <button type="submit" className="knopf-primaer">Bestätigungslink senden</button>
+              </div>
+            </form>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="knopf-sekundaer" onClick={() => setOffen(true)}>{konto.email ? 'Adresse ändern' : 'Adresse hinzufügen'}</button>
+              {konto.email && !konto.emailPflicht && <button type="button" className="knopf-sekundaer" onClick={entfernen}>Entfernen</button>}
+            </div>
+          )}
+        </>
+      )}
+    </section>
   );
 }

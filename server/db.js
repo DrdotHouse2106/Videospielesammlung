@@ -384,6 +384,21 @@ const MIGRATIONEN = [
   ALTER TABLE katalog ADD COLUMN seo_beschreibung TEXT;
   CREATE INDEX IF NOT EXISTS idx_artikel_katalog ON artikel (katalog_id);
   `,
+  // 11: E-Mail-Adresse, Bestätigungs- und Passwort-Links
+  `
+  ALTER TABLE benutzer ADD COLUMN email TEXT;          -- nur bestätigte Adressen
+  CREATE UNIQUE INDEX idx_benutzer_email ON benutzer (email) WHERE email IS NOT NULL;
+  CREATE TABLE konto_tokens (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    benutzer_id INTEGER NOT NULL REFERENCES benutzer (id) ON DELETE CASCADE,
+    zweck       TEXT    NOT NULL,                     -- email, passwort
+    token_hash  TEXT    NOT NULL UNIQUE,              -- SHA-256, der Link selbst wird nie gespeichert
+    email       TEXT,                                 -- neue, noch unbestätigte Adresse
+    laeuft_ab   INTEGER NOT NULL,
+    erstellt_am TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX idx_konto_tokens_benutzer ON konto_tokens (benutzer_id, zweck);
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

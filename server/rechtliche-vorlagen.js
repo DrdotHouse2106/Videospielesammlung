@@ -62,6 +62,8 @@ Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (sicherer und stabiler Betrieb).
 
 Bei der Registrierung speichern wir Benutzername, optional einen Anzeigenamen sowie dein Passwort ausschließlich als sicheren Hash (scrypt). Nutzt du die Zwei-Faktor-Anmeldung, wird das dazugehörige Geheimnis verschlüsselt gespeichert, Wiederherstellungscodes nur als Hash. Außerdem speichern wir Zeitpunkte der Registrierung, der letzten Anmeldung und der Zustimmung zu den Nutzungsbedingungen.
 
+Hinterlegst du freiwillig eine **E-Mail-Adresse**, nutzen wir sie ausschließlich zur Bestätigung der Adresse, für „Passwort vergessen“, für Sicherheitshinweise zu deinem Konto und – nur wenn du es einschaltest – für Benachrichtigungen. Keine Werbung, keine Weitergabe; andere Benutzer sehen die Adresse nie. Für den Versand nutzen wir den E-Mail-Dienst [Name des E-Mail-Anbieters] als Auftragsverarbeiter.
+
 Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Nutzungsvertrag).
 
 ## 5. Sammlungsdaten, Kommentare und Uploads

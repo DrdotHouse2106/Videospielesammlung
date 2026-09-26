@@ -62,6 +62,16 @@ services:
       # Sichere Cookies: auto (erkennt HTTPS), true oder false
       COOKIE_SECURE: "auto"
 
+      # ── E-Mail (SMTP) für „Passwort vergessen“ & Benachrichtigungen ─
+      # Links in E-Mails werden nur mit PUBLIC_URL erzeugt. Auch unter Administration → Einstellungen änderbar.
+      SMTP_HOST: ""
+      SMTP_PORT: "587"
+      SMTP_SECURE: "auto"            # auto (465 = TLS, sonst STARTTLS), true, false
+      SMTP_USER: ""
+      SMTP_PASSWORD: ""
+      SMTP_FROM: ""                  # z. B. "ZockDB <noreply@zockdb.de>"
+      REQUIRE_EMAIL: "false"         # E-Mail bei der Registrierung Pflicht?
+
       # ── Öffentlicher Katalog & Suchmaschinen ────────────────────
       # Katalogseiten (Spiele, Preise, Kauflinks) ohne Anmeldung zeigen – Voraussetzung für Google
       PUBLIC_CATALOG: "true"

@@ -210,6 +210,11 @@ Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 | `MAX_UPLOAD_MB`        | `8`                       | Maximale Dateigröße für Artikelfotos |
 | `MEDIA_MAX_MB`         | `200`                     | Maximale Dateigröße für Scans und PDF-Handbücher |
 | `MEDIA_SHARING`        | `true`                    | Dürfen Scans mit anderen Benutzern geteilt werden? |
+| `SMTP_HOST` / `SMTP_PORT` | – / `587`             | SMTP-Server für E-Mails (Passwort vergessen, Bestätigung, Benachrichtigungen) |
+| `SMTP_SECURE`          | `auto`                    | `auto` (Port 465 = TLS, sonst STARTTLS), `true` oder `false` |
+| `SMTP_USER` / `SMTP_PASSWORD` | –                  | Zugangsdaten des Postfachs |
+| `SMTP_FROM`            | –                         | Absender, z. B. `ZockDB <noreply@zockdb.de>` |
+| `REQUIRE_EMAIL`        | `false`                   | E-Mail-Adresse bei der Registrierung verpflichtend |
 | `BACKUP_ENABLED`       | `true`                    | Automatische Datenbank-Sicherung im Datenordner (`sicherungen/`) |
 | `BACKUP_DAYS` / `BACKUP_MONTHS` | `7` / `12`       | Aufbewahrung der täglichen bzw. monatlichen Sicherungen |
 | `STORAGE_QUOTA_MB`     | `1024`                    | Speicherplatz je Benutzer für eigene Fotos und Scans in MB (`0` = unbegrenzt) |
@@ -269,6 +274,21 @@ und du legst Artikel als eigene Einträge an.
 > (Administrator-)Konto zugeordnet. Die alten Variablen `AUTH_USER`/`AUTH_PASSWORD` entfallen.
 
 ---
+
+### E-Mail & „Passwort vergessen“
+
+Mit einem SMTP-Postfach (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` – auch unter
+*Administration → Einstellungen → E-Mail*, dort gibt es eine **Test-E-Mail**) schaltet ZockDB E-Mail-Funktionen frei:
+
+- **E-Mail-Adresse im Konto** (freiwillig, mit `REQUIRE_EMAIL=true` Pflicht bei der Registrierung). Die Adresse gilt erst,
+  wenn der Bestätigungslink geöffnet wurde (24 Stunden gültig).
+- **Passwort vergessen** auf der Anmeldeseite: Link per E-Mail, 60 Minuten gültig, nur einmal verwendbar. Danach werden alle
+  Geräte abgemeldet. Eine aktive Zwei-Faktor-Anmeldung bleibt bestehen – der Link allein reicht also nicht für den Zugriff.
+- **Sicherheitshinweise** bei Passwortänderung, Passwort-Reset und abgeschalteter 2FA.
+
+Datenschutz & Sicherheit: Links enthalten einen Zufallswert, gespeichert wird nur dessen Hash. Links werden **nur** mit
+`PUBLIC_URL` gebaut (nie aus dem Host-Header), ohne `PUBLIC_URL` bleiben die E-Mail-Funktionen aus. Die Antworten verraten
+nicht, ob ein Benutzername oder eine Adresse existiert. Adressen sind für andere Benutzer nie sichtbar.
 
 ## Globaler Katalog, Moderation & Rollen
 

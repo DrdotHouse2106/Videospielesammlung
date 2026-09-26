@@ -5,16 +5,19 @@ import {
 import { erstelleDrossel } from '../services/drossel.js';
 import { setzeSitzungsCookie, loescheSitzungsCookie, erfordereAnmeldung } from '../middleware/auth.js';
 import { ValidierungsFehler } from '../services/validierung.js';
+import { normalisiereEmail } from '../services/kontomail.js';
 
 const ZU_VIELE = 'Zu viele Fehlversuche. Bitte warte 15 Minuten und versuche es dann erneut.';
 
-export function authRouter({ db, konten, konfiguration, dateien, speicher }) {
+export function authRouter({ db, konten, konfiguration, dateien, speicher, kontoMail }) {
   const router = Router();
   const { cookieSicher } = konfiguration.konten;
   // Live-Werte (über Admin → Einstellungen änderbar)
   const registrierungOffen = () => konfiguration.konten.registrierungOffen;
   const zweiFaktorPflicht = () => konfiguration.konten.zweiFaktorPflicht;
   const drossel = erstelleDrossel({ maxVersuche: 10 });
+  const mailDrossel = erstelleDrossel({ maxVersuche: 5, fensterMs: 60 * 60 * 1000 });
+  const emailPflicht = () => Boolean(konfiguration.emailPflicht && kontoMail.bereit());
   const registrierDrossel = erstelleDrossel({ maxVersuche: konfiguration.konten.registrierungenProStunde, fensterMs: 60 * 60 * 1000 });
   const geraet = (req) => req.headers['user-agent'];
 
@@ -32,6 +35,8 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher }) {
       ersteinrichtung,
       zweiFaktorPflicht: zweiFaktorPflicht(),
       oeffentlicherKatalog: konfiguration.oeffentlicherKatalog,
+      emailAktiv: kontoMail.bereit(),
+      emailPflicht: emailPflicht(),
     });
   });
 
@@ -40,8 +45,18 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher }) {
       return res.status(403).json({ fehler: 'Die Registrierung ist auf diesem Server geschlossen.' });
     }
     if (registrierDrossel.gesperrt(req.ip)) return res.status(429).json({ fehler: 'Zu viele Registrierungen. Bitte später erneut versuchen.' });
+    // E-Mail vorab prüfen, damit bei einem Tippfehler kein halbes Konto entsteht
+    const email = kontoMail.bereit() ? normalisiereEmail(req.body?.email) : null;
+    if (emailPflicht() && !email) throw new ValidierungsFehler({ email: 'Bitte gib eine E-Mail-Adresse an.' });
     const benutzer = await konten.registriere(req.body ?? {});
     registrierDrossel.fehlschlag(req.ip); // zählt jede Registrierung
+    if (email) {
+      try {
+        await kontoMail.anfordernBestaetigung(benutzer, email);
+      } catch (e) {
+        console.warn('[mail] Bestätigung nach Registrierung:', e.message);
+      }
+    }
     anmeldenUndAntworten(req, res, benutzer, 201);
   });
 
@@ -97,8 +112,52 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher }) {
     res.json({
       ...oeffentlichesProfil(req.benutzer),
       wiederherstellungscodesUebrig: konten.anzahlWiederherstellungscodes(req.benutzer),
+      email: req.benutzer.email ?? null,
+      ausstehendeEmail: kontoMail.ausstehendeEmail(req.benutzer.id),
+      emailAktiv: kontoMail.bereit(),
+      emailPflicht: emailPflicht(),
       speicher: speicher.info(req.benutzer.id),
     });
+  });
+
+  // ── E-Mail-Adresse & Passwort vergessen ─────────
+  router.post('/konto/email', angemeldet, async (req, res) => {
+    await bestaetigePasswort(req);
+    if (mailDrossel.gesperrt(`email:${req.benutzer.id}`)) return res.status(429).json({ fehler: 'Zu viele Anfragen. Bitte später erneut versuchen.' });
+    mailDrossel.fehlschlag(`email:${req.benutzer.id}`);
+    await kontoMail.anfordernBestaetigung(req.benutzer, req.body?.email);
+    res.json({ ok: true, ausstehendeEmail: kontoMail.ausstehendeEmail(req.benutzer.id) });
+  });
+
+  router.delete('/konto/email', angemeldet, async (req, res) => {
+    await bestaetigePasswort(req);
+    if (emailPflicht()) throw new KontoFehler('Auf diesem Server ist eine E-Mail-Adresse Pflicht. Du kannst sie ändern, aber nicht entfernen.', 409);
+    kontoMail.entferneEmail(req.benutzer.id);
+    res.json({ ok: true });
+  });
+
+  router.post('/auth/email-bestaetigen', (req, res) => {
+    const b = kontoMail.bestaetige(req.body?.token);
+    res.json({ ok: true, email: b.email });
+  });
+
+  router.post('/auth/passwort-vergessen', async (req, res) => {
+    if (mailDrossel.gesperrt(req.ip)) return res.status(429).json({ fehler: 'Zu viele Anfragen. Bitte später erneut versuchen.' });
+    mailDrossel.fehlschlag(req.ip);
+    await kontoMail.anfordernReset(req.body?.kennung);
+    // Immer dieselbe Antwort – verrät nicht, ob das Konto existiert
+    res.json({ ok: true, hinweis: 'Falls ein Konto mit bestätigter E-Mail-Adresse existiert, haben wir dir einen Link geschickt. Er ist 60 Minuten gültig.' });
+  });
+
+  router.post('/auth/passwort-zuruecksetzen', async (req, res) => {
+    if (drossel.gesperrt(req.ip)) return res.status(429).json({ fehler: ZU_VIELE });
+    try {
+      await kontoMail.zuruecksetzen(req.body?.token, req.body?.neuesPasswort);
+    } catch (e) {
+      if (e instanceof KontoFehler) drossel.fehlschlag(req.ip);
+      throw e;
+    }
+    res.json({ ok: true });
   });
 
   router.get('/konto/speicher', angemeldet, (req, res) => {
@@ -122,6 +181,7 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher }) {
     pruefeNeuesPasswort(req.body?.neuesPasswort, 'neuesPasswort');
     await konten.aenderePasswort(req.benutzer.id, req.body.neuesPasswort);
     konten.beendeAndereSitzungen(req.benutzer.id, req.sitzungHash);
+    await kontoMail.sicherheitshinweis(req.benutzer, 'Dein Passwort wurde geändert', 'Das Passwort deines Kontos wurde gerade in den Kontoeinstellungen geändert. Andere Geräte wurden abgemeldet.');
     res.json({ ok: true });
   });
 
@@ -148,6 +208,7 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher }) {
       throw new ValidierungsFehler({ code: 'Der Code ist falsch oder abgelaufen.' });
     }
     konten.deaktiviereTotp(req.benutzer.id);
+    await kontoMail.sicherheitshinweis(req.benutzer, 'Zwei-Faktor-Anmeldung deaktiviert', 'Die Zwei-Faktor-Anmeldung deines Kontos wurde gerade ausgeschaltet.');
     res.json({ ok: true });
   });
 

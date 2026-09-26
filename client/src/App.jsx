@@ -21,6 +21,7 @@ import Katalog from './seiten/Katalog.jsx';
 import KatalogSeite from './seiten/KatalogSeite.jsx';
 import Moderation from './seiten/Moderation.jsx';
 import RechtlicheSeite from './seiten/RechtlicheSeite.jsx';
+import { PasswortVergessen, PasswortNeu, EmailBestaetigen } from './seiten/KontoLinks.jsx';
 
 function Seite({ route }) {
   const { pfad } = route;
@@ -109,6 +110,12 @@ export default function App() {
         {fehler ? <p role="alert">{fehler} <button type="button" className="underline" onClick={aktualisiere}>Erneut versuchen</button></p> : 'Wird geladen …'}
       </div>
     );
+  } else if (route.pfad === '/passwort-vergessen') {
+    inhalt = <PasswortVergessen />;
+  } else if (route.pfad === '/passwort-neu') {
+    inhalt = <PasswortNeu token={route.parameter.token} />;
+  } else if (route.pfad === '/email-bestaetigen') {
+    inhalt = <EmailBestaetigen token={route.parameter.token} />;
   } else if (!auth.angemeldet && passt('/seite/:slug', route.pfad)) {
     // Rechtliche Seiten sind immer ohne Anmeldung erreichbar
     const t = passt('/seite/:slug', route.pfad);

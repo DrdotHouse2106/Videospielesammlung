@@ -151,7 +151,7 @@ function Benutzer() {
             {b.gesperrt ? <span className="abzeichen text-gefahr">gesperrt</span> : null}
           </div>
           <p className="text-xs text-leise">
-            {b.eintraege} Einträge · registriert {datumDe(b.erstellt_am)} · zuletzt angemeldet {b.letzte_anmeldung ? datumDe(b.letzte_anmeldung) : 'nie'}
+            {b.email ? `${b.email} · ` : 'ohne E-Mail · '}{b.eintraege} Einträge · registriert {datumDe(b.erstellt_am)} · zuletzt angemeldet {b.letzte_anmeldung ? datumDe(b.letzte_anmeldung) : 'nie'}
           </p>
           <SpeicherAnzeige info={b.speicher} kompakt />
           <p className="text-xs text-leise">

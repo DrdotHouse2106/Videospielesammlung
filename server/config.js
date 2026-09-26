@@ -81,6 +81,17 @@ export function ladeKonfiguration(env = process.env) {
       registrierungenProStunde: zahl(env.REGISTRATIONS_PER_HOUR, 5),
       cookieSicher: (env.COOKIE_SECURE || 'auto').trim().toLowerCase(),
     },
+    // E-Mail-Versand (Passwort vergessen, Bestätigung der E-Mail-Adresse, Benachrichtigungen)
+    mail: {
+      host: (env.SMTP_HOST || '').trim(),
+      port: zahl(env.SMTP_PORT, 587),
+      sicher: (env.SMTP_SECURE || 'auto').trim().toLowerCase(), // auto (465 = TLS), true, false (STARTTLS)
+      benutzer: (env.SMTP_USER || '').trim(),
+      passwort: env.SMTP_PASSWORD || '',
+      absender: (env.SMTP_FROM || '').trim(), // z. B. "ZockDB <noreply@zockdb.de>"
+    },
+    // Muss bei der Registrierung eine E-Mail-Adresse angegeben werden?
+    emailPflicht: jaNein(env.REQUIRE_EMAIL, false),
     ebay: {
       // Kostenloser Zugang: https://developer.ebay.com → Application Keys (Production)
       clientId: (env.EBAY_CLIENT_ID || '').trim(),

@@ -6,7 +6,7 @@ import { erstelleApp } from '../server/app.js';
 import { oeffneDatenbank } from '../server/db.js';
 
 /** Startet eine Test-Instanz mit In-Memory-Datenbank auf einem freien Port. */
-export async function starteTestServer({ env = {}, fetchFn, kiAnbieterFn } = {}) {
+export async function starteTestServer({ env = {}, fetchFn, kiAnbieterFn, mailFn } = {}) {
   const uploadVerzeichnis = fs.mkdtempSync(path.join(os.tmpdir(), 'vss-test-'));
   const konfiguration = ladeKonfiguration({
     UPLOAD_DIR: uploadVerzeichnis,
@@ -17,6 +17,7 @@ export async function starteTestServer({ env = {}, fetchFn, kiAnbieterFn } = {})
     ...env,
   });
   if (kiAnbieterFn) konfiguration.kiAnbieterFn = kiAnbieterFn;
+  if (mailFn) konfiguration.mailTransportFn = mailFn;
   const { app, db, kontext } = erstelleApp(konfiguration, { db: oeffneDatenbank(':memory:'), fetchFn });
   const server = await new Promise((resolve) => {
     const s = app.listen(0, '127.0.0.1', () => resolve(s));

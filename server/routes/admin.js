@@ -5,7 +5,7 @@ import { erstelleDrossel } from '../services/drossel.js';
 // Nur über die .env änderbar – zur Information in der Oberfläche
 const NUR_ENV = ['APP_SECRET', 'DATABASE_PATH', 'UPLOAD_DIR', 'PORT', 'HOST', 'TRUST_PROXY', 'COOKIE_SECURE', 'SESSION_DAYS', 'REGISTRATIONS_PER_HOUR'];
 
-export function adminRouter({ db, konten, dateien, speicher, sicherung, preisimport, igdb, ebay, preise, affiliate, ki, einstellungen, konfiguration }) {
+export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, preisimport, igdb, ebay, preise, affiliate, ki, einstellungen, konfiguration }) {
   const router = Router();
   const bestaetigungsDrossel = erstelleDrossel({ maxVersuche: 5 });
   const anzahlAdmins = () => db.prepare("SELECT COUNT(*) AS n FROM benutzer WHERE rolle = 'admin' AND gesperrt = 0").get().n;
@@ -105,6 +105,19 @@ export function adminRouter({ db, konten, dateien, speicher, sicherung, preisimp
     res.json({ geaendert, einstellungen: einstellungen.liste(), protokoll: einstellungen.protokoll(50), affiliate: affiliateStatus() });
   });
 
+  // Test-E-Mail an die eigene (oder angegebene) Adresse
+  router.post('/test-mail', async (req, res) => {
+    const an = String(req.body?.an ?? '').trim() || req.benutzer.email;
+    if (!an) throw new KontoFehler('Bitte eine Empfängeradresse angeben oder unter „Konto“ eine E-Mail-Adresse hinterlegen.');
+    if (!mail.aktiv) throw new KontoFehler('Der E-Mail-Versand ist nicht eingerichtet (SMTP-Server und Absender fehlen).');
+    try {
+      await mail.sende({ an, betreff: 'ZockDB: Test-E-Mail', text: 'Der E-Mail-Versand funktioniert. 🎮' });
+    } catch (e) {
+      throw new KontoFehler(`Versand fehlgeschlagen: ${e.message}`, 502);
+    }
+    res.json({ ok: true, an });
+  });
+
   // ── Datenbank-Sicherungen ─────────
   router.get('/sicherungen', (_req, res) => res.json(sicherung.status()));
   router.post('/sicherungen', async (_req, res) => {
@@ -115,7 +128,7 @@ export function adminRouter({ db, konten, dateien, speicher, sicherung, preisimp
 
   router.get('/benutzer', (_req, res) => {
     res.json(db.prepare(`
-      SELECT b.id, b.benutzername, b.anzeigename, b.rolle, b.gesperrt, b.totp_aktiv, b.sammlung_oeffentlich,
+      SELECT b.id, b.benutzername, b.anzeigename, b.email, b.rolle, b.gesperrt, b.totp_aktiv, b.sammlung_oeffentlich,
              b.erstellt_am, b.letzte_anmeldung, COUNT(a.id) AS eintraege
       FROM benutzer b LEFT JOIN artikel a ON a.benutzer_id = b.id
       GROUP BY b.id ORDER BY b.erstellt_am`).all().map((b) => ({ ...b, speicher: speicher.info(b.id) })));

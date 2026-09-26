@@ -22,6 +22,8 @@ import { erstellePreisImport } from './services/preisimport.js';
 import { erstelleKiDienst } from './services/ki.js';
 import { erstelleEinstellungsDienst } from './services/einstellungen.js';
 import { erstelleSicherungsDienst } from './services/sicherung.js';
+import { erstelleMailDienst } from './services/mail.js';
+import { erstelleKontoMailDienst } from './services/kontomail.js';
 import { seoRouter } from './routes/seo.js';
 import { seitenRouter, seitenAdminRouter } from './routes/seiten.js';
 import { meldenRouter, meldungenModerationRouter } from './routes/meldungen.js';
@@ -67,10 +69,13 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const preise = erstellePreisDienst(db, konfiguration.preise, { cache, fetchFn });
   const preisimport = erstellePreisImport(db, { preise, ebay, cache });
   const sicherung = erstelleSicherungsDienst(db, konfiguration);
+  const neueMail = () => erstelleMailDienst(konfiguration.mail, { transportFn: konfiguration.mailTransportFn });
+  const mail = neueMail();
+  const kontoMail = erstelleKontoMailDienst(db, { mail, konfiguration, konten });
   const neueKi = () => erstelleKiDienst(db, konfiguration.ki ?? { anbieter: 'aus' }, { katalog, fetchFn, anbieterFn: konfiguration.kiAnbieterFn });
   const ki = neueKi();
   const kontext = {
-    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, konfiguration, version,
+    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, mail, kontoMail, konfiguration, version,
   };
 
   /**
@@ -84,6 +89,7 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
       Object.assign(igdb, erstelleIgdbDienst(konfiguration.igdb, db, { fetchFn }));
     }
     if (betrifft('BARCODE_', 'OPENGTINDB_')) Object.assign(barcode, erstelleBarcodeDienst(konfiguration.barcode, { fetchFn }));
+    if (betrifft('SMTP_')) Object.assign(mail, neueMail());
     if (betrifft('AFFILIATE_')) Object.assign(affiliate, erstelleAffiliateDienst(db, konfiguration.affiliate));
     if (betrifft('EBAY_')) Object.assign(ebay, erstelleEbayDienst(konfiguration.ebay, konfiguration.affiliate, { fetchFn }));
     if (betrifft('PRICECHARTING_')) Object.assign(preise, erstellePreisDienst(db, konfiguration.preise, { cache, fetchFn }));

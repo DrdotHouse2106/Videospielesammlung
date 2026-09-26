@@ -8,7 +8,7 @@ import Fusszeile from '../komponenten/Fusszeile.jsx';
 export default function Anmelden() {
   const { auth, aktualisiere } = useSitzung();
   const [modus, setModus] = useState(auth?.ersteinrichtung ? 'registrieren' : 'anmelden');
-  const [werte, setWerte] = useState({ benutzername: '', passwort: '', passwort2: '', anzeigename: '' });
+  const [werte, setWerte] = useState({ benutzername: '', passwort: '', passwort2: '', anzeigename: '', email: '' });
   const [akzeptiert, setAkzeptiert] = useState(false);
   const [zweiFaktor, setZweiFaktor] = useState(null); // { token }
   const [code, setCode] = useState('');
@@ -36,7 +36,7 @@ export default function Anmelden() {
         await aktualisiere();
       } else if (modus === 'registrieren') {
         await api.registrieren({
-          benutzername: werte.benutzername, passwort: werte.passwort, anzeigename: werte.anzeigename, bedingungen_akzeptiert: akzeptiert,
+          benutzername: werte.benutzername, passwort: werte.passwort, anzeigename: werte.anzeigename, email: werte.email, bedingungen_akzeptiert: akzeptiert,
         });
         await aktualisiere();
       } else {
@@ -128,6 +128,11 @@ export default function Anmelden() {
                   <input className="eingabe" value={werte.anzeigename} onChange={setze('anzeigename')} autoComplete="nickname" maxLength={60} />
                 </Feld>
               )}
+              {modus === 'registrieren' && auth?.emailAktiv && (
+                <Feld label={auth.emailPflicht ? 'E-Mail-Adresse' : 'E-Mail-Adresse (optional, für „Passwort vergessen“)'} fehler={felder.email}>
+                  <input type="email" className="eingabe" value={werte.email} onChange={setze('email')} autoComplete="email" inputMode="email" maxLength={254} required={auth.emailPflicht} />
+                </Feld>
+              )}
               <Feld label="Passwort" fehler={felder.passwort}>
                 <input type="password" className="eingabe" value={werte.passwort} onChange={setze('passwort')}
                   autoComplete={modus === 'registrieren' ? 'new-password' : 'current-password'} required />
@@ -160,6 +165,9 @@ export default function Anmelden() {
             <button type="button" className="knopf-sekundaer w-full" onClick={() => { setZweiFaktor(null); setCode(''); setFehler(null); }}>
               Abbrechen
             </button>
+          )}
+          {!zweiFaktor && modus === 'anmelden' && auth?.emailAktiv && (
+            <p className="text-center text-sm"><a href="#/passwort-vergessen" className="text-akzent-hell underline">Passwort vergessen?</a></p>
           )}
         </form>
 

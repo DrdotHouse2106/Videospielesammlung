@@ -56,6 +56,17 @@ export const EINSTELLUNGEN = [
   { schluessel: 'EBAY_CLIENT_SECRET', gruppe: 'Preise & Angebote', titel: 'eBay Client-Secret', typ: 'geheim', sicher: true },
   { schluessel: 'EBAY_MARKETPLACE', gruppe: 'Preise & Angebote', titel: 'eBay-Marktplatz', typ: 'text', platzhalter: 'EBAY_DE' },
   { schluessel: 'PRICECHARTING_TOKEN', gruppe: 'Preise & Angebote', titel: 'PriceCharting-Token', typ: 'geheim', sicher: true },
+  // E-Mail
+  { schluessel: 'SMTP_HOST', gruppe: 'E-Mail (SMTP)', titel: 'SMTP-Server', typ: 'text', platzhalter: 'smtp.example.de',
+    hinweis: 'Für „Passwort vergessen“, die Bestätigung der E-Mail-Adresse und Benachrichtigungen. Links in E-Mails brauchen die öffentliche Adresse (PUBLIC_URL).' },
+  { schluessel: 'SMTP_PORT', gruppe: 'E-Mail (SMTP)', titel: 'Port', typ: 'zahl', min: 1, max: 65535, hinweis: '587 (STARTTLS) oder 465 (TLS).' },
+  { schluessel: 'SMTP_SECURE', gruppe: 'E-Mail (SMTP)', titel: 'Verschlüsselung', typ: 'auswahl',
+    optionen: [['auto', 'Automatisch (465 = TLS, sonst STARTTLS)'], ['true', 'TLS'], ['false', 'STARTTLS']] },
+  { schluessel: 'SMTP_USER', gruppe: 'E-Mail (SMTP)', titel: 'Benutzername', typ: 'text' },
+  { schluessel: 'SMTP_PASSWORD', gruppe: 'E-Mail (SMTP)', titel: 'Passwort', typ: 'geheim', sicher: true },
+  { schluessel: 'SMTP_FROM', gruppe: 'E-Mail (SMTP)', titel: 'Absender', typ: 'text', platzhalter: 'ZockDB <noreply@zockdb.de>' },
+  { schluessel: 'REQUIRE_EMAIL', gruppe: 'Konten & Sicherheit', titel: 'E-Mail-Adresse bei der Registrierung Pflicht', ...JA_NEIN,
+    hinweis: 'Nur wirksam, wenn der E-Mail-Versand eingerichtet ist.' },
   // Affiliate
   { schluessel: 'AFFILIATE_LINKS', gruppe: 'Affiliate-Links („Hier kaufen“)', titel: 'Kauflinks anzeigen', ...JA_NEIN,
     hinweis: 'Nein = keine Amazon-/eBay-Suchlinks und keine eBay-Angebote mit Partner-ID.' },
