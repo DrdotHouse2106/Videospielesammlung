@@ -13,6 +13,7 @@
 import dns from 'node:dns/promises';
 import net from 'node:net';
 import { verschluessele, entschluessele } from './sicherheit.js';
+import { geprueftesHttps, ZielGesperrt } from './sichererabruf.js';
 import { ValidierungsFehler } from './validierung.js';
 import { KontoFehler } from './konten.js';
 import { erkenneZuordnung, zustandVon, vollstaendigkeitVon, regionVon } from './csvimport.js';
@@ -47,7 +48,9 @@ function pruefeUrl(roh, feld = 'url') {
   return url;
 }
 
-export function erstelleAnbindungsDienst(db, { schluessel, boerse, boersenImport, fetchFn = globalThis.fetch }) {
+export function erstelleAnbindungsDienst(db, { schluessel, boerse, boersenImport, fetchFn = null }) {
+  // Ohne eingeschleustes fetch (Tests) wird die Ziel-IP direkt beim Verbindungsaufbau geprüft (Schutz vor DNS-Rebinding)
+  const abrufen = fetchFn ?? ((url, optionen) => geprueftesHttps(url, optionen, istInterneAdresse));
   let lookup = (host) => dns.lookup(host, { all: true });
 
   const q = {
@@ -71,8 +74,9 @@ export function erstelleAnbindungsDienst(db, { schluessel, boerse, boersenImport
     if (adressen.some((a) => istInterneAdresse(a.address))) throw new KontoFehler('Adressen im lokalen oder internen Netz sind nicht erlaubt.', 400);
     let antwort;
     try {
-      antwort = await fetchFn(url.href, { ...optionen, redirect: 'manual', signal: AbortSignal.timeout(ZEITLIMIT_MS) });
+      antwort = await abrufen(url.href, { ...optionen, redirect: 'manual', signal: AbortSignal.timeout(ZEITLIMIT_MS) });
     } catch (e) {
+      if (e instanceof ZielGesperrt) throw new KontoFehler(e.message, 400);
       throw new KontoFehler(`Keine Verbindung zu ${url.hostname}: ${e.name === 'TimeoutError' ? 'Zeitüberschreitung' : e.message}`, 502);
     }
     if (antwort.status >= 300 && antwort.status < 400) throw new KontoFehler('Die Adresse leitet weiter. Bitte die endgültige Adresse angeben.', 400);

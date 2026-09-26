@@ -5,7 +5,7 @@ import { erstelleDrossel } from '../services/drossel.js';
 // Nur über die .env änderbar – zur Information in der Oberfläche
 const NUR_ENV = ['APP_SECRET', 'DATABASE_PATH', 'UPLOAD_DIR', 'PORT', 'HOST', 'TRUST_PROXY', 'COOKIE_SECURE', 'SESSION_DAYS', 'REGISTRATIONS_PER_HOUR'];
 
-export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, benachrichtigungen, besucher, preisimport, igdb, ebay, preise, affiliate, ki, einstellungen, boerse, konfiguration }) {
+export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, benachrichtigungen, besucher, preisimport, igdb, ebay, preise, affiliate, ki, einstellungen, boerse, zahlung, konfiguration }) {
   const router = Router();
   const bestaetigungsDrossel = erstelleDrossel({ maxVersuche: 5 });
   const anzahlAdmins = () => db.prepare("SELECT COUNT(*) AS n FROM benutzer WHERE rolle = 'admin' AND gesperrt = 0").get().n;
@@ -211,10 +211,11 @@ export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, be
     res.json({ ok: true });
   });
 
-  router.delete('/benutzer/:id', (req, res) => {
+  router.delete('/benutzer/:id', async (req, res) => {
     const b = ziel(req);
     if (b.id === req.benutzer.id) throw new KontoFehler('Das eigene Konto bitte unter „Konto“ löschen.', 409);
     if (b.rolle === 'admin' && anzahlAdmins() <= 1) throw new KontoFehler('Der letzte Administrator kann nicht gelöscht werden.', 409);
+    await zahlung.beendeAlleAbos(b.id);
     dateien.loescheBenutzerdaten(b.id);
     res.status(204).end();
   });

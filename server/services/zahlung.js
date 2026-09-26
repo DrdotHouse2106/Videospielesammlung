@@ -219,7 +219,11 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
     const s = sub ?? await stripe('GET', `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`);
     const m = s.metadata ?? {};
     const benutzerId = Number(m.benutzer_id);
-    if (!benutzerId || !q.benutzer.get(benutzerId)) throw new Error(`Stripe-Abo ${subscriptionId} ohne gültigen Benutzer`);
+    if (!benutzerId || !q.benutzer.get(benutzerId)) {
+      // z. B. gelöschtes Konto: Meldung bestätigen, damit Stripe sie nicht endlos wiederholt
+      console.warn(`[zahlung] Stripe-Abo ${subscriptionId} ohne gültigen Benutzer – ignoriert`);
+      return null;
+    }
     const p = produktFuer(m.produkt, m.angebote);
     db.prepare(`INSERT OR IGNORE INTO abos (benutzer_id, anbieter, extern_id, produkt, angebote, netto, verrechnung_netto) VALUES (?, 'stripe', ?, ?, ?, ?, ?)`)
       .run(benutzerId, subscriptionId, p.produkt, p.angebote, p.netto, Number(m.verrechnung) || 0);
@@ -249,6 +253,7 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
     if (verrechnung > 0 && !test) {
       rabatt = (await stripe('POST', '/v1/coupons', {
         amount_off: Math.round(brutto(verrechnung) * 100), currency: 'eur', duration: 'once', name: 'Verrechnung bisheriges Abo', max_redemptions: 1,
+        redeem_by: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // nur für diese Buchung
       })).id;
     }
     const sitzung = await stripe('POST', '/v1/checkout/sessions', {
@@ -280,6 +285,7 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
         if (!o.subscription) break;
         const sub = await stripe('GET', `/v1/subscriptions/${encodeURIComponent(o.subscription)}`);
         const abo = await stripeAbo(o.subscription, sub);
+        if (!abo) break;
         if (o.customer) db.prepare('UPDATE benutzer SET stripe_kunde = ? WHERE id = ?').run(String(o.customer), abo.benutzer_id);
         // Im Testzeitraum bleibt der Test aktiv; freigeschaltet wird mit der ersten bezahlten Rechnung
         if (sub.status === 'trialing') {
@@ -293,6 +299,7 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
         const subId = o.subscription ?? o.parent?.subscription_details?.subscription;
         if (!subId) break;
         const abo = await stripeAbo(subId);
+        if (!abo) break;
         const zeile = o.lines?.data?.[0]?.period ?? {};
         const ende = zeile.end ?? o.period_end;
         const start = zeile.start ?? o.period_start ?? Math.floor(Date.now() / 1000);
@@ -625,6 +632,22 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
     }
   }
 
+  /** Vor dem Löschen eines Kontos: alle laufenden Abos sofort beim Zahlungsanbieter beenden (keine weiteren Abbuchungen). */
+  async function beendeAlleAbos(benutzerId) {
+    const offen = db.prepare("SELECT * FROM abos WHERE benutzer_id = ? AND status IN ('offen', 'aktiv', 'gekuendigt', 'pausiert')").all(benutzerId);
+    const fehler = [];
+    for (const abo of offen) {
+      try {
+        if ((abo.anbieter === 'stripe' && stripeAktiv()) || (abo.anbieter === 'paypal' && paypalAktiv()) || abo.anbieter === 'rechnung') await beendeExtern(abo);
+      } catch (e) {
+        fehler.push(`${abo.anbieter} ${abo.extern_id}: ${e.message}`);
+      }
+      db.prepare("UPDATE abos SET status = 'beendet', geaendert_am = datetime('now') WHERE id = ?").run(abo.id);
+    }
+    if (fehler.length) console.warn('[zahlung] Abos beim Löschen nicht beendet – bitte beim Anbieter prüfen:', fehler.join('; '));
+    return { beendet: offen.length, fehler };
+  }
+
   /** Kündigung zum Ende des bezahlten Zeitraums (das Paket bleibt bis dahin aktiv). */
   async function kuendige(benutzer, aboId) {
     const abo = q.aboId.get(Number(aboId));
@@ -644,7 +667,7 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
   }
 
   return {
-    stripeAktiv, paypalAktiv, rechnungAktiv, pruefeRechnungen, uebersicht, restwert, checkout, kuendige, portal, stripeWebhook, paypalWebhook, paypalBestaetigen,
+    stripeAktiv, paypalAktiv, rechnungAktiv, pruefeRechnungen, uebersicht, restwert, beendeAlleAbos, checkout, kuendige, portal, stripeWebhook, paypalWebhook, paypalBestaetigen,
     /** Nur für Tests und Administration */
     aktiviere, verbuche,
   };

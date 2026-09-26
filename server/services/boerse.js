@@ -374,6 +374,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     const eigenes = Boolean(benutzer && zeile.benutzer_id === benutzer.id);
     if (!eigenes && !istModerator(benutzer)) {
       if (!['aktiv', 'reserviert'].includes(zeile.status)) return null;
+      if (q.benutzer.get(zeile.benutzer_id)?.gesperrt) return null;
       if (benutzer && q.blockiert.get({ a: benutzer.id, b: zeile.benutzer_id })) return null;
     }
     const objekt = angebotZuObjekt(zeile, benutzer);

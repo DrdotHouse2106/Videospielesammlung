@@ -1,15 +1,25 @@
 // Zahlungen: Buchen und Kündigen für Händler, Webhooks der Zahlungsanbieter, Übersicht für Administratoren.
 import express, { Router } from 'express';
 import { KontoFehler } from '../services/konten.js';
+import { erstelleDrossel } from '../services/drossel.js';
 
 /** Webhooks brauchen den unveränderten Text der Anfrage (Signaturprüfung) – daher vor express.json() einbinden. */
 export function zahlungWebhookRouter({ zahlung }) {
   const router = Router();
   const roh = express.raw({ type: '*/*', limit: '1mb' });
+  // Jede PayPal-Meldung wird über die PayPal-API geprüft – Begrenzung je IP gegen Missbrauch
+  const drossel = erstelleDrossel({ maxVersuche: 300, fensterMs: 60 * 1000 });
+  const begrenzt = (req, res) => {
+    if (drossel.gesperrt(req.ip)) { res.status(429).json({ fehler: 'Zu viele Anfragen.' }); return true; }
+    drossel.fehlschlag(req.ip);
+    return false;
+  };
   router.post('/api/zahlung/stripe/webhook', roh, async (req, res) => {
+    if (begrenzt(req, res)) return;
     res.json(await zahlung.stripeWebhook(req.body.toString('utf8'), req.headers['stripe-signature']));
   });
   router.post('/api/zahlung/paypal/webhook', roh, async (req, res) => {
+    if (begrenzt(req, res)) return;
     res.json(await zahlung.paypalWebhook(req.headers, req.body.toString('utf8')));
   });
   return router;

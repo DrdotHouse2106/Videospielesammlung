@@ -322,3 +322,19 @@ test('Paketwechsel beendet das bisherige Abo', async () => {
   assert.equal((await shop.api('/api/boerse/haendler')).json.paket, 1000);
   assert.ok(aufrufe.some((a) => a.url.endsWith('/v1/subscriptions/sub_1') && a.methode === 'DELETE'));
 });
+
+test('Kontolöschung beendet laufende Abos sofort beim Zahlungsanbieter', async () => {
+  const offen = server.db.prepare("SELECT anbieter, extern_id FROM abos WHERE benutzer_id = ? AND status IN ('aktiv', 'gekuendigt', 'pausiert')").all(shopId);
+  assert.ok(offen.some((a) => a.anbieter === 'stripe'), 'es gibt ein laufendes Stripe-Abo');
+  const r = await shop.api('/api/konto', { methode: 'DELETE', daten: { passwort: 'sehr-geheimes-passwort' } });
+  assert.equal(r.status, 204, r.text);
+  for (const a of offen.filter((x) => x.anbieter === 'stripe')) {
+    assert.ok(aufrufe.some((x) => x.methode === 'DELETE' && x.url.endsWith(`/v1/subscriptions/${a.extern_id}`)), `Stripe-Abo ${a.extern_id} beendet`);
+  }
+  // Zahlungen bleiben für die Buchhaltung erhalten (ohne Kontobezug)
+  assert.ok(server.db.prepare('SELECT COUNT(*) AS n FROM zahlungen WHERE benutzer_id IS NULL').get().n > 0);
+  // Spätere Stripe-Meldungen zum gelöschten Konto werden bestätigt statt endlos wiederholt
+  stripeAbos.set('sub_weg', { id: 'sub_weg', status: 'active', metadata: { benutzer_id: String(shopId), produkt: 'paket', angebote: '500' } });
+  const antwort = await stripeEreignis('invoice.paid', { id: 'in_weg', subscription: 'sub_weg', amount_paid: 1178, lines: { data: [{ period: { start: 1, end: 2 } }] } });
+  assert.equal(antwort.status, 200);
+});

@@ -10,7 +10,7 @@ import { zufallsToken } from '../services/sicherheit.js';
 
 const ZU_VIELE = 'Zu viele Fehlversuche. Bitte warte 15 Minuten und versuche es dann erneut.';
 
-export function authRouter({ db, konten, konfiguration, dateien, speicher, kontoMail, captcha, erfolge, boerse }) {
+export function authRouter({ db, konten, konfiguration, dateien, speicher, kontoMail, captcha, erfolge, boerse, zahlung }) {
   const router = Router();
   const { cookieSicher } = konfiguration.konten;
   // Live-Werte (über Admin → Einstellungen änderbar)
@@ -269,6 +269,7 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher, konto
       const admins = db.prepare("SELECT COUNT(*) AS n FROM benutzer WHERE rolle = 'admin'").get().n;
       if (admins <= 1) throw new KontoFehler('Du bist der einzige Administrator. Ernenne zuerst einen weiteren Administrator.', 409);
     }
+    await zahlung.beendeAlleAbos(req.benutzer.id);
     dateien.loescheBenutzerdaten(req.benutzer.id);
     loescheSitzungsCookie(req, res, cookieSicher);
     res.status(204).end();

@@ -353,6 +353,17 @@ test('Angebote melden und entfernen', async () => {
   assert.equal((await ben.api(`/api/boerse/angebote/${angebot.id}`)).status, 404);
 });
 
+test('Angebote gesperrter Benutzer sind nicht mehr abrufbar', async () => {
+  const angebot = (await ben.api('/api/boerse/angebote')).json.eintraege[0];
+  server.db.prepare('UPDATE benutzer SET gesperrt = 1 WHERE id = ?').run(angebot.anbieter.id);
+  try {
+    assert.equal((await ben.api(`/api/boerse/angebote/${angebot.id}`)).status, 404);
+    assert.ok(!(await ben.api('/api/boerse/angebote')).json.eintraege.some((a) => a.id === angebot.id));
+  } finally {
+    server.db.prepare('UPDATE benutzer SET gesperrt = 0 WHERE id = ?').run(angebot.anbieter.id);
+  }
+});
+
 test('Abgeschaltete Börse', async () => {
   server.kontext.konfiguration.boerse.aktiv = false;
   try {

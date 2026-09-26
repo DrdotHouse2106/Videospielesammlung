@@ -105,8 +105,19 @@ export function boerseRouter({ boerse, boersenImport, anbindungen }) {
   router.put('/boerse/haendler', (req, res) => res.json(boerse.setzeHaendler(req.benutzer, req.body?.privat ? null : req.body ?? {})));
   router.post('/boerse/haendler/test', (req, res) => res.json(boerse.starteTest(req.benutzer.id)));
   router.put('/boerse/plz', (req, res) => res.json({ plz: boerse.setzePlz(req.benutzer, req.body?.plz) }));
-  router.post('/boerse/haendler/import/analyse', (req, res) => res.json(boersenImport.analyse(req.benutzer, req.body?.text)));
+  // Große Dateien kosten Rechenzeit – je Händler begrenzt
+  const importDrossel = erstelleDrossel({ maxVersuche: 60, fensterMs: 60 * 60 * 1000 });
+  const importBegrenzt = (req, res) => {
+    if (importDrossel.gesperrt(`i:${req.benutzer.id}`)) { res.status(429).json({ fehler: 'Zu viele Uploads. Bitte in einer Stunde erneut versuchen.' }); return true; }
+    importDrossel.fehlschlag(`i:${req.benutzer.id}`);
+    return false;
+  };
+  router.post('/boerse/haendler/import/analyse', (req, res) => {
+    if (importBegrenzt(req, res)) return;
+    res.json(boersenImport.analyse(req.benutzer, req.body?.text));
+  });
   router.post('/boerse/haendler/import', (req, res) => {
+    if (importBegrenzt(req, res)) return;
     res.json(boersenImport.importiere(req.benutzer, {
       text: req.body?.text,
       zuordnung: req.body?.zuordnung,
