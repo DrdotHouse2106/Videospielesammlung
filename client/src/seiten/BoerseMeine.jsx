@@ -9,6 +9,7 @@ import Layout from '../komponenten/Layout.jsx';
 import Cover from '../komponenten/Cover.jsx';
 import Symbol from '../komponenten/Symbole.jsx';
 import { useHinweis } from '../komponenten/Hinweise.jsx';
+import BoerseStatistik from '../komponenten/BoerseStatistik.jsx';
 import { AngebotKarte, preisText, statusText } from '../komponenten/BoerseTeile.jsx';
 
 const TABS = [
@@ -16,6 +17,7 @@ const TABS = [
   ['wunschliste', 'Wunschliste'],
   ['treffer', 'Treffer'],
   ['tausch', 'Tauschvorschläge'],
+  ['statistik', 'Statistik'],
 ];
 
 export default function BoerseMeine({ route }) {
@@ -30,6 +32,7 @@ export default function BoerseMeine({ route }) {
         {tab === 'wunschliste' && <Wunschliste />}
         {tab === 'treffer' && <Treffer />}
         {tab === 'tausch' && <Tausch />}
+        {tab === 'statistik' && <BoerseStatistik />}
       </div>
     </Layout>
   );

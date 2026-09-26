@@ -42,6 +42,7 @@ export function boerseRouter({ db, boerse, boersenImport, anbindungen, angebotFo
   router.get('/boerse/angebote/:id', (req, res) => {
     const a = boerse.hole(req.params.id, req.benutzer);
     if (!a) return res.status(404).json({ fehler: 'Angebot nicht gefunden oder nicht mehr aktiv.' });
+    boerse.statistik.aufruf(a, { benutzerId: req.benutzer?.id, ip: req.ip, ua: req.get('user-agent') ?? '' });
     res.json(a);
   });
 
@@ -67,6 +68,9 @@ export function boerseRouter({ db, boerse, boersenImport, anbindungen, angebotFo
   });
   router.delete('/boerse/fotos/:id', (req, res) => res.json(boerse.hole(angebotFotos.entferne(req.benutzer, req.params.id), req.benutzer)));
   router.post('/boerse/fotos/:id/titelbild', (req, res) => res.json(boerse.hole(angebotFotos.alsTitelbild(req.benutzer, req.params.id), req.benutzer)));
+  // Eigene Statistik: Aufrufe, Anfragen und Wunschlisten-Treffer (nur Tageszähler)
+  router.get('/boerse/statistik', (req, res) => res.json(boerse.statistik.fuer(req.benutzer.id, req.query.tage)));
+
   router.put('/boerse/angebote/:id', (req, res) => res.json(boerse.aendere(req.benutzer, req.params.id, req.body ?? {})));
   router.delete('/boerse/angebote/:id', (req, res) => {
     const fotos = angebotFotos.dateienVon(req.params.id);

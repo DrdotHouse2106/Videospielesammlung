@@ -12,6 +12,7 @@ import {
 import { leseEuro, ValidierungsFehler } from './validierung.js';
 import { KontoFehler } from './konten.js';
 import { erstelleDrossel } from './drossel.js';
+import { erstelleBoersenStatistik } from './boersenstatistik.js';
 
 const ARTEN = ANGEBOTSARTEN.map((a) => a.value);
 const EIGENE_STATUS = ['aktiv', 'reserviert', 'verkauft', 'beendet'];
@@ -141,6 +142,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
   const k = () => konfiguration.boerse;
   const nachrichtenDrossel = erstelleDrossel({ maxVersuche: 60, fensterMs: 60 * 60 * 1000 });
   const neueAnfragenDrossel = erstelleDrossel({ maxVersuche: 20, fensterMs: TAG_MS });
+  const statistik = erstelleBoersenStatistik(db);
 
   // ── Gemeinsame Abfrageteile ───────────────────────────────────
   // Anbieter-Infos und Katalogdaten zu einem Angebot (Alias a)
@@ -243,6 +245,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
         if (q.blockiert.get({ a: w.benutzer_id, b: a.benutzer_id })) continue;
         if (!passtZuWunsch(w, a)) continue;
         if (q.trefferMerken.run(w.id, a.id).changes === 0) continue; // schon gemeldet
+        statistik.zaehle('treffer', a.id, a.benutzer_id);
         const liste = jeSammler.get(w.benutzer_id) ?? [];
         liste.push(a);
         jeSammler.set(w.benutzer_id, liste);
@@ -593,6 +596,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     }
     kuerzeNachPaketende();
     erinnereTestende();
+    statistik.aufraeumen();
     return abgelaufen.length;
   }
 
@@ -668,6 +672,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
       const titel = `${a.titel}${a.plattform_kurz ? ` (${a.plattform_kurz})` : ''}`;
       u = db.prepare('INSERT INTO unterhaltungen (angebot_id, titel, anfragender_id, anbieter_id) VALUES (?, ?, ?, ?) RETURNING *')
         .get(a.id, titel.slice(0, 200), benutzer.id, a.benutzer_id);
+      statistik.zaehle('anfragen', a.id, a.benutzer_id);
     }
     schreibe(u, benutzer, textWert);
     return u.id;
@@ -967,5 +972,6 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     bewerte, bewertungFuer, anbieterProfil,
     haendlerProfil, setzeHaendler, setzePlz, verifiziere, setzePaket, setzeApi, kuerzeNachPaketende, starteTest, erinnereTestende,
     apiAktiv: (id) => apiAktiv(q.benutzer.get(id)),
+    statistik,
   };
 }

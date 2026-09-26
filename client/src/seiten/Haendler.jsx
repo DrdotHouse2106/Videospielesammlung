@@ -75,6 +75,7 @@ function Vorteile({ profil }) {
         <li><strong>Massen-Upload per CSV</strong> – z. B. direkt aus dem Export deines Shops (Shopware, WooCommerce, JTL …) oder einer Tabelle. Mit Artikelnummer wird der Bestand bei jedem Upload abgeglichen.</li>
         <li><strong>Sammler mit passender Wunschliste</strong> werden automatisch über deine Angebote informiert.</li>
         <li><strong>Händlerprofil</strong> mit Anbieterkennzeichnung, Link zu deinem Shop und Bewertungen.</li>
+        <li><strong>Statistik</strong> zu Aufrufen, Anfragen und Wunschlisten-Treffern je Angebot – <a className="underline" href="#/boerse/meine?tab=statistik">jetzt ansehen</a>.</li>
         <li><strong>Kostenlos bis {anzahl(profil.kostenlos)} aktive Angebote</strong> – mehr mit einem Händler-Paket, das zusätzlich die vollständige
           <strong> Nachfrage-Auswertung</strong> enthält (welche Spiele gesucht werden, wie viel Sammler zahlen würden, wofür es noch kein Angebot gibt).</li>
         <li><strong>API-Anbindung</strong> an deinen Shop oder dein ERP als Zusatzpaket: Der Bestand wird automatisch abgeglichen.</li>

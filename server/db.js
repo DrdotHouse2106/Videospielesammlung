@@ -657,6 +657,19 @@ const MIGRATIONEN = [
   );
   CREATE INDEX idx_gutschriften_zahlung ON gutschriften (zahlung_id);
   `,
+  // 25: Anbieter-Statistik der Börse – nur Tageszähler je Angebot, keine Besucherdaten
+  `
+  CREATE TABLE boerse_statistik (
+    angebot_id   INTEGER NOT NULL,                  -- bewusst ohne Fremdschlüssel: Verlauf bleibt nach dem Löschen erhalten
+    benutzer_id  INTEGER NOT NULL REFERENCES benutzer (id) ON DELETE CASCADE,
+    tag          TEXT    NOT NULL,
+    aufrufe      INTEGER NOT NULL DEFAULT 0,
+    anfragen     INTEGER NOT NULL DEFAULT 0,
+    treffer      INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (angebot_id, tag)
+  );
+  CREATE INDEX idx_boerse_statistik_benutzer ON boerse_statistik (benutzer_id, tag);
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

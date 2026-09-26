@@ -87,6 +87,7 @@ export function exportRouter({ db, plattformen }) {
       erfolge: alle('SELECT schluessel, freigeschaltet_am FROM erfolge WHERE benutzer_id = ?'),
       tauschboerse: {
         angebote: alle('SELECT * FROM angebote WHERE benutzer_id = ? ORDER BY id').map(({ benutzer_id: _b, ...rest }) => rest),
+        statistik: alle('SELECT angebot_id, tag, aufrufe, anfragen, treffer FROM boerse_statistik WHERE benutzer_id = ? ORDER BY tag, angebot_id'),
         wunschliste: alle('SELECT katalog_id, plattform_id, region, min_zustand, nur_cib, max_preis, notiz, erstellt_am FROM wunschliste WHERE benutzer_id = ?'),
         unterhaltungen,
         bewertungen_erhalten: alle(`SELECT r.wert, r.text, r.erstellt_am, COALESCE(v.anzeigename, v.benutzername) AS von FROM bewertungen r

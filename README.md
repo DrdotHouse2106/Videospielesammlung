@@ -344,6 +344,9 @@ Bezahlung und Versand vereinbaren die Beteiligten direkt miteinander.
   ein Spiel anbieten oder suchen.
 - **Tauschvorschläge:** Die App findet Sammler, die haben, was du suchst, und gleichzeitig suchen, was du tauschen möchtest.
 - **Nachrichten** zu Angeboten innerhalb der App (E-Mail-Adressen bleiben verborgen), danach gegenseitige **Bewertungen**.
+- **Statistik** (*Meine Börse → Statistik*): Aufrufe, Anfragen und Wunschlisten-Treffer je Angebot und Tag, Anfragequote,
+  Vergleich zum Zeitraum davor und die meistgesuchten eigenen Titel. Gespeichert werden nur Tageszähler – keine Namen,
+  IP-Adressen oder Cookies; eigene Aufrufe und Bots zählen nicht, nach 400 Tagen wird gelöscht.
 - **Schutz:** Angebote lassen sich melden, Benutzer blockieren; neue Konten ohne bestätigte E-Mail-Adresse dürfen erst
   nach einer Wartezeit schreiben, Nachrichten sind mengenmäßig begrenzt. Angebote gibt es nur für freigegebene Katalogeinträge.
 - **Händler:** Unter *Meine Börse → Händler & Massen-Upload* hinterlegen gewerbliche Anbieter ihre Anbieterkennzeichnung

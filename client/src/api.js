@@ -207,6 +207,7 @@ export const api = {
   wunschSetzen: (katalogId, daten) => anfrage(`/api/boerse/wunschliste/${katalogId}`, { methode: 'PUT', daten }),
   wunschEntfernen: (katalogId) => anfrage(`/api/boerse/wunschliste/${katalogId}`, { methode: 'DELETE' }),
   boerseTreffer: () => anfrage('/api/boerse/treffer'),
+  boerseStatistik: (tage) => anfrage(`/api/boerse/statistik?tage=${tage}`),
   tauschvorschlaege: () => anfrage('/api/boerse/tausch'),
   nachfrage: (filter = {}) => anfrage(`/api/boerse/nachfrage${abfrage(filter)}`),
   anbieter: (id, seite) => anfrage(`/api/boerse/anbieter/${id}${abfrage({ seite })}`),

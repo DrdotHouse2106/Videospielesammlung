@@ -39,7 +39,7 @@ model revisions).
 - **CSV import** from CLZ Games, Excel/LibreOffice or the app's own export with automatic column mapping
 - **Automatic database backups** (7 daily, 12 monthly)
 - **Trading market (buy/sell/trade)** without payment processing: offers, wishlist with match notifications, trade suggestions,
-  in-app messages, ratings, dealer profiles with CSV bulk upload and stock sync (`MARKET_ENABLED=false` switches it off); 50 free active offers, paid dealer
+  in-app messages, ratings, privacy-friendly offer statistics (views, inquiries, wishlist matches), dealer profiles with CSV bulk upload and stock sync (`MARKET_ENABLED=false` switches it off); 50 free active offers, paid dealer
   packages (500/1,000/5,000 offers) and a paid API add-on for automatic Shopware 6 / CSV feed synchronisation (credentials stored encrypted);
   optional self-service booking via Stripe (card/SEPA) or PayPal (+ fee) with automatic invoices in ERPNext
 

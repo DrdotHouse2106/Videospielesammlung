@@ -1,0 +1,71 @@
+import { test, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import { starteTestServer } from './hilfen.js';
+
+let server;
+let admin;
+let anna;
+let ben;
+let spiel;
+
+const post = (c, pfad, daten) => c.api(pfad, { methode: 'POST', daten });
+
+before(async () => {
+  server = await starteTestServer({ env: { MARKET_MIN_ACCOUNT_DAYS: '0' } });
+  admin = await server.registriere('admin');
+  anna = await server.registriere('anna');
+  ben = await server.registriere('ben');
+  spiel = (await post(admin, '/api/katalog', { typ: 'spiel', titel: 'Super Metroid', plattformen: ['Super Nintendo'], veroeffentlichen: true })).json;
+});
+after(async () => { await server.stoppe(); });
+
+test('Statistik zählt Aufrufe, Anfragen und Treffer ohne Personenbezug', async () => {
+  await ben.api(`/api/boerse/wunschliste/${spiel.id}`, { methode: 'PUT', daten: {} });
+  const angebot = (await post(anna, '/api/boerse/angebote', { katalog_id: spiel.id, preis: '60', zustand: 'gut', vollstaendigkeit: 'cib' })).json;
+
+  // Mehrfache Aufrufe derselben Person zählen einmal, eigene und Bot-Aufrufe gar nicht
+  await ben.api(`/api/boerse/angebote/${angebot.id}`);
+  await ben.api(`/api/boerse/angebote/${angebot.id}`);
+  await anna.api(`/api/boerse/angebote/${angebot.id}`);
+  await admin.api(`/api/boerse/angebote/${angebot.id}`, { headers: { 'User-Agent': 'Googlebot/2.1' } });
+  await admin.api(`/api/boerse/angebote/${angebot.id}`);
+
+  // Zwei Nachrichten in derselben Unterhaltung = eine Anfrage
+  await post(ben, `/api/boerse/angebote/${angebot.id}/anfrage`, { text: 'Noch da?' });
+  await post(ben, `/api/boerse/angebote/${angebot.id}/anfrage`, { text: 'Versand möglich?' });
+
+  const s = (await anna.api('/api/boerse/statistik?tage=7')).json;
+  assert.equal(s.tage, 7);
+  assert.equal(s.verlauf.length, 7);
+  assert.deepEqual(s.gesamt, { aufrufe: 2, anfragen: 1, treffer: 1 });
+  assert.deepEqual(s.verlauf.at(-1), { tag: new Date().toISOString().slice(0, 10), aufrufe: 2, anfragen: 1, treffer: 1 });
+  assert.equal(s.angebote.length, 1);
+  assert.equal(s.angebote[0].titel, 'Super Metroid');
+  assert.equal(s.angebote[0].quote, 50);
+  assert.equal(s.gefragt[0].gesucht_von, 1);
+
+  // Andere sehen nur ihre eigenen Zahlen; ungültiger Zeitraum → 30 Tage
+  const fremd = (await ben.api('/api/boerse/statistik?tage=12345')).json;
+  assert.equal(fremd.tage, 30);
+  assert.deepEqual(fremd.gesamt, { aufrufe: 0, anfragen: 0, treffer: 0 });
+  assert.equal(fremd.angebote.length, 0);
+
+  // Nur Zähler, keine Besucherdaten in der Datenbank
+  const spalten = server.db.prepare('PRAGMA table_info(boerse_statistik)').all().map((c) => c.name);
+  assert.deepEqual(spalten.sort(), ['anfragen', 'angebot_id', 'aufrufe', 'benutzer_id', 'tag', 'treffer']);
+
+  // Verlauf bleibt nach dem Löschen des Angebots erhalten
+  assert.equal((await anna.api(`/api/boerse/angebote/${angebot.id}`, { methode: 'DELETE' })).status, 204);
+  const danach = (await anna.api('/api/boerse/statistik?tage=7')).json;
+  assert.equal(danach.gesamt.aufrufe, 2);
+  assert.equal(danach.angebote[0].geloescht, true);
+
+  // Teil der Datenauskunft
+  const auskunft = (await anna.api('/api/export/datenauskunft.json')).json;
+  assert.equal(auskunft.tauschboerse.statistik.length, 1);
+
+  // Alte Werte werden aufgeräumt
+  server.db.prepare("INSERT INTO boerse_statistik (angebot_id, benutzer_id, tag, aufrufe) VALUES (999, 2, date('now', '-500 days'), 5)").run();
+  server.kontext.boerse.raeumeAuf();
+  assert.equal(server.db.prepare('SELECT COUNT(*) AS n FROM boerse_statistik WHERE angebot_id = 999').get().n, 0);
+});
