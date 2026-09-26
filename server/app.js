@@ -27,6 +27,7 @@ import { erstelleCaptchaDienst } from './services/captcha.js';
 import { erstelleKontoMailDienst } from './services/kontomail.js';
 import { erstelleBenachrichtigungsDienst } from './services/benachrichtigungen.js';
 import { benachrichtigungenRouter } from './routes/benachrichtigungen.js';
+import { erstelleErfolgeDienst } from './services/erfolge.js';
 import { seoRouter } from './routes/seo.js';
 import { seitenRouter, seitenAdminRouter } from './routes/seiten.js';
 import { meldenRouter, meldungenModerationRouter } from './routes/meldungen.js';
@@ -78,10 +79,11 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const mail = neueMail();
   const kontoMail = erstelleKontoMailDienst(db, { mail, konfiguration, konten });
   const benachrichtigungen = erstelleBenachrichtigungsDienst(db, { mail, konfiguration });
+  const erfolge = erstelleErfolgeDienst(db, { benachrichtigungen });
   const neueKi = () => erstelleKiDienst(db, konfiguration.ki ?? { anbieter: 'aus' }, { katalog, fetchFn, anbieterFn: konfiguration.kiAnbieterFn, benachrichtigungen });
   const ki = neueKi();
   const kontext = {
-    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, mail, kontoMail, benachrichtigungen, captcha, konfiguration, version,
+    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, mail, kontoMail, benachrichtigungen, erfolge, captcha, konfiguration, version,
   };
 
   /**

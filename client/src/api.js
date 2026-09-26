@@ -101,6 +101,7 @@ export const api = {
   emailBestaetigen: (token) => anfrage('/api/auth/email-bestaetigen', { methode: 'POST', daten: { token } }),
   emailSetzen: (email, passwort) => anfrage('/api/konto/email', { methode: 'POST', daten: { email, passwort } }),
   emailEntfernen: (passwort) => anfrage('/api/konto/email', { methode: 'DELETE', daten: { passwort } }),
+  erfolge: () => anfrage('/api/erfolge'),
   benachrichtigungen: () => anfrage('/api/benachrichtigungen'),
   benachrichtigungenAnzahl: () => anfrage('/api/benachrichtigungen/anzahl'),
   benachrichtigungGelesen: (id) => anfrage('/api/benachrichtigungen/gelesen', { methode: 'POST', daten: id ? { id } : {} }),

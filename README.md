@@ -314,6 +314,15 @@ Der Link ist nicht erratbar, wird nicht von Suchmaschinen erfasst (`noindex`) un
 „Neuen Link erstellen“ oder „Teilen beenden“ wird der bisherige Link sofort ungültig. Einträge aus dem öffentlichen
 Katalog verlinken auf ihre Spieleseite.
 
+### Erfolge & Sammlungsziele
+
+Unter *Mehr → Erfolge & Sammlungsziele* schalten Sammler **Abzeichen** frei – z. B. „Erste Schritte“, „Leidenschaftlicher
+Sammler“ (100 Exemplare), „Komplettist“ (25 CIB-Spiele), „Zeitreisender“ (Spiel vor 1990), „Regionen-Jäger“, „Scanner-Profi“,
+„Helfer“/„Kurator“ für freigegebene Beiträge oder „Sicher ist sicher“ für aktivierte 2FA. Beim Freischalten gibt es eine
+Benachrichtigung. Offene Erfolge zeigen ihren Fortschritt. Dazu kommen **Sammlungsziele je Plattform**: eigene Spiele im
+Vergleich zu allen in der Datenbank bekannten Spielen der Plattform. Neue Erfolge lassen sich in
+`server/services/erfolge.js` ergänzen.
+
 ### Benachrichtigungen
 
 Die **Glocke** oben in der App zeigt neue Benachrichtigungen, z. B. wenn eine Einreichung (Katalogeintrag, Variante, Scan,

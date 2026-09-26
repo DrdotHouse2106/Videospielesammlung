@@ -420,6 +420,15 @@ const MIGRATIONEN = [
   ALTER TABLE benutzer ADD COLUMN freigabe_wert INTEGER NOT NULL DEFAULT 0;
   CREATE UNIQUE INDEX idx_benutzer_freigabe ON benutzer (freigabe_token) WHERE freigabe_token IS NOT NULL;
   `,
+  // 14: Erfolge (Abzeichen)
+  `
+  CREATE TABLE erfolge (
+    benutzer_id      INTEGER NOT NULL REFERENCES benutzer (id) ON DELETE CASCADE,
+    schluessel       TEXT    NOT NULL,
+    freigeschaltet_am TEXT   NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (benutzer_id, schluessel)
+  );
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

@@ -10,7 +10,7 @@ import { zufallsToken } from '../services/sicherheit.js';
 
 const ZU_VIELE = 'Zu viele Fehlversuche. Bitte warte 15 Minuten und versuche es dann erneut.';
 
-export function authRouter({ db, konten, konfiguration, dateien, speicher, kontoMail, captcha }) {
+export function authRouter({ db, konten, konfiguration, dateien, speicher, kontoMail, captcha, erfolge }) {
   const router = Router();
   const { cookieSicher } = konfiguration.konten;
   // Live-Werte (über Admin → Einstellungen änderbar)
@@ -184,6 +184,7 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher, konto
     const neu = req.body?.neu === true || !b.freigabe_token;
     db.prepare('UPDATE benutzer SET freigabe_token = ?, freigabe_wert = ? WHERE id = ?')
       .run(neu ? zufallsToken(18) : b.freigabe_token, req.body?.wert_zeigen === undefined ? b.freigabe_wert : (req.body.wert_zeigen ? 1 : 0), b.id);
+    erfolge.pruefe(b.id);
     res.json(freigabeInfo(konten.holeBenutzer(b.id)));
   });
   router.delete('/konto/freigabe', angemeldet, (req, res) => {
@@ -233,6 +234,7 @@ export function authRouter({ db, konten, konfiguration, dateien, speicher, konto
   router.post('/konto/2fa/bestaetigen', angemeldet, (req, res) => {
     const codes = konten.bestaetigeTotpEinrichtung(konten.holeBenutzer(req.benutzer.id), req.body?.code);
     konten.beendeAndereSitzungen(req.benutzer.id, req.sitzungHash);
+    erfolge.pruefe(req.benutzer.id);
     res.json({ wiederherstellungscodes: codes });
   });
 

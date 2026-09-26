@@ -5,7 +5,7 @@ import { katalogZeileZuObjekt } from '../services/katalog.js';
 import { pruefeKatalogEintrag, leseEuro, ValidierungsFehler } from '../services/validierung.js';
 import { plattformZuObjekt } from '../services/plattformen.js';
 
-export function moderationRouter({ db, katalog, plattformen, benachrichtigungen }) {
+export function moderationRouter({ db, katalog, plattformen, benachrichtigungen, erfolge }) {
   const router = Router();
   const grund = (req) => String(req.body?.grund ?? '').trim().slice(0, 1000) || null;
 
@@ -62,6 +62,7 @@ export function moderationRouter({ db, katalog, plattformen, benachrichtigungen 
       art: 'freigabe', titel: `„${neu.titel}“ wurde freigegeben`,
       text: grund(req) ?? 'Dein Eintrag ist jetzt für alle sichtbar. Danke für deinen Beitrag!', link: `#/katalog/${e.id}`,
     });
+    erfolge.pruefe(e.erstellt_von);
     res.json(neu);
   });
 
@@ -119,6 +120,7 @@ export function moderationRouter({ db, katalog, plattformen, benachrichtigungen 
       text: text ?? (freigegeben ? 'Danke für deinen Beitrag!' : null),
       link: `#/katalog/${z.katalog_id}`,
     });
+    if (freigegeben) erfolge.pruefe(z[b.spalte]);
   }
   for (const [pfad, tabelle, feld] of [['varianten', 'katalog_varianten', 'status'], ['medien', 'medien', 'sichtbarkeit'], ['links', 'externe_links', 'status']]) {
     router.post(`/${pfad}/:id/freigeben`, (req, res) => {

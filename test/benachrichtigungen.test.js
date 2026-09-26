@@ -35,9 +35,11 @@ test('Freigabe und Ablehnung erzeugen Benachrichtigungen, optional auch per E-Ma
   await nutzer.api(`/api/katalog/${eintrag.id}/einreichen`, { methode: 'POST', daten: {} });
   await mod.api(`/api/moderation/katalog/${eintrag.id}/freigeben`, { methode: 'POST', daten: {} });
   await new Promise((r) => setTimeout(r, 20));
-  assert.equal(postfach.length, 1);
-  assert.equal(postfach[0].subject, 'ZockDB: „Selbstbau-Konsole“ wurde freigegeben');
-  assert.match(postfach[0].text, /https:\/\/zockdb\.example\/\?app=1#\/katalog\//);
+  const freigabe = postfach.find((m) => m.subject === 'ZockDB: „Selbstbau-Konsole“ wurde freigegeben');
+  assert.ok(freigabe);
+  assert.match(freigabe.text, /https:\/\/zockdb\.example\/\?app=1#\/katalog\//);
+  // Die erste Freigabe schaltet außerdem den Erfolg „Helfer“ frei
+  assert.ok(postfach.some((m) => m.subject.includes('Erfolg freigeschaltet: Helfer')));
 
   n = (await nutzer.api('/api/benachrichtigungen/gelesen', { methode: 'POST', daten: {} })).json;
   assert.equal(n.ungelesen, 0);

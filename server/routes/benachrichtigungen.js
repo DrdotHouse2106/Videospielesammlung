@@ -1,7 +1,10 @@
 import { Router } from 'express';
 
-export function benachrichtigungenRouter({ benachrichtigungen }) {
+export function benachrichtigungenRouter({ benachrichtigungen, erfolge }) {
   const router = Router();
+
+  // Erfolge und Sammlungsziele des angemeldeten Benutzers
+  router.get('/erfolge', (req, res) => res.json(erfolge.liste(req.benutzer.id)));
 
   router.get('/benachrichtigungen', (req, res) => {
     res.json({ ungelesen: benachrichtigungen.ungelesen(req.benutzer.id), eintraege: benachrichtigungen.liste(req.benutzer.id) });

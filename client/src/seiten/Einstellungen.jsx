@@ -50,6 +50,7 @@ export default function Einstellungen({ route }) {
             ['#/konto', 'benutzer', 'Konto & Sicherheit', benutzer?.totp_aktiv ? 'Passwort, 2FA aktiv, Sichtbarkeit' : 'Passwort, Zwei-Faktor-Anmeldung, Sichtbarkeit'],
             ['#/katalog', 'suche', 'Katalog', 'Alle Spiele, Konsolen & Zubehör nach Plattform'],
             ['#/community', 'community', 'Community', 'Öffentliche Sammlungen anderer Benutzer'],
+            ['#/erfolge', 'pokal', 'Erfolge & Sammlungsziele', 'Abzeichen freischalten, Fortschritt je Plattform'],
             ['#/statistik', 'statistik', 'Statistik', 'Verteilung nach Plattform, Region, Zustand'],
             ...(istModerator(benutzer) ? [['#/moderation', 'schild', 'Moderation', 'Einreichungen prüfen, Plattformen pflegen']] : []),
             ...(benutzer?.rolle === 'admin' ? [['#/admin', 'benutzer', 'Administration', 'Übersicht, Benutzer & Moderatoren, Rechtliches, Preisimport']] : []),
