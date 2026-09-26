@@ -103,6 +103,8 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
       verrechenbar: { paket: verfuegbar(q.benutzer.get(benutzerId), 'paket'), api: verfuegbar(q.benutzer.get(benutzerId), 'api') },
       abos: db.prepare(`SELECT id, anbieter, produkt, angebote, netto, status, laeuft_bis, erstellt_am FROM abos
         WHERE benutzer_id = ? AND status != 'offen' ORDER BY id DESC`).all(benutzerId),
+      gutschriften: db.prepare(`SELECT id, grund, brutto, erstellt_am, erpnext_gutschrift IS NOT NULL AS beleg FROM gutschriften WHERE benutzer_id = ?
+        ORDER BY id DESC LIMIT 100`).all(benutzerId).map((g) => ({ ...g, beleg: Boolean(g.beleg) })),
       zahlungen: db.prepare(`SELECT id, anbieter, beschreibung, netto, verrechnet, brutto, erstellt_am, zeitraum_von, zeitraum_bis, bezahlt_am, faellig_am,
           erpnext_rechnung IS NOT NULL AS rechnung
         FROM zahlungen WHERE benutzer_id = ? ORDER BY id DESC LIMIT 100`).all(benutzerId).map((r) => ({ ...r, rechnung: Boolean(r.rechnung) })),
@@ -312,6 +314,17 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
         }
         break;
       }
+      case 'charge.refunded': {
+        // Erstattung (auch direkt im Stripe-Dashboard): Differenz zu bereits erfassten Gutschriften nachtragen
+        const rechnungId = o.invoice;
+        const zahlung = rechnungId ? db.prepare("SELECT * FROM zahlungen WHERE anbieter = 'stripe' AND extern_id = ?").get(rechnungId) : null;
+        if (!zahlung) break;
+        const differenz = runde(o.amount_refunded / 100 - erstattet(zahlung.id));
+        if (differenz > 0.005) {
+          erfasseGutschrift({ zahlung, anbieter: 'stripe', externId: `stripe:charge:${o.id}:${o.amount_refunded}`, grund: 'Erstattung (Stripe)', bruttoBetrag: differenz });
+        }
+        break;
+      }
       case 'customer.subscription.updated': {
         const abo = q.abo.get('stripe', o.id);
         if (!abo) break;
@@ -487,6 +500,13 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
         });
         break;
       }
+      case 'PAYMENT.SALE.REFUNDED': {
+        const zahlung = db.prepare("SELECT * FROM zahlungen WHERE anbieter = 'paypal' AND extern_id = ?").get(o.sale_id);
+        if (!zahlung) break;
+        const betrag = Number(o.amount?.total ?? o.amount?.value ?? 0);
+        if (betrag > 0) erfasseGutschrift({ zahlung, anbieter: 'paypal', externId: `paypal:${o.id}`, grund: 'Erstattung (PayPal)', bruttoBetrag: betrag });
+        break;
+      }
       case 'BILLING.SUBSCRIPTION.CANCELLED':
         db.prepare("UPDATE abos SET status = 'gekuendigt', geaendert_am = datetime('now') WHERE anbieter = 'paypal' AND extern_id = ? AND status != 'beendet'").run(o.id);
         break;
@@ -648,6 +668,91 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
     return { beendet: offen.length, fehler };
   }
 
+  // ── Erstattungen und Gutschriften ─────────────────────────────
+  /** Schon erstatteter Bruttobetrag einer Zahlung. */
+  const erstattet = (zahlungId) => db.prepare('SELECT COALESCE(SUM(brutto), 0) AS s FROM gutschriften WHERE zahlung_id = ?').get(zahlungId).s;
+
+  /** Gutschrift erfassen (einmalig je `externId`) und in ERPNext anlegen. */
+  function erfasseGutschrift({ zahlung, benutzerId, anbieter, externId, grund, bruttoBetrag, netto = null, steuersatz = null }) {
+    const satz = steuersatz ?? zahlung?.steuersatz ?? z().steuersatz;
+    const n = netto ?? runde(bruttoBetrag / (1 + satz / 100));
+    const r = db.prepare(`INSERT OR IGNORE INTO gutschriften (zahlung_id, benutzer_id, anbieter, extern_id, grund, netto, steuersatz, brutto)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(zahlung?.id ?? null, benutzerId ?? zahlung?.benutzer_id ?? null, anbieter, externId, grund, n, satz, runde(bruttoBetrag));
+    if (!r.changes) return null;
+    const id = Number(r.lastInsertRowid);
+    erpnext.gutschriftFuer(id).catch((e) => console.warn('[erpnext]', e.message));
+    return id;
+  }
+
+  /**
+   * Administration: Zahlung ganz oder teilweise erstatten. Stripe und PayPal zahlen automatisch zurück; bei Rechnung
+   * entsteht die Gutschrift, die Überweisung macht der Betreiber. Optional wird das Abo sofort beendet.
+   */
+  async function erstatte(zahlungId, { betrag, grund, aboBeenden = false } = {}) {
+    const zahlung = db.prepare('SELECT * FROM zahlungen WHERE id = ?').get(Number(zahlungId));
+    if (!zahlung) throw new KontoFehler('Zahlung nicht gefunden.', 404);
+    const offen = runde(zahlung.brutto - erstattet(zahlung.id));
+    const brutto = betrag === undefined || betrag === null || betrag === '' ? offen : runde(Number(String(betrag).replace(',', '.')));
+    if (!(brutto > 0) || brutto > offen + 0.001) throw new ValidierungsFehler({ betrag: `Bitte einen Betrag bis ${offen.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })} angeben.` });
+    const text = String(grund ?? '').trim().slice(0, 300) || 'Erstattung';
+    let externId;
+    if (zahlung.anbieter === 'stripe') {
+      if (!stripeAktiv()) throw new KontoFehler('Stripe ist nicht eingerichtet.', 409);
+      const rechnung = await stripe('GET', `/v1/invoices/${encodeURIComponent(zahlung.extern_id)}`);
+      if (!rechnung.payment_intent) throw new KontoFehler('Zu dieser Stripe-Rechnung gibt es keine Zahlung zum Erstatten.', 409);
+      const erstattung = await stripe('POST', '/v1/refunds', {
+        payment_intent: rechnung.payment_intent, amount: Math.round(brutto * 100), metadata: { zahlung_id: String(zahlung.id) },
+      });
+      externId = `stripe:${erstattung.id}`;
+    } else if (zahlung.anbieter === 'paypal') {
+      if (!paypalAktiv()) throw new KontoFehler('PayPal ist nicht eingerichtet.', 409);
+      const erstattung = await paypal('POST', `/v1/payments/sale/${encodeURIComponent(zahlung.extern_id)}/refund`, {
+        amount: { total: brutto.toFixed(2), currency: 'EUR' }, description: text.slice(0, 255),
+      });
+      externId = `paypal:${erstattung.id}`;
+    } else {
+      externId = `rechnung:${crypto.randomUUID()}`;
+    }
+    const id = erfasseGutschrift({ zahlung, anbieter: zahlung.anbieter, externId, grund: text, bruttoBetrag: brutto });
+    if (aboBeenden && zahlung.abo_id) {
+      const abo = q.aboId.get(zahlung.abo_id);
+      if (abo && abo.status !== 'beendet') {
+        await beendeExtern(abo).catch((e) => console.warn('[zahlung] Abo beenden:', e.message));
+        db.prepare("UPDATE abos SET status = 'beendet', geaendert_am = datetime('now') WHERE id = ?").run(abo.id);
+        const gestern = tagDavor(Date.now());
+        if (abo.produkt === 'paket') db.prepare('UPDATE benutzer SET haendler_paket_bis = ? WHERE id = ? AND haendler_paket = ?').run(gestern, abo.benutzer_id, abo.angebote);
+        else db.prepare('UPDATE benutzer SET haendler_api_bis = ? WHERE id = ?').run(gestern, abo.benutzer_id);
+      }
+    }
+    if (zahlung.benutzer_id) {
+      benachrichtigungen.sende(zahlung.benutzer_id, {
+        art: 'boerse', titel: `Erstattung über ${brutto.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}`,
+        text: zahlung.anbieter === 'rechnung' ? `${text} – der Betrag wird dir überwiesen bzw. verrechnet.` : `${text} – der Betrag geht auf dein Zahlungsmittel zurück.`,
+        link: '#/boerse/haendler',
+      });
+    }
+    return db.prepare('SELECT * FROM gutschriften WHERE id = ?').get(id);
+  }
+
+  /** Administration: Guthaben eines Händlers auszahlen (Gutschrift in ERPNext, Überweisung durch den Betreiber). */
+  function zahleGuthabenAus(benutzerId, grund) {
+    const b = q.benutzer.get(Number(benutzerId));
+    if (!b) throw new KontoFehler('Benutzer nicht gefunden.', 404);
+    if (!(b.guthaben > 0)) throw new KontoFehler('Kein Guthaben vorhanden.', 409);
+    const letzte = db.prepare('SELECT * FROM zahlungen WHERE benutzer_id = ? AND erpnext_rechnung IS NOT NULL ORDER BY id DESC LIMIT 1').get(b.id);
+    const netto = runde(b.guthaben);
+    db.prepare('UPDATE benutzer SET guthaben = 0 WHERE id = ?').run(b.id);
+    const id = erfasseGutschrift({
+      zahlung: letzte, benutzerId: b.id, anbieter: 'guthaben', externId: `guthaben:${crypto.randomUUID()}`,
+      grund: String(grund ?? '').trim().slice(0, 300) || 'Auszahlung Guthaben aus Abowechsel', bruttoBetrag: brutto(netto), netto, steuersatz: z().steuersatz,
+    });
+    benachrichtigungen.sende(b.id, {
+      art: 'boerse', titel: `Dein Guthaben von ${brutto(netto).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })} wird ausgezahlt`,
+      text: 'Die Gutschrift findest du unter „Abos & Rechnungen“.', link: '#/boerse/haendler',
+    });
+    return db.prepare('SELECT * FROM gutschriften WHERE id = ?').get(id);
+  }
+
   /** Kündigung zum Ende des bezahlten Zeitraums (das Paket bleibt bis dahin aktiv). */
   async function kuendige(benutzer, aboId) {
     const abo = q.aboId.get(Number(aboId));
@@ -667,7 +772,7 @@ export function erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, 
   }
 
   return {
-    stripeAktiv, paypalAktiv, rechnungAktiv, pruefeRechnungen, uebersicht, restwert, beendeAlleAbos, checkout, kuendige, portal, stripeWebhook, paypalWebhook, paypalBestaetigen,
+    stripeAktiv, paypalAktiv, rechnungAktiv, pruefeRechnungen, uebersicht, restwert, beendeAlleAbos, erstatte, zahleGuthabenAus, checkout, kuendige, portal, stripeWebhook, paypalWebhook, paypalBestaetigen,
     /** Nur für Tests und Administration */
     aktiviere, verbuche,
   };

@@ -174,12 +174,64 @@ export function erstelleErpNextDienst(db, { konfiguration, fetchFn = globalThis.
     return Number(r.outstanding_amount ?? 0) <= 0.005 || r.status === 'Paid' ? 'bezahlt' : 'offen';
   }
 
+  /**
+   * Gutschrift (Rückbuchung) in ERPNext: Ausgangsrechnung mit „is_return“ gegen die ursprüngliche Rechnung, gleiche
+   * Steuerzeilen. Kunde kommt aus der ursprünglichen Rechnung – so klappt es auch nach einer Kontolöschung.
+   */
+  async function gutschriftFuer(gutschriftId) {
+    if (!aktiv()) return null;
+    const g = db.prepare('SELECT * FROM gutschriften WHERE id = ?').get(gutschriftId);
+    if (!g || g.erpnext_gutschrift) return g?.erpnext_gutschrift ?? null;
+    const z = g.zahlung_id ? db.prepare('SELECT * FROM zahlungen WHERE id = ?').get(g.zahlung_id) : null;
+    try {
+      let kundenname;
+      let original = null;
+      if (z?.erpnext_rechnung) {
+        original = await anfrage('GET', ressource('Sales Invoice', z.erpnext_rechnung));
+        kundenname = original.customer;
+      } else {
+        const benutzer = g.benutzer_id ? db.prepare('SELECT * FROM benutzer WHERE id = ?').get(g.benutzer_id) : null;
+        if (!benutzer) throw new ErpFehler('Weder ursprüngliche Rechnung noch Kunde vorhanden.');
+        let kennzeichnung = null;
+        try { kennzeichnung = JSON.parse(benutzer.haendler_daten || 'null'); } catch { /* ohne */ }
+        kundenname = await kunde(benutzer, kennzeichnung);
+      }
+      const heute = new Date().toISOString().slice(0, 10);
+      const steuern = original?.taxes?.length
+        ? { taxes_and_charges: original.taxes_and_charges, taxes: original.taxes.map(({ charge_type: art, account_head: konto, description, rate, included_in_print_rate: inkl }) => ({ charge_type: art, account_head: konto, description, rate, included_in_print_rate: inkl ?? 0 })) }
+        : await steuerzeilen();
+      const beschreibung = `Gutschrift: ${g.grund}${z ? ` (zu ${z.beschreibung})` : ''}`;
+      const gutschrift = await anfrage('POST', ressource('Sales Invoice'), {
+        customer: kundenname,
+        company: k().firma,
+        posting_date: heute,
+        set_posting_time: 1,
+        currency: 'EUR',
+        is_return: 1,
+        ...(original ? { return_against: original.name } : {}),
+        remarks: [beschreibung, g.anbieter === 'guthaben' ? 'Auszahlung von Guthaben.' : `Erstattung über ${{ stripe: 'Stripe', paypal: 'PayPal', rechnung: 'Überweisung' }[g.anbieter] ?? g.anbieter} (${g.extern_id}).`].join('\n'),
+        items: [{ item_code: k().artikel, item_name: beschreibung.slice(0, 140), description: beschreibung, qty: -1, rate: g.netto, uom: 'Nos' }],
+        ...steuern,
+        docstatus: 1,
+      });
+      db.prepare('UPDATE gutschriften SET erpnext_gutschrift = ?, erpnext_fehler = NULL, versuche = versuche + 1 WHERE id = ?').run(gutschrift.name, g.id);
+      return gutschrift.name;
+    } catch (e) {
+      db.prepare('UPDATE gutschriften SET erpnext_fehler = ?, versuche = versuche + 1 WHERE id = ?').run(String(e.message).slice(0, 500), g.id);
+      if (!(e instanceof ErpFehler)) console.warn('[erpnext]', e.message);
+      return null;
+    }
+  }
+
   /** Noch nicht übertragene Zahlungen erneut versuchen (höchstens 20 Versuche je Zahlung). */
   async function nachholen() {
     if (!aktiv()) return 0;
     let erledigt = 0;
     for (const { id } of db.prepare('SELECT id FROM zahlungen WHERE erpnext_rechnung IS NULL AND versuche < 20 ORDER BY id LIMIT 50').all()) {
       if (await rechnungFuer(id)) erledigt++;
+    }
+    for (const { id } of db.prepare('SELECT id FROM gutschriften WHERE erpnext_gutschrift IS NULL AND versuche < 20 ORDER BY id LIMIT 50').all()) {
+      if (await gutschriftFuer(id)) erledigt++;
     }
     return erledigt;
   }
@@ -203,5 +255,5 @@ export function erstelleErpNextDienst(db, { konfiguration, fetchFn = globalThis.
     return Buffer.from(await antwort.arrayBuffer());
   }
 
-  return { aktiv, rechnungFuer, nachholen, teste, pdf, rechnungsStatus };
+  return { aktiv, rechnungFuer, gutschriftFuer, nachholen, teste, pdf, rechnungsStatus };
 }

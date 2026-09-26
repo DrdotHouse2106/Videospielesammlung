@@ -371,6 +371,18 @@ function AbosUndRechnungen({ zahlung, onGeaendert }) {
       {zahlung.abos.some((x) => x.anbieter === 'stripe') && (
         <button type="button" className="text-xs text-akzent-hell underline" onClick={portal}>Zahlungsdaten ändern (Stripe)</button>
       )}
+      {zahlung.gutschriften?.length > 0 && (
+        <ul className="space-y-1 rounded-xl border border-rand p-3 text-xs">
+          {zahlung.gutschriften.map((g) => (
+            <li key={g.id} className="flex flex-wrap items-center justify-between gap-2">
+              <span>{datum(g.erstellt_am.slice(0, 10))} · Gutschrift: {g.grund}</span>
+              <span className="tabular-nums">
+                {euro(g.brutto)} {g.beleg ? <a className="ml-2 text-akzent-hell underline" href={`/api/boerse/zahlung/gutschrift/${g.id}.pdf`}>PDF</a> : <span className="ml-2 text-leise">folgt</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
       {zahlung.zahlungen.length > 0 && (
         <table className="w-full text-left text-xs">
           <thead className="text-leise"><tr><th className="py-1">Datum</th><th className="py-1">Leistung</th><th className="py-1 pl-3 text-right">Betrag</th><th className="py-1 pl-3 text-right">Rechnung</th></tr></thead>

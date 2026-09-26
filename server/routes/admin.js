@@ -132,7 +132,7 @@ export function adminRouter({ db, konten, dateien, speicher, sicherung, mail, be
   router.get('/benutzer', (_req, res) => {
     res.json(db.prepare(`
       SELECT b.id, b.benutzername, b.anzeigename, b.email, b.rolle, b.gesperrt, b.totp_aktiv, b.sammlung_oeffentlich,
-             b.erstellt_am, b.letzte_anmeldung, b.haendler_status, b.haendler_daten, b.haendler_paket, b.haendler_paket_bis, b.haendler_api_bis, b.haendler_test_bis, b.haendler_test_genutzt_am, COUNT(a.id) AS eintraege
+             b.erstellt_am, b.letzte_anmeldung, b.haendler_status, b.haendler_daten, b.haendler_paket, b.haendler_paket_bis, b.haendler_api_bis, b.haendler_test_bis, b.haendler_test_genutzt_am, b.guthaben, COUNT(a.id) AS eintraege
       FROM benutzer b LEFT JOIN artikel a ON a.benutzer_id = b.id
       GROUP BY b.id ORDER BY b.erstellt_am`).all().map(({ haendler_daten: daten, ...b }) => ({
         ...b, speicher: speicher.info(b.id), haendler: daten ? JSON.parse(daten) : null,

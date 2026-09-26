@@ -27,10 +27,13 @@ async function fetchFn(url, optionen = {}) {
     if (sub && optionen.method === 'GET') return json(stripeAbos.get(sub[1]));
     if (sub) return json({ id: sub[1], cancel_at_period_end: true });
     if (u.pathname === '/v1/billing_portal/sessions') return json({ url: 'https://billing.stripe.com/p/session_1' });
+    if (u.pathname.startsWith('/v1/invoices/')) return json({ id: u.pathname.split('/').pop(), payment_intent: 'pi_1' });
+    if (u.pathname === '/v1/refunds') return json({ id: `re_${aufrufe.length}` });
   }
   if (u.host === 'api-m.sandbox.paypal.com') {
     if (u.pathname === '/v1/oauth2/token') return json({ access_token: 'pp_tok', expires_in: 3600 });
     if (u.pathname === '/v1/catalogs/products') return json({ id: 'PROD-1' });
+    if (/^\/v1\/payments\/sale\/[^/]+\/refund$/.test(u.pathname)) return json({ id: 'REF-1', state: 'completed' });
     if (u.pathname === '/v1/billing/plans') return json({ id: `P-${JSON.parse(optionen.body).billing_cycles[0].pricing_scheme.fixed_price.value}` });
     if (u.pathname === '/v1/billing/subscriptions') {
       const body = JSON.parse(optionen.body);
@@ -321,6 +324,56 @@ test('Paketwechsel beendet das bisherige Abo', async () => {
   assert.equal(abos.find((a) => a.angebote === 5000).status, 'beendet', 'auch ein Rechnungs-Abo wird ersetzt');
   assert.equal((await shop.api('/api/boerse/haendler')).json.paket, 1000);
   assert.ok(aufrufe.some((a) => a.url.endsWith('/v1/subscriptions/sub_1') && a.methode === 'DELETE'));
+});
+
+test('Erstattungen und Guthaben-Auszahlung erzeugen Gutschriften in ERPNext', async () => {
+  const stripeZahlung = server.db.prepare("SELECT * FROM zahlungen WHERE extern_id = 'in_1'").get();
+  let r = await post(shop, `/api/admin/zahlungen/${stripeZahlung.id}/erstatten`, { betrag: 5 });
+  assert.equal(r.status, 403, 'nur für Administratoren');
+  r = await post(admin, `/api/admin/zahlungen/${stripeZahlung.id}/erstatten`, { betrag: '99' });
+  assert.equal(r.status, 400, 'nicht mehr als gezahlt');
+  r = await post(admin, `/api/admin/zahlungen/${stripeZahlung.id}/erstatten`, { betrag: '5,00', grund: 'Kulanz' });
+  assert.equal(r.status, 200, r.text);
+  const refund = new URLSearchParams(aufrufe.find((a) => a.url.endsWith('/v1/refunds')).body);
+  assert.equal(refund.get('payment_intent'), 'pi_1');
+  assert.equal(refund.get('amount'), '500');
+  await warte();
+  const gutschrift = erp.rechnungen.at(-1);
+  assert.equal(gutschrift.is_return, 1);
+  assert.equal(gutschrift.return_against, stripeZahlung.erpnext_rechnung);
+  assert.equal(gutschrift.items[0].qty, -1);
+  assert.equal(gutschrift.items[0].rate, 4.2, '5,00 € brutto = 4,20 € netto');
+  assert.equal(gutschrift.taxes[0].rate, 19);
+  assert.equal(gutschrift.customer, 'CUST-1');
+
+  // Stripe meldet die Erstattung per Webhook – keine doppelte Gutschrift, nur eine spätere Differenz
+  const vorher = erp.rechnungen.length;
+  await stripeEreignis('charge.refunded', { id: 'ch_1', invoice: 'in_1', amount_refunded: 500 });
+  await warte();
+  assert.equal(erp.rechnungen.length, vorher);
+  await stripeEreignis('charge.refunded', { id: 'ch_1', invoice: 'in_1', amount_refunded: 800 });
+  await warte();
+  assert.equal(erp.rechnungen.length, vorher + 1);
+  assert.equal(server.db.prepare('SELECT SUM(brutto) AS s FROM gutschriften WHERE zahlung_id = ?').get(stripeZahlung.id).s, 8);
+
+  // PayPal: Erstattung über die API, der Webhook zur selben Erstattung wird erkannt
+  const paypalZahlung = server.db.prepare("SELECT * FROM zahlungen WHERE extern_id = 'SALE-1'").get();
+  r = await post(admin, `/api/admin/zahlungen/${paypalZahlung.id}/erstatten`, {});
+  assert.equal(r.status, 200, r.text);
+  assert.equal(r.json.brutto, 24.87, 'ohne Betrag = voll');
+  await paypalEreignis('PAYMENT.SALE.REFUNDED', { id: 'REF-1', sale_id: 'SALE-1', amount: { total: '24.87' } });
+  assert.equal(server.db.prepare('SELECT COUNT(*) AS n FROM gutschriften WHERE zahlung_id = ?').get(paypalZahlung.id).n, 1);
+
+  // Guthaben auszahlen
+  server.db.prepare('UPDATE benutzer SET guthaben = 10 WHERE id = ?').run(shopId);
+  r = await post(admin, `/api/admin/benutzer/${shopId}/guthaben-auszahlen`, {});
+  assert.equal(r.status, 200, r.text);
+  assert.equal(r.json.netto, 10);
+  assert.equal(r.json.brutto, 11.9);
+  assert.equal((await shop.api('/api/boerse/zahlung')).json.guthaben, 0);
+  assert.ok((await shop.api('/api/boerse/zahlung')).json.gutschriften.length >= 3);
+  const alle = (await admin.api('/api/admin/zahlungen')).json;
+  assert.equal(alle.find((x) => x.extern_id === 'in_1').erstattet, 8);
 });
 
 test('Kontolöschung beendet laufende Abos sofort beim Zahlungsanbieter', async () => {

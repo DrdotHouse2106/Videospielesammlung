@@ -638,6 +638,25 @@ const MIGRATIONEN = [
   );
   CREATE INDEX idx_angebot_fotos ON angebot_fotos (angebot_id, reihenfolge);
   `,
+  // 24: Gutschriften (Erstattungen, Auszahlung von Guthaben) – in ERPNext als Rückbuchung (Gutschrift)
+  `
+  CREATE TABLE gutschriften (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    zahlung_id       INTEGER REFERENCES zahlungen (id) ON DELETE SET NULL,   -- ursprüngliche Zahlung/Rechnung
+    benutzer_id      INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    anbieter         TEXT    NOT NULL,                  -- stripe, paypal, rechnung, guthaben
+    extern_id        TEXT    NOT NULL UNIQUE,           -- Erstattungs-ID beim Anbieter bzw. eigene ID
+    grund            TEXT    NOT NULL,
+    netto            REAL    NOT NULL,
+    steuersatz       REAL    NOT NULL,
+    brutto           REAL    NOT NULL,
+    erpnext_gutschrift TEXT,
+    erpnext_fehler   TEXT,
+    versuche         INTEGER NOT NULL DEFAULT 0,
+    erstellt_am      TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX idx_gutschriften_zahlung ON gutschriften (zahlung_id);
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

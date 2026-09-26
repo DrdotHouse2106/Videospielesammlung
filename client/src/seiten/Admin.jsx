@@ -250,6 +250,13 @@ function HaendlerBuchungen({ b, onGeaendert }) {
         <button type="button" className="knopf-sekundaer px-3 py-1"
           onClick={() => speichern(() => api.adminTestzugang(b.id, { tage: Number(testTage) }), `Testzugang für ${testTage} Tage eingerichtet.`)}>Testzugang einrichten</button>
       </div>
+      {b.guthaben > 0 && (
+        <p className="flex flex-wrap items-center gap-2">
+          <span>Guthaben: <strong>{b.guthaben.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</strong> netto</span>
+          <button type="button" className="knopf-sekundaer px-3 py-1" onClick={() => window.confirm('Guthaben auszahlen? Es wird eine Gutschrift in ERPNext erstellt; die Überweisung machst du selbst.')
+            && speichern(() => api.adminGuthabenAuszahlen(b.id), 'Gutschrift erstellt – bitte den Betrag überweisen.')}>Auszahlen</button>
+        </p>
+      )}
       <p className="font-semibold">Händler-Paket: {b.haendler_paket ? `${anzahl(b.haendler_paket)} Angebote, ` : ''}{status(b.haendler_paket_bis)}</p>
       <div className="flex flex-wrap items-center gap-2">
         <select className="eingabe w-auto py-1" value={paket} onChange={(e) => setPaket(e.target.value)} aria-label="Paket">
@@ -287,38 +294,59 @@ function Zahlungen() {
   return (
     <div className="space-y-3">
       <div className="karte flex flex-wrap items-center gap-2 p-4 text-sm">
-        <span className="flex-1">Zahlungen über Stripe, PayPal und per Rechnung. Für jede Zahlung wird automatisch eine Rechnung mit Leistungszeitraum in ERPNext angelegt; Rechnungen „per Rechnung“ verschickt ERPNext per E-Mail. Zahlungseingänge und fehlgeschlagene Übertragungen werden alle 15 Minuten geprüft.</span>
+        <span className="min-w-[14rem] flex-1">Jede Zahlung erhält automatisch eine Rechnung in ERPNext; Zahlungseingänge und fehlgeschlagene Übertragungen werden alle 15 Minuten geprüft. Erstattungen erzeugen eine Gutschrift.</span>
         <button type="button" className="knopf-sekundaer px-3 py-1.5" onClick={async () => {
           try { await api.adminErpNextTest(); zeigeHinweis('Verbindung zu ERPNext in Ordnung.'); } catch (e) { zeigeHinweis(e.message, 'fehler'); }
         }}>ERPNext testen</button>
       </div>
       {!liste ? <p className="text-leise">Wird geladen …</p> : liste.length === 0 ? <p className="karte p-6 text-center text-leise">Noch keine Zahlungen.</p> : (
-        <div className="karte overflow-x-auto p-2">
-          <p className="p-2 text-sm">{liste.length} Zahlungen · {euro(summe)} brutto (letzte 300)</p>
-          <table className="w-full text-left text-xs">
-            <thead className="text-leise"><tr><th className="p-2">Datum</th><th className="p-2">Händler</th><th className="p-2">Leistung</th><th className="p-2">Weg</th><th className="p-2 text-right">Brutto</th><th className="p-2">ERPNext</th></tr></thead>
-            <tbody>
-              {liste.map((z) => (
-                <tr key={z.id} className="border-t border-rand align-top">
-                  <td className="p-2">{datumDe(z.erstellt_am)}</td>
-                  <td className="p-2">{z.haendler ?? '–'}</td>
-                  <td className="p-2">{z.beschreibung}{z.zeitraum_von && <span className="block text-leise">{datumDe(z.zeitraum_von)} – {datumDe(z.zeitraum_bis)}</span>}</td>
-                  <td className="p-2">{{ paypal: 'PayPal', stripe: 'Stripe', rechnung: 'Rechnung' }[z.anbieter] ?? z.anbieter}{z.anbieter === 'rechnung' && <span className={`block ${z.bezahlt_am ? 'text-erfolg' : 'text-warnung'}`}>{z.bezahlt_am ? 'bezahlt' : `offen bis ${datumDe(z.faellig_am)}`}</span>}</td>
-                  <td className="p-2 text-right tabular-nums">{euro(z.brutto)}</td>
-                  <td className="p-2">
-                    {z.erpnext_rechnung ? <span className="text-erfolg">{z.erpnext_rechnung}{z.erpnext_zahlung ? ' · bezahlt' : ''}</span> : (
-                      <span className="space-y-1">
-                        <span className="block text-gefahr">{z.erpnext_fehler ?? 'ausstehend'}</span>
-                        <button type="button" className="underline" onClick={async () => {
-                          try { await api.adminZahlungErpNext(z.id); zeigeHinweis('Rechnung angelegt.'); laden(); } catch (e) { zeigeHinweis(e.message, 'fehler'); laden(); }
-                        }}>Erneut senden</button>
-                      </span>
+        <div className="space-y-2">
+          <p className="text-sm">{liste.length} Zahlungen · {euro(summe)} brutto (letzte 300)</p>
+          <ul className="space-y-2">
+            {liste.map((z) => {
+              const offen = Math.round((z.brutto - z.erstattet) * 100) / 100;
+              return (
+                <li key={z.id} className="karte space-y-1 p-3 text-sm">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <strong className="min-w-0">{z.beschreibung}</strong>
+                    <span className="font-semibold tabular-nums">{euro(z.brutto)}</span>
+                  </div>
+                  <p className="text-xs text-leise">
+                    {datumDe(z.erstellt_am)} · {z.haendler ?? 'gelöschtes Konto'} · {{ paypal: 'PayPal', stripe: 'Stripe', rechnung: 'Rechnung' }[z.anbieter] ?? z.anbieter}
+                    {z.zeitraum_von && ` · Zeitraum ${datumDe(z.zeitraum_von)} – ${datumDe(z.zeitraum_bis)}`}
+                    {z.verrechnet > 0 && ` · verrechnet ${euro(z.verrechnet)} netto`}
+                  </p>
+                  <p className="text-xs">
+                    {z.anbieter === 'rechnung' && <span className={`mr-2 ${z.bezahlt_am ? 'text-erfolg' : 'text-warnung'}`}>{z.bezahlt_am ? 'bezahlt' : `offen bis ${datumDe(z.faellig_am)}`}</span>}
+                    {z.erpnext_rechnung
+                      ? <span className="text-erfolg">ERPNext: {z.erpnext_rechnung}{z.erpnext_zahlung ? ' (Zahlung verbucht)' : ''}</span>
+                      : <span className="text-gefahr">ERPNext: {z.erpnext_fehler ?? 'ausstehend'}</span>}
+                    {z.erstattet > 0 && <span className="ml-2 text-warnung">−{euro(z.erstattet)} erstattet{z.gutschriften ? ` (${z.gutschriften})` : ''}</span>}
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {!z.erpnext_rechnung && (
+                      <button type="button" className="knopf-sekundaer px-3 py-1 text-xs" onClick={async () => {
+                        try { await api.adminZahlungErpNext(z.id); zeigeHinweis('Rechnung angelegt.'); laden(); } catch (e) { zeigeHinweis(e.message, 'fehler'); laden(); }
+                      }}>Erneut an ERPNext senden</button>
                     )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    {offen > 0.004 && (
+                      <button type="button" className="knopf-sekundaer px-3 py-1 text-xs" onClick={async () => {
+                        const betrag = window.prompt(`Betrag erstatten (brutto, höchstens ${euro(offen)}):`, String(offen).replace('.', ','));
+                        if (betrag === null) return;
+                        const grund = window.prompt('Grund (erscheint auf der Gutschrift):', 'Kulanz') ?? '';
+                        const aboBeenden = window.confirm('Abo zusätzlich sofort beenden? (Abbrechen = Abo läuft weiter)');
+                        try {
+                          await api.adminErstatten(z.id, { betrag, grund, aboBeenden });
+                          zeigeHinweis(z.anbieter === 'rechnung' ? 'Gutschrift erstellt – bitte den Betrag überweisen.' : 'Erstattet, Gutschrift wird in ERPNext angelegt.');
+                          laden();
+                        } catch (e) { zeigeHinweis(Object.values(e.felder ?? {})[0] ?? e.message, 'fehler'); }
+                      }}>Erstatten</button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
     </div>

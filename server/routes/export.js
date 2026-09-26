@@ -98,6 +98,7 @@ export function exportRouter({ db, plattformen }) {
         shop_anbindung: anbindung,
       },
       abos: alle('SELECT anbieter, produkt, angebote, netto, status, laeuft_bis, erstellt_am FROM abos WHERE benutzer_id = ? ORDER BY id'),
+      gutschriften: alle('SELECT grund, netto, steuersatz, brutto, erpnext_gutschrift AS beleg, erstellt_am FROM gutschriften WHERE benutzer_id = ? ORDER BY id'),
       zahlungen_und_rechnungen: alle(`SELECT anbieter, beschreibung, netto, verrechnet, steuersatz, brutto, zeitraum_von, zeitraum_bis, erpnext_rechnung AS rechnung,
           faellig_am, bezahlt_am, erstellt_am FROM zahlungen WHERE benutzer_id = ? ORDER BY id`),
     });

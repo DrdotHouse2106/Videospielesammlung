@@ -33,6 +33,15 @@ export function zahlungRouter({ db, zahlung, erpnext }) {
   router.post('/boerse/zahlung/abos/:id/kuendigen', async (req, res) => res.json(await zahlung.kuendige(req.benutzer, req.params.id)));
   router.post('/boerse/zahlung/portal', async (req, res) => res.json(await zahlung.portal(req.benutzer)));
 
+  // Gutschrift als PDF (nur eigene)
+  router.get('/boerse/zahlung/gutschrift/:id.pdf', async (req, res) => {
+    const g = db.prepare('SELECT erpnext_gutschrift FROM gutschriften WHERE id = ? AND benutzer_id = ?').get(Number(req.params.id), req.benutzer.id);
+    if (!g?.erpnext_gutschrift) throw new KontoFehler('Gutschrift nicht gefunden oder noch nicht erstellt.', 404);
+    const pdf = await erpnext.pdf(g.erpnext_gutschrift);
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="Gutschrift-${g.erpnext_gutschrift.replace(/[^\w.-]/g, '_')}.pdf"`, 'Cache-Control': 'no-store' });
+    res.send(pdf);
+  });
+
   // Rechnung als PDF (nur eigene)
   router.get('/boerse/zahlung/rechnung/:id.pdf', async (req, res) => {
     const z = db.prepare('SELECT erpnext_rechnung FROM zahlungen WHERE id = ? AND benutzer_id = ?').get(Number(req.params.id), req.benutzer.id);
@@ -45,11 +54,13 @@ export function zahlungRouter({ db, zahlung, erpnext }) {
 }
 
 /** Administration: alle Zahlungen, Rechnungen erneut übertragen, ERPNext testen. */
-export function zahlungAdminRouter({ db, erpnext }) {
+export function zahlungAdminRouter({ db, erpnext, zahlung }) {
   const router = Router();
   router.get('/zahlungen', (_req, res) => {
-    res.json(db.prepare(`SELECT z.*, COALESCE(b.anzeigename, b.benutzername) AS haendler FROM zahlungen z
-      LEFT JOIN benutzer b ON b.id = z.benutzer_id ORDER BY z.id DESC LIMIT 300`).all());
+    res.json(db.prepare(`SELECT z.*, COALESCE(b.anzeigename, b.benutzername) AS haendler, b.guthaben,
+        (SELECT COALESCE(SUM(g.brutto), 0) FROM gutschriften g WHERE g.zahlung_id = z.id) AS erstattet,
+        (SELECT group_concat(COALESCE(g.erpnext_gutschrift, 'ausstehend'), ', ') FROM gutschriften g WHERE g.zahlung_id = z.id) AS gutschriften
+      FROM zahlungen z LEFT JOIN benutzer b ON b.id = z.benutzer_id ORDER BY z.id DESC LIMIT 300`).all());
   });
   router.get('/abos', (_req, res) => {
     res.json(db.prepare(`SELECT a.*, COALESCE(b.anzeigename, b.benutzername) AS haendler FROM abos a
@@ -62,6 +73,10 @@ export function zahlungAdminRouter({ db, erpnext }) {
     if (!name) return res.status(502).json({ fehler: z?.erpnext_fehler ?? 'ERPNext ist nicht eingerichtet.' });
     res.json(z);
   });
+  router.post('/zahlungen/:id/erstatten', async (req, res) => {
+    res.json(await zahlung.erstatte(req.params.id, { betrag: req.body?.betrag, grund: req.body?.grund, aboBeenden: req.body?.aboBeenden === true }));
+  });
+  router.post('/benutzer/:id/guthaben-auszahlen', (req, res) => res.json(zahlung.zahleGuthabenAus(req.params.id, req.body?.grund)));
   router.post('/erpnext/test', async (_req, res) => {
     try { res.json(await erpnext.teste()); } catch (e) { res.status(502).json({ fehler: e.message }); }
   });

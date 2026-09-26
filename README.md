@@ -390,6 +390,12 @@ Einrichtung unter *Administration → Einstellungen → Zahlungen* bzw. *Rechnun
 Webhook-Adressen: `PUBLIC_URL/api/zahlung/stripe/webhook` und `PUBLIC_URL/api/zahlung/paypal/webhook` (die nötigen
 Ereignisse stehen bei den Einstellungen). Zum Ausprobieren eignen sich die Testschlüssel von Stripe und die PayPal-Sandbox.
 
+**Erstattungen und Gutschriften:** Unter *Administration → Zahlungen* erstattest du eine Zahlung ganz oder teilweise
+(Stripe und PayPal zahlen automatisch zurück, bei Rechnung überweist du selbst), optional mit sofortigem Ende des Abos.
+Erstattungen direkt im Stripe- oder PayPal-Dashboard kommen per Webhook an. In beiden Fällen legt ZockDB in ERPNext eine
+Gutschrift (Rückbuchung gegen die ursprüngliche Rechnung, gleiche Steuer) an. Guthaben aus Abowechseln kannst du in der
+Benutzerverwaltung auszahlen – ebenfalls mit Gutschrift. Händler laden Gutschriften als PDF im Händlerbereich herunter.
+
 **Wechsel mit Verrechnung:** Bucht ein Händler ein anderes Paket (größer oder kleiner) oder wechselt die Zahlungsart, wird
 das bisherige Abo beendet und der nicht genutzte Rest tagesgenau gutgeschrieben. Die Gutschrift wird mit der neuen Zahlung
 verrechnet – auf der ERPNext-Rechnung als ausgewiesener Abzug vom Nettobetrag, bei Stripe als einmaliger Rabatt, bei PayPal
