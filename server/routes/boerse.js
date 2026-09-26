@@ -68,8 +68,9 @@ export function boerseRouter({ db, boerse, boersenImport, anbindungen, angebotFo
   });
   router.delete('/boerse/fotos/:id', (req, res) => res.json(boerse.hole(angebotFotos.entferne(req.benutzer, req.params.id), req.benutzer)));
   router.post('/boerse/fotos/:id/titelbild', (req, res) => res.json(boerse.hole(angebotFotos.alsTitelbild(req.benutzer, req.params.id), req.benutzer)));
-  // Eigene Statistik: Aufrufe, Anfragen und Wunschlisten-Treffer (nur Tageszähler)
-  router.get('/boerse/statistik', (req, res) => res.json(boerse.statistik.fuer(req.benutzer.id, req.query.tage)));
+  // Eigene Statistik: Aufrufe, Anfragen und Wunschlisten-Treffer (nur Tageszähler).
+  // Vollständig nur mit Händler-Paket – sonst eine Vorschau mit den Gesamtzahlen der letzten 30 Tage.
+  router.get('/boerse/statistik', (req, res) => res.json(boerse.statistikFuer(req.benutzer, req.query.tage)));
 
   router.put('/boerse/angebote/:id', (req, res) => res.json(boerse.aendere(req.benutzer, req.params.id, req.body ?? {})));
   router.delete('/boerse/angebote/:id', (req, res) => {

@@ -23,6 +23,28 @@ function Veraenderung({ jetzt, vorher }) {
   );
 }
 
+/** Ohne Händler-Paket: nur Gesamtzahlen als Vorgeschmack. */
+function Vorschau({ d }) {
+  return (
+    <section className="karte space-y-3 p-4 text-sm">
+      <h2 className="font-semibold">Statistik zu deinen Angeboten</h2>
+      <p>
+        In den letzten {d.tage} Tagen wurden deine Angebote <strong>{anzahl(d.gesamt.aufrufe)}×</strong> aufgerufen,
+        du hast <strong>{anzahl(d.gesamt.anfragen)}</strong> Anfragen erhalten und <strong>{anzahl(d.gesamt.treffer)}</strong> Sammler
+        wurden über einen Wunschlisten-Treffer informiert.
+      </p>
+      <p className="text-leise">
+        Die ausführliche Statistik – Verlauf pro Tag, Werte je Angebot, Anfragequote, Vergleich zum Vorzeitraum und die
+        meistgesuchten Titel – ist Teil der Händler-Pakete. Gezählt wird schon jetzt: Nach dem Buchen siehst du sofort den
+        bisherigen Verlauf.
+      </p>
+      {d.haendler
+        ? <a className="knopf-primaer w-fit px-3 py-1.5" href="#/boerse/haendler">Händler-Pakete ansehen</a>
+        : <a className="knopf-sekundaer w-fit px-3 py-1.5" href="#/boerse/haendler">Als Händler anmelden</a>}
+    </section>
+  );
+}
+
 export default function BoerseStatistik() {
   const zeigeHinweis = useHinweis();
   const [tage, setTage] = useState(30);
@@ -31,6 +53,7 @@ export default function BoerseStatistik() {
   const [d, setD] = useState(null);
   useEffect(() => { api.boerseStatistik(tage).then(setD).catch((e) => zeigeHinweis(e.message, 'fehler')); }, [tage]);
   if (!d) return <p className="text-leise">Wird geladen …</p>;
+  if (d.gesperrt) return <Vorschau d={d} />;
 
   const max = Math.max(1, ...d.verlauf.map((t) => t[kennzahl]));
   const tagText = (t) => new Date(`${t.tag}T12:00:00`).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });

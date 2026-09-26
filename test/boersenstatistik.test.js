@@ -34,7 +34,19 @@ test('Statistik zählt Aufrufe, Anfragen und Treffer ohne Personenbezug', async 
   await post(ben, `/api/boerse/angebote/${angebot.id}/anfrage`, { text: 'Noch da?' });
   await post(ben, `/api/boerse/angebote/${angebot.id}/anfrage`, { text: 'Versand möglich?' });
 
+  // Ohne Händler-Paket nur die Vorschau mit Gesamtzahlen
+  const vorschau = (await anna.api('/api/boerse/statistik?tage=7')).json;
+  assert.equal(vorschau.gesperrt, true);
+  assert.deepEqual(vorschau.gesamt, { aufrufe: 2, anfragen: 1, treffer: 1 });
+  assert.equal(vorschau.verlauf, undefined);
+  assert.equal(vorschau.angebote, undefined);
+
+  // Mit Paket (hier Testzugang durch den Administrator) die volle Auswertung
+  await anna.api('/api/boerse/haendler', { methode: 'PUT', daten: { firma: 'Annas Retroladen', anschrift: 'Musterstraße 1, 40213 Düsseldorf', email: 'anna@example.org' } });
+  await post(admin, '/api/admin/benutzer/2/haendler', { verifiziert: true });
+  assert.equal((await post(admin, '/api/admin/benutzer/2/testzugang', { tage: 30 })).status, 200);
   const s = (await anna.api('/api/boerse/statistik?tage=7')).json;
+  assert.equal(s.gesperrt, false);
   assert.equal(s.tage, 7);
   assert.equal(s.verlauf.length, 7);
   assert.deepEqual(s.gesamt, { aufrufe: 2, anfragen: 1, treffer: 1 });
@@ -45,7 +57,8 @@ test('Statistik zählt Aufrufe, Anfragen und Treffer ohne Personenbezug', async 
   assert.equal(s.gefragt[0].gesucht_von, 1);
 
   // Andere sehen nur ihre eigenen Zahlen; ungültiger Zeitraum → 30 Tage
-  const fremd = (await ben.api('/api/boerse/statistik?tage=12345')).json;
+  const fremd = (await admin.api('/api/boerse/statistik?tage=12345')).json;
+  assert.equal(fremd.gesperrt, false, 'Administratoren sehen immer die volle Ansicht');
   assert.equal(fremd.tage, 30);
   assert.deepEqual(fremd.gesamt, { aufrufe: 0, anfragen: 0, treffer: 0 });
   assert.equal(fremd.angebote.length, 0);

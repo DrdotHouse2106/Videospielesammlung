@@ -75,9 +75,9 @@ function Vorteile({ profil }) {
         <li><strong>Massen-Upload per CSV</strong> – z. B. direkt aus dem Export deines Shops (Shopware, WooCommerce, JTL …) oder einer Tabelle. Mit Artikelnummer wird der Bestand bei jedem Upload abgeglichen.</li>
         <li><strong>Sammler mit passender Wunschliste</strong> werden automatisch über deine Angebote informiert.</li>
         <li><strong>Händlerprofil</strong> mit Anbieterkennzeichnung, Link zu deinem Shop und Bewertungen.</li>
-        <li><strong>Statistik</strong> zu Aufrufen, Anfragen und Wunschlisten-Treffern je Angebot – <a className="underline" href="#/boerse/meine?tab=statistik">jetzt ansehen</a>.</li>
         <li><strong>Kostenlos bis {anzahl(profil.kostenlos)} aktive Angebote</strong> – mehr mit einem Händler-Paket, das zusätzlich die vollständige
-          <strong> Nachfrage-Auswertung</strong> enthält (welche Spiele gesucht werden, wie viel Sammler zahlen würden, wofür es noch kein Angebot gibt).</li>
+          <strong> Nachfrage-Auswertung</strong> (welche Spiele gesucht werden, wie viel Sammler zahlen würden, wofür es noch kein Angebot gibt)
+          und die <a className="underline" href="#/boerse/meine?tab=statistik"><strong>Statistik</strong></a> zu Aufrufen, Anfragen und Wunschlisten-Treffern je Angebot enthält.</li>
         <li><strong>API-Anbindung</strong> an deinen Shop oder dein ERP als Zusatzpaket: Der Bestand wird automatisch abgeglichen.</li>
       </ul>
       <p className="text-xs text-leise">
@@ -440,7 +440,7 @@ function Pakete({ profil, zahlung, onGeaendert, onGebucht }) {
             <div key={s.angebote} className={`rounded-xl border p-3 ${gewaehlt ? 'border-akzent bg-akzent/10' : 'border-rand'}`}>
               <p className="font-semibold">{s.preis ? `Händler ${anzahl(s.angebote)}` : 'Kostenlos'}</p>
               <p className="text-lg font-bold">{s.preis ? euroMonat(s.preis) : '0 €'}</p>
-              <p className="text-xs text-leise">bis {anzahl(s.angebote)} aktive Angebote{s.preis ? ' · volle Nachfrage-Auswertung' : ' · auch per CSV-Upload'}</p>
+              <p className="text-xs text-leise">bis {anzahl(s.angebote)} aktive Angebote{s.preis ? ' · Nachfrage-Auswertung & Statistik' : ' · auch per CSV-Upload'}</p>
               {s.preis > 0 && zahlung?.steuersatz > 0 && <p className="text-xs text-leise">zzgl. {zahlung.steuersatz.toLocaleString('de-DE')} % MwSt.</p>}
               {gewaehlt && <p className="mt-1 text-xs font-semibold text-akzent-hell">{s.preis ? `${profil.test_bis ? 'Test' : 'Gebucht'} bis ${datum(profil.paket_bis)}` : 'Aktuell'}</p>}
               {s.preis > 0 && !gewaehlt && <BuchenKnoepfe profil={profil} zahlung={zahlung} produkt="paket" angebote={s.angebote} preis={s.preis} onGebucht={onGebucht} />}

@@ -344,8 +344,9 @@ Bezahlung und Versand vereinbaren die Beteiligten direkt miteinander.
   ein Spiel anbieten oder suchen.
 - **Tauschvorschläge:** Die App findet Sammler, die haben, was du suchst, und gleichzeitig suchen, was du tauschen möchtest.
 - **Nachrichten** zu Angeboten innerhalb der App (E-Mail-Adressen bleiben verborgen), danach gegenseitige **Bewertungen**.
-- **Statistik** (*Meine Börse → Statistik*): Aufrufe, Anfragen und Wunschlisten-Treffer je Angebot und Tag, Anfragequote,
-  Vergleich zum Zeitraum davor und die meistgesuchten eigenen Titel. Gespeichert werden nur Tageszähler – keine Namen,
+- **Statistik** (*Meine Börse → Statistik*, Teil der Händler-Pakete): Aufrufe, Anfragen und Wunschlisten-Treffer je
+  Angebot und Tag, Anfragequote, Vergleich zum Zeitraum davor und die meistgesuchten eigenen Titel. Ohne Paket gibt es nur
+  die Gesamtzahlen der letzten 30 Tage; gezählt wird aber immer, sodass nach dem Buchen der Verlauf sofort da ist. Gespeichert werden nur Tageszähler – keine Namen,
   IP-Adressen oder Cookies; eigene Aufrufe und Bots zählen nicht, nach 400 Tagen wird gelöscht.
 - **Schutz:** Angebote lassen sich melden, Benutzer blockieren; neue Konten ohne bestätigte E-Mail-Adresse dürfen erst
   nach einer Wartezeit schreiben, Nachrichten sind mengenmäßig begrenzt. Angebote gibt es nur für freigegebene Katalogeinträge.
@@ -355,7 +356,7 @@ Bezahlung und Versand vereinbaren die Beteiligten direkt miteinander.
   durch einen Administrator (*Benutzerverwaltung → Anbieterkennzeichnung prüfen*) gilt der Händler als verifiziert.
 - **Kostenlos und Pakete:** Ohne Bezahlung sind `MARKET_MAX_OFFERS` (Standard 50) aktive Angebote möglich – auch per CSV.
   Verifizierte Händler können **Pakete** mit mehr Angeboten buchen (Standard 500, 1.000 oder 5.000; Preise über
-  `MARKET_PACKAGES`; darüber individuell nach Absprache), inklusive vollständiger Nachfrage-Auswertung. Läuft ein Paket aus, werden Angebote über dem
+  `MARKET_PACKAGES`; darüber individuell nach Absprache), inklusive vollständiger Nachfrage-Auswertung und Statistik. Läuft ein Paket aus, werden Angebote über dem
   kostenlosen Limit beendet (die zuletzt bearbeiteten bleiben aktiv).
 - **Zusatzpaket API-Anbindung** (`MARKET_API_PRICE`, Standard 19,90 € im Monat): automatischer Bestandsabgleich mit
   **Shopware 6** (Admin-API) oder einem **CSV-Feed** per https. Zugangsdaten der Händler werden verschlüsselt gespeichert;

@@ -600,6 +600,15 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     return abgelaufen.length;
   }
 
+  // ── Statistik (Bezahlfunktion) ────────────────────────────────
+  function statistikFuer(benutzerRoh, tage) {
+    const benutzer = q.benutzer.get(benutzerRoh.id);
+    if (paketAktiv(benutzer) || istModerator(benutzer)) return { gesperrt: false, ...statistik.fuer(benutzer.id, tage) };
+    // Gezählt wird trotzdem – nach dem Buchen ist der Verlauf sofort vollständig da
+    const { gesamt, tage: t } = statistik.fuer(benutzer.id, 30);
+    return { gesperrt: true, tage: t, gesamt, haendler: Boolean(benutzer.haendler_status) };
+  }
+
   // ── Blockieren ────────────────────────────────────────────────
   function blockiere(benutzer, zielId) {
     const ziel = q.benutzer.get(Number(zielId));
@@ -973,5 +982,6 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     haendlerProfil, setzeHaendler, setzePlz, verifiziere, setzePaket, setzeApi, kuerzeNachPaketende, starteTest, erinnereTestende,
     apiAktiv: (id) => apiAktiv(q.benutzer.get(id)),
     statistik,
+    statistikFuer,
   };
 }
