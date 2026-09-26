@@ -159,6 +159,28 @@ export function ladeKonfiguration(env = process.env) {
       proKontakt: (env.MARKET_PRO_CONTACT || '').trim(),
       proInfo: (env.MARKET_PRO_INFO || '').trim(),
     },
+    // Automatische Zahlungsabwicklung für Händler-Pakete (Stripe: Karte/SEPA, PayPal mit Zahlungsgebühr)
+    zahlung: {
+      steuersatz: Math.min(100, Math.max(0, preis(env.PAYMENT_VAT_RATE ?? '19') ?? 19)), // Prozent; 0 z. B. bei Kleinunternehmern
+      stripeSchluessel: (env.PAYMENT_STRIPE_SECRET_KEY || '').trim(),
+      stripeWebhookGeheimnis: (env.PAYMENT_STRIPE_WEBHOOK_SECRET || '').trim(),
+      paypalClientId: (env.PAYMENT_PAYPAL_CLIENT_ID || '').trim(),
+      paypalGeheimnis: (env.PAYMENT_PAYPAL_SECRET || '').trim(),
+      paypalWebhookId: (env.PAYMENT_PAYPAL_WEBHOOK_ID || '').trim(),
+      paypalSandbox: (env.PAYMENT_PAYPAL_MODE || 'live').trim().toLowerCase() === 'sandbox',
+      paypalGebuehr: preis(env.PAYMENT_PAYPAL_FEE ?? '1,00') ?? 1, // netto je Monat
+    },
+    // Rechnungen in ERPNext (REST-API mit API-Schlüssel eines Benutzers mit Rechten für Kunden, Rechnungen und Zahlungen)
+    erpnext: {
+      url: basisUrl(env.ERPNEXT_URL),
+      schluessel: (env.ERPNEXT_API_KEY || '').trim(),
+      geheimnis: (env.ERPNEXT_API_SECRET || '').trim(),
+      firma: (env.ERPNEXT_COMPANY || '').trim(),
+      artikel: (env.ERPNEXT_ITEM_CODE || 'ZOCKDB-ABO').trim(),
+      steuervorlage: (env.ERPNEXT_TAX_TEMPLATE || '').trim(),
+      kontoStripe: (env.ERPNEXT_ACCOUNT_STRIPE || '').trim(),
+      kontoPaypal: (env.ERPNEXT_ACCOUNT_PAYPAL || '').trim(),
+    },
     vertrauteProxies: env.TRUST_PROXY || '',
     affiliate: ladeAffiliateKonfiguration(env),
   };

@@ -567,6 +567,50 @@ const MIGRATIONEN = [
   ALTER TABLE benutzer ADD COLUMN haendler_test_genutzt_am TEXT;   -- wann zuletzt ein Testzugang begonnen wurde
   ALTER TABLE benutzer ADD COLUMN haendler_test_erinnert INTEGER NOT NULL DEFAULT 0;
   `,
+  // 20: Automatische Zahlungsabwicklung (Stripe, PayPal) und Rechnungen in ERPNext
+  `
+  CREATE TABLE abos (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    benutzer_id  INTEGER NOT NULL REFERENCES benutzer (id) ON DELETE CASCADE,
+    anbieter     TEXT    NOT NULL,                 -- stripe, paypal
+    extern_id    TEXT    NOT NULL,                 -- Abo-ID beim Zahlungsanbieter
+    produkt      TEXT    NOT NULL,                 -- paket, api
+    angebote     INTEGER,                          -- bei Paketen: Anzahl aktiver Angebote
+    netto        REAL    NOT NULL,                 -- Monatspreis netto (inkl. Zahlungsgebühr)
+    status       TEXT    NOT NULL DEFAULT 'offen', -- offen, aktiv, gekuendigt, beendet
+    laeuft_bis   TEXT,                             -- bezahlt bis (JJJJ-MM-TT)
+    erstellt_am  TEXT    NOT NULL DEFAULT (datetime('now')),
+    geaendert_am TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (anbieter, extern_id)
+  );
+  CREATE INDEX idx_abos_benutzer ON abos (benutzer_id, status);
+
+  CREATE TABLE zahlungen (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    abo_id           INTEGER REFERENCES abos (id) ON DELETE SET NULL,
+    benutzer_id      INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    anbieter         TEXT    NOT NULL,
+    extern_id        TEXT    NOT NULL,              -- Rechnungs-/Transaktions-ID beim Zahlungsanbieter
+    produkt          TEXT    NOT NULL,
+    beschreibung     TEXT    NOT NULL,
+    netto            REAL    NOT NULL,
+    steuersatz       REAL    NOT NULL,
+    brutto           REAL    NOT NULL,
+    zeitraum_bis     TEXT,
+    erpnext_rechnung TEXT,                          -- Name der Ausgangsrechnung in ERPNext
+    erpnext_zahlung  TEXT,
+    erpnext_fehler   TEXT,
+    versuche         INTEGER NOT NULL DEFAULT 0,
+    erstellt_am      TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (anbieter, extern_id)
+  );
+  CREATE INDEX idx_zahlungen_erpnext ON zahlungen (erpnext_rechnung);
+
+  -- Beim Zahlungsanbieter angelegte Produkte/Pläne (PayPal) und Kundennummern
+  CREATE TABLE zahlung_schluessel (schluessel TEXT PRIMARY KEY, wert TEXT NOT NULL);
+  ALTER TABLE benutzer ADD COLUMN stripe_kunde TEXT;
+  ALTER TABLE benutzer ADD COLUMN erpnext_kunde TEXT;
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

@@ -25,8 +25,28 @@ const VORLAGE = 'Artikelnummer;EAN;ZockDB-ID;Titel;Plattform;Preis;Bestand;Zusta
 export default function Haendler({ route }) {
   const zeigeHinweis = useHinweis();
   const [profil, setProfil] = useState(null);
-  const laden = () => api.haendler().then(setProfil).catch((e) => zeigeHinweis(e.message, 'fehler'));
+  const [zahlung, setZahlung] = useState(null);
+  const laden = () => {
+    api.haendler().then(setProfil).catch((e) => zeigeHinweis(e.message, 'fehler'));
+    api.zahlungUebersicht().then(setZahlung).catch(() => setZahlung(null));
+  };
   useEffect(() => { laden(); }, []);
+
+  // Rückkehr von der Bezahlseite
+  const rueckkehr = route.parameter.zahlung;
+  useEffect(() => {
+    if (!rueckkehr) return undefined;
+    if (rueckkehr === 'abgebrochen') { zeigeHinweis('Bezahlung abgebrochen – es wurde nichts gebucht.'); return undefined; }
+    zeigeHinweis('Danke! Die Zahlung wird verarbeitet …');
+    if (rueckkehr === 'paypal') {
+      const id = route.parameter.subscription_id ?? new URLSearchParams(window.location.search).get('subscription_id');
+      api.paypalBestaetigen(id).then(laden).catch(() => {});
+    }
+    // Die Bestätigung des Zahlungsanbieters kommt meist nach wenigen Sekunden
+    const t1 = setTimeout(laden, 3000);
+    const t2 = setTimeout(laden, 8000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [rueckkehr]);
 
   return (
     <Layout route={route} titel="Händlerbereich" zurueck="/boerse/meine">
@@ -36,8 +56,9 @@ export default function Haendler({ route }) {
             <Vorteile profil={profil} />
             <Kennzeichnung profil={profil} onGespeichert={setProfil} />
             {profil.status && <MassenUpload profil={profil} />}
-            <Pakete profil={profil} onGeaendert={setProfil} />
-            {profil.status && <ApiBereich profil={profil} />}
+            <Pakete profil={profil} zahlung={zahlung} onGeaendert={setProfil} />
+            {profil.status && <ApiBereich profil={profil} zahlung={zahlung} />}
+            {zahlung && (zahlung.abos.length > 0 || zahlung.zahlungen.length > 0) && <AbosUndRechnungen zahlung={zahlung} onGeaendert={laden} />}
             <IndividuelleAnbindung profil={profil} />
           </>
         )}
@@ -260,10 +281,93 @@ function MassenUpload({ profil }) {
 }
 
 const datum = (iso) => iso.split('-').reverse().join('.');
+const euro = (n) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+
+/** Buchen über Stripe (Karte, SEPA-Lastschrift) oder PayPal (zzgl. Zahlungsgebühr). */
+function BuchenKnoepfe({ profil, zahlung, produkt, angebote }) {
+  const zeigeHinweis = useHinweis();
+  const [laeuft, setLaeuft] = useState(false);
+  if (profil.status !== 'verifiziert' || !zahlung || (!zahlung.anbieter.stripe && !zahlung.anbieter.paypal)) return null;
+  const buchen = async (anbieter) => {
+    setLaeuft(true);
+    try {
+      const { url } = await api.zahlungCheckout({ produkt, angebote, anbieter });
+      window.location.href = url;
+    } catch (e) {
+      zeigeHinweis(Object.values(e.felder ?? {})[0] ?? e.message, 'fehler');
+      setLaeuft(false);
+    }
+  };
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {zahlung.anbieter.stripe && (
+        <button type="button" className="knopf-primaer px-2.5 py-1 text-xs" disabled={laeuft} onClick={() => buchen('stripe')}>Buchen: Karte/SEPA</button>
+      )}
+      {zahlung.anbieter.paypal && (
+        <button type="button" className="knopf-sekundaer px-2.5 py-1 text-xs" disabled={laeuft} onClick={() => buchen('paypal')}
+          title={`PayPal kostet ${euro(zahlung.paypal_gebuehr)} netto Zahlungsgebühr im Monat zusätzlich.`}>
+          PayPal (+{euro(zahlung.paypal_gebuehr)})
+        </button>
+      )}
+    </div>
+  );
+}
+
+const ABO_STATUS = { aktiv: 'Aktiv', gekuendigt: 'Gekündigt – läuft aus', beendet: 'Beendet' };
+
+/** Gebuchte Abos (kündbar zum Periodenende) und Rechnungen als PDF. */
+function AbosUndRechnungen({ zahlung, onGeaendert }) {
+  const zeigeHinweis = useHinweis();
+  const kuendigen = async (abo) => {
+    if (!window.confirm(`Abo zum ${abo.laeuft_bis ? datum(abo.laeuft_bis) : 'Ende des Zeitraums'} kündigen? Bis dahin bleibt alles aktiv.`)) return;
+    try { await api.aboKuendigen(abo.id); zeigeHinweis('Abo gekündigt.'); onGeaendert(); } catch (e) { zeigeHinweis(e.message, 'fehler'); }
+  };
+  const portal = async () => {
+    try { window.location.href = (await api.zahlungPortal()).url; } catch (e) { zeigeHinweis(e.message, 'fehler'); }
+  };
+  return (
+    <section className="karte space-y-3 p-4 text-sm">
+      <h2 className="flex items-center gap-2 font-semibold"><Symbol name="dokument" className="size-5 text-akzent-hell" />Abos & Rechnungen</h2>
+      {zahlung.abos.length > 0 && (
+        <ul className="divide-y divide-rand rounded-xl border border-rand">
+          {zahlung.abos.map((a) => (
+            <li key={a.id} className="flex flex-wrap items-center gap-2 p-3">
+              <span className="min-w-0 flex-1">
+                <strong>{a.produkt === 'paket' ? `Händler-Paket ${anzahl(a.angebote)}` : 'API-Anbindung'}</strong>
+                <span className="block text-xs text-leise">
+                  {euro(a.netto)} netto/Monat · {a.anbieter === 'paypal' ? 'PayPal' : 'Karte/SEPA'} · {ABO_STATUS[a.status] ?? a.status}{a.laeuft_bis ? ` · bezahlt bis ${datum(a.laeuft_bis)}` : ''}
+                </span>
+              </span>
+              {a.status === 'aktiv' && <button type="button" className="knopf-sekundaer px-3 py-1 text-xs" onClick={() => kuendigen(a)}>Kündigen</button>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {zahlung.abos.some((a) => a.anbieter === 'stripe') && (
+        <button type="button" className="text-xs text-akzent-hell underline" onClick={portal}>Zahlungsdaten ändern (Stripe)</button>
+      )}
+      {zahlung.zahlungen.length > 0 && (
+        <table className="w-full text-left text-xs">
+          <thead className="text-leise"><tr><th className="py-1">Datum</th><th className="py-1">Leistung</th><th className="py-1 pl-3 text-right">Betrag</th><th className="py-1 pl-3 text-right">Rechnung</th></tr></thead>
+          <tbody>
+            {zahlung.zahlungen.map((r) => (
+              <tr key={r.id} className="border-t border-rand">
+                <td className="py-1.5 pr-3 whitespace-nowrap">{datum(r.erstellt_am.slice(0, 10))}</td>
+                <td className="py-1.5">{r.beschreibung}</td>
+                <td className="py-1.5 pl-3 text-right tabular-nums whitespace-nowrap">{euro(r.brutto)}</td>
+                <td className="py-1.5 pl-3 text-right">{r.rechnung ? <a className="text-akzent-hell underline" href={`/api/boerse/zahlung/rechnung/${r.id}.pdf`}>PDF</a> : <span className="text-leise">folgt</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
 const euroMonat = (n) => `${n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })} / Monat`;
 
 /** Kostenloses Kontingent und buchbare Händler-Pakete. */
-function Pakete({ profil, onGeaendert }) {
+function Pakete({ profil, zahlung, onGeaendert }) {
   const zeigeHinweis = useHinweis();
   const testStarten = async () => {
     if (!window.confirm(`${profil.test_tage} Tage kostenlos testen? Der Test kann nur einmal genutzt werden und endet automatisch – ohne Kosten und ohne Kündigung.`)) return;
@@ -294,7 +398,9 @@ function Pakete({ profil, onGeaendert }) {
               <p className="font-semibold">{s.preis ? `Händler ${anzahl(s.angebote)}` : 'Kostenlos'}</p>
               <p className="text-lg font-bold">{s.preis ? euroMonat(s.preis) : '0 €'}</p>
               <p className="text-xs text-leise">bis {anzahl(s.angebote)} aktive Angebote{s.preis ? ' · volle Nachfrage-Auswertung' : ' · auch per CSV-Upload'}</p>
+              {s.preis > 0 && zahlung?.steuersatz > 0 && <p className="text-xs text-leise">zzgl. {zahlung.steuersatz.toLocaleString('de-DE')} % MwSt.</p>}
               {gewaehlt && <p className="mt-1 text-xs font-semibold text-akzent-hell">{s.preis ? `${profil.test_bis ? 'Test' : 'Gebucht'} bis ${datum(profil.paket_bis)}` : 'Aktuell'}</p>}
+              {s.preis > 0 && !gewaehlt && <BuchenKnoepfe profil={profil} zahlung={zahlung} produkt="paket" angebote={s.angebote} />}
             </div>
           );
         })}
@@ -315,7 +421,8 @@ function Pakete({ profil, onGeaendert }) {
       </p>
       {profil.pakete.length > 0 && (
         <p>
-          {profil.status === 'verifiziert' ? 'Paket buchen oder wechseln: ' : 'Pakete sind nach der Verifizierung deines Händlerkontos buchbar. Kontakt: '}
+          {profil.status !== 'verifiziert' ? 'Pakete sind nach der Verifizierung deines Händlerkontos buchbar. Kontakt: '
+            : zahlung?.anbieter?.stripe || zahlung?.anbieter?.paypal ? 'Fragen oder individuelles Angebot: ' : 'Paket buchen oder wechseln: '}
           <KontaktLink kontakt={profil.kontakt} betreff={`${MARKE.name}: Händler-Paket`} />
         </p>
       )}
@@ -350,7 +457,7 @@ const SYSTEME = [
   ['csv_url', 'CSV-Feed (Adresse eines Produktexports)'],
 ];
 
-function ApiBereich({ profil }) {
+function ApiBereich({ profil, zahlung }) {
   const zeigeHinweis = useHinweis();
   const [info, setInfo] = useState(undefined);
   const [w, setW] = useState(null);
@@ -375,9 +482,10 @@ function ApiBereich({ profil }) {
           <li>Andere Systeme binden wir auf Wunsch individuell an (siehe unten).</li>
         </ul>
         {profil.preis_hinweis && <p className="text-xs text-leise">{profil.preis_hinweis}</p>}
+        <BuchenKnoepfe profil={profil} zahlung={zahlung} produkt="api" />
         <p>
           {profil.status !== 'verifiziert' ? 'Verfügbar nach der Verifizierung deines Händlerkontos. ' : ''}
-          Buchen: <KontaktLink kontakt={profil.kontakt} betreff={`${MARKE.name}: Zusatzpaket API-Anbindung`} />
+          {zahlung?.anbieter?.stripe || zahlung?.anbieter?.paypal ? 'Fragen: ' : 'Buchen: '}<KontaktLink kontakt={profil.kontakt} betreff={`${MARKE.name}: Zusatzpaket API-Anbindung`} />
         </p>
         {profil.api_bis && <p className="text-xs text-leise">Dein Zusatzpaket ist am {datum(profil.api_bis)} abgelaufen.</p>}
       </section>

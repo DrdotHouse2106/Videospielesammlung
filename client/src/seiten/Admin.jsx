@@ -10,7 +10,7 @@ import SpeicherAnzeige from '../komponenten/SpeicherAnzeige.jsx';
 import AdminEinstellungen from './AdminEinstellungen.jsx';
 import { useHinweis } from '../komponenten/Hinweise.jsx';
 
-const REITER = [['uebersicht', 'Übersicht'], ['benutzer', 'Benutzer & Rollen'], ['einstellungen', 'Einstellungen'], ['rechtliches', 'Rechtliches'], ['besucher', 'Besucher'], ['preise', 'Preisimport'], ['sicherungen', 'Sicherungen']];
+const REITER = [['uebersicht', 'Übersicht'], ['benutzer', 'Benutzer & Rollen'], ['einstellungen', 'Einstellungen'], ['rechtliches', 'Rechtliches'], ['besucher', 'Besucher'], ['preise', 'Preisimport'], ['zahlungen', 'Zahlungen'], ['sicherungen', 'Sicherungen']];
 
 export default function Admin({ route }) {
   const reiter = route.parameter.reiter ?? 'uebersicht';
@@ -33,6 +33,7 @@ export default function Admin({ route }) {
         {reiter === 'einstellungen' && <AdminEinstellungen />}
         {reiter === 'rechtliches' && <Rechtliches />}
         {reiter === 'preise' && daten && <Preisimport d={daten} onNeu={laden} />}
+        {reiter === 'zahlungen' && <Zahlungen />}
         {reiter === 'sicherungen' && <Sicherungen />}
         {reiter === 'besucher' && <Besucher />}
       </div>
@@ -271,6 +272,55 @@ function HaendlerBuchungen({ b, onGeaendert }) {
         <button type="button" className="knopf-sekundaer px-3 py-1" onClick={() => speichern(() => api.adminApiZugang(b.id, apiBis), 'API-Anbindung freigeschaltet.')}>Freischalten</button>
         {b.haendler_api_bis && <button type="button" className="text-xs underline" onClick={() => speichern(() => api.adminApiZugang(b.id, null), 'API-Anbindung beendet.')}>Beenden</button>}
       </div>
+    </div>
+  );
+}
+
+/** Alle Zahlungen der Händler mit Stand der Rechnung in ERPNext. */
+function Zahlungen() {
+  const zeigeHinweis = useHinweis();
+  const [liste, setListe] = useState(null);
+  const laden = () => api.adminZahlungen().then(setListe).catch((e) => zeigeHinweis(e.message, 'fehler'));
+  useEffect(() => { laden(); }, []);
+  const euro = (n) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+  const summe = (liste ?? []).reduce((s, z) => s + z.brutto, 0);
+  return (
+    <div className="space-y-3">
+      <div className="karte flex flex-wrap items-center gap-2 p-4 text-sm">
+        <span className="flex-1">Zahlungen über Stripe und PayPal. Für jede Zahlung wird automatisch eine Rechnung in ERPNext angelegt; fehlgeschlagene Übertragungen werden alle 15 Minuten wiederholt.</span>
+        <button type="button" className="knopf-sekundaer px-3 py-1.5" onClick={async () => {
+          try { await api.adminErpNextTest(); zeigeHinweis('Verbindung zu ERPNext in Ordnung.'); } catch (e) { zeigeHinweis(e.message, 'fehler'); }
+        }}>ERPNext testen</button>
+      </div>
+      {!liste ? <p className="text-leise">Wird geladen …</p> : liste.length === 0 ? <p className="karte p-6 text-center text-leise">Noch keine Zahlungen.</p> : (
+        <div className="karte overflow-x-auto p-2">
+          <p className="p-2 text-sm">{liste.length} Zahlungen · {euro(summe)} brutto (letzte 300)</p>
+          <table className="w-full text-left text-xs">
+            <thead className="text-leise"><tr><th className="p-2">Datum</th><th className="p-2">Händler</th><th className="p-2">Leistung</th><th className="p-2">Weg</th><th className="p-2 text-right">Brutto</th><th className="p-2">ERPNext</th></tr></thead>
+            <tbody>
+              {liste.map((z) => (
+                <tr key={z.id} className="border-t border-rand align-top">
+                  <td className="p-2">{datumDe(z.erstellt_am)}</td>
+                  <td className="p-2">{z.haendler ?? '–'}</td>
+                  <td className="p-2">{z.beschreibung}</td>
+                  <td className="p-2">{z.anbieter === 'paypal' ? 'PayPal' : 'Stripe'}</td>
+                  <td className="p-2 text-right tabular-nums">{euro(z.brutto)}</td>
+                  <td className="p-2">
+                    {z.erpnext_rechnung ? <span className="text-erfolg">{z.erpnext_rechnung}{z.erpnext_zahlung ? ' · bezahlt' : ''}</span> : (
+                      <span className="space-y-1">
+                        <span className="block text-gefahr">{z.erpnext_fehler ?? 'ausstehend'}</span>
+                        <button type="button" className="underline" onClick={async () => {
+                          try { await api.adminZahlungErpNext(z.id); zeigeHinweis('Rechnung angelegt.'); laden(); } catch (e) { zeigeHinweis(e.message, 'fehler'); laden(); }
+                        }}>Erneut senden</button>
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

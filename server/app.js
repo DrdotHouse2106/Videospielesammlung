@@ -33,6 +33,9 @@ import { erstelleBoersenDienst } from './services/boerse.js';
 import { erstelleBoersenImport } from './services/boersenimport.js';
 import { boerseRouter } from './routes/boerse.js';
 import { erstelleAnbindungsDienst } from './services/anbindungen.js';
+import { erstelleErpNextDienst } from './services/erpnext.js';
+import { erstelleZahlungsDienst } from './services/zahlung.js';
+import { zahlungRouter, zahlungWebhookRouter, zahlungAdminRouter } from './routes/zahlung.js';
 import { erstelleBesucherDienst } from './services/besucher.js';
 import { seoRouter } from './routes/seo.js';
 import { seitenRouter, seitenAdminRouter } from './routes/seiten.js';
@@ -90,10 +93,12 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const boerse = erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, katalog });
   const boersenImport = erstelleBoersenImport(db, { boerse, plattformen, konfiguration });
   const anbindungen = erstelleAnbindungsDienst(db, { schluessel, boerse, boersenImport, fetchFn });
+  const erpnext = erstelleErpNextDienst(db, { konfiguration, fetchFn });
+  const zahlung = erstelleZahlungsDienst(db, { konfiguration, benachrichtigungen, erpnext, fetchFn });
   const neueKi = () => erstelleKiDienst(db, konfiguration.ki ?? { anbieter: 'aus' }, { katalog, fetchFn, anbieterFn: konfiguration.kiAnbieterFn, benachrichtigungen });
   const ki = neueKi();
   const kontext = {
-    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, mail, kontoMail, benachrichtigungen, erfolge, besucher, captcha, boerse, boersenImport, anbindungen, konfiguration, version,
+    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, mail, kontoMail, benachrichtigungen, erfolge, besucher, captcha, boerse, boersenImport, anbindungen, erpnext, zahlung, konfiguration, version,
   };
 
   /**
@@ -112,6 +117,7 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
     if (betrifft('AFFILIATE_')) Object.assign(affiliate, erstelleAffiliateDienst(db, konfiguration.affiliate));
     if (betrifft('EBAY_')) Object.assign(ebay, erstelleEbayDienst(konfiguration.ebay, konfiguration.affiliate, { fetchFn }));
     if (betrifft('PRICECHARTING_')) Object.assign(preise, erstellePreisDienst(db, konfiguration.preise, { cache, fetchFn }));
+    // Zahlungen und ERPNext lesen ihre Einstellungen bei jedem Aufruf aus der Konfiguration – kein Neuaufbau nötig
     if (betrifft('AI_')) {
       Object.assign(ki, neueKi());
       ki.anstossen();
@@ -161,6 +167,8 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   app.use(besucher.middleware);
   // Öffentliche Seiten für Suchmaschinen (server-gerendert), Sitemap und robots.txt
   app.use(seoRouter(kontext));
+  // Webhooks der Zahlungsanbieter (ohne Anmeldung, eigene Signaturprüfung, unveränderter Text der Anfrage)
+  app.use(zahlungWebhookRouter(kontext));
   app.use('/api', pruefeHerkunft, express.json({ limit: '20mb' }), ladeSitzung(konten));
   app.use('/api', authRouter(kontext));
   app.use('/api', seitenRouter(kontext), meldenRouter(kontext)); // ohne Anmeldung: Rechtliches, Meldungen
@@ -171,10 +179,10 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   app.use('/api/artikel', angemeldet, artikelRouter(kontext));
   app.use('/api/katalog', angemeldet, katalogRouter(kontext));
   app.use('/api/statistik', angemeldet, statistikRouter(kontext));
-  app.use('/api/admin', angemeldet, erfordereAdmin, adminRouter(kontext), seitenAdminRouter(kontext));
+  app.use('/api/admin', angemeldet, erfordereAdmin, adminRouter(kontext), seitenAdminRouter(kontext), zahlungAdminRouter(kontext));
   app.use('/api/moderation', angemeldet, (req, res, next) => (istModerator(req.benutzer)
     ? next() : res.status(403).json({ fehler: 'Nur für das Moderationsteam.' })), moderationRouter(kontext), meldungenModerationRouter(kontext));
-  app.use('/api', angemeldet, katalogUnterRouter(kontext), linksRouter(kontext), benachrichtigungenRouter(kontext), importCsvRouter(kontext), boerseRouter(kontext));
+  app.use('/api', angemeldet, katalogUnterRouter(kontext), linksRouter(kontext), benachrichtigungenRouter(kontext), importCsvRouter(kontext), boerseRouter(kontext), zahlungRouter(kontext));
   app.use('/api', angemeldet, medienRouter(kontext), werteRouter(kontext), communityRouter(kontext), exportRouter(kontext));
   app.use('/api', (_req, res) => res.status(404).json({ fehler: 'Unbekannter API-Endpunkt.' }));
 

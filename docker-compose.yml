@@ -136,6 +136,27 @@ services:
       MARKET_PRO_CONTACT: ""
       MARKET_PRO_INFO: ""
 
+      # ── Zahlungen (optional): Händler buchen Pakete selbst ──────
+      # Webhooks: PUBLIC_URL + /api/zahlung/stripe/webhook bzw. /api/zahlung/paypal/webhook
+      PAYMENT_VAT_RATE: "19"          # Preise sind netto; 0 z. B. bei Kleinunternehmern
+      PAYMENT_STRIPE_SECRET_KEY: ""
+      PAYMENT_STRIPE_WEBHOOK_SECRET: ""
+      PAYMENT_PAYPAL_CLIENT_ID: ""
+      PAYMENT_PAYPAL_SECRET: ""
+      PAYMENT_PAYPAL_WEBHOOK_ID: ""
+      PAYMENT_PAYPAL_MODE: "live"     # oder sandbox zum Testen
+      PAYMENT_PAYPAL_FEE: "1,00"      # Zahlungsgebühr je Monat (netto)
+
+      # ── Rechnungen in ERPNext (optional) ────────────────────────
+      ERPNEXT_URL: ""                 # z. B. https://erp.example.de
+      ERPNEXT_API_KEY: ""
+      ERPNEXT_API_SECRET: ""
+      ERPNEXT_COMPANY: ""
+      ERPNEXT_ITEM_CODE: "ZOCKDB-ABO"
+      ERPNEXT_TAX_TEMPLATE: ""        # z. B. "Germany VAT 19% - ZDB"
+      ERPNEXT_ACCOUNT_STRIPE: ""      # Konto für Zahlungseingänge über Stripe
+      ERPNEXT_ACCOUNT_PAYPAL: ""
+
     # Ein Healthcheck (GET /api/health) ist bereits im Image hinterlegt –
     # „docker compose ps“ zeigt „healthy“, sobald die App bereit ist.
 

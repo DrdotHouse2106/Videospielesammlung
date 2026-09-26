@@ -63,6 +63,9 @@ setInterval(() => {
   try { kontext.boerse.raeumeAuf(); } catch (e) { console.warn('[boerse]', e.message); }
 }, 60 * 60 * 1000).unref();
 
+// Rechnungen, die ERPNext noch nicht erreicht haben, regelmäßig nachholen
+setInterval(() => { kontext.erpnext.nachholen().catch((e) => console.warn('[erpnext]', e.message)); }, 15 * 60 * 1000).unref();
+
 // Zusatzpaket API-Anbindung: automatische Shop-/ERP-Anbindungen alle 15 Minuten auf fällige Abgleiche prüfen
 let anbindungLaeuft = false;
 setInterval(() => {
