@@ -175,6 +175,8 @@ export const api = {
   // Administration
   adminEinstellungen: () => anfrage('/api/admin/einstellungen'),
   adminEinstellungenSpeichern: (daten) => anfrage('/api/admin/einstellungen', { methode: 'PUT', daten }),
+  adminSicherungen: () => anfrage('/api/admin/sicherungen'),
+  adminSicherungStarten: () => anfrage('/api/admin/sicherungen', { methode: 'POST', daten: {} }),
   adminBenutzer: () => anfrage('/api/admin/benutzer'),
   adminBenutzerAendern: (id, daten) => anfrage(`/api/admin/benutzer/${id}`, { methode: 'PUT', daten }),
   admin2faZuruecksetzen: (id) => anfrage(`/api/admin/benutzer/${id}/2fa-zuruecksetzen`, { methode: 'POST', daten: {} }),

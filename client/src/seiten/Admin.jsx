@@ -10,7 +10,7 @@ import SpeicherAnzeige from '../komponenten/SpeicherAnzeige.jsx';
 import AdminEinstellungen from './AdminEinstellungen.jsx';
 import { useHinweis } from '../komponenten/Hinweise.jsx';
 
-const REITER = [['uebersicht', 'Übersicht'], ['benutzer', 'Benutzer & Rollen'], ['einstellungen', 'Einstellungen'], ['rechtliches', 'Rechtliches'], ['preise', 'Preisimport']];
+const REITER = [['uebersicht', 'Übersicht'], ['benutzer', 'Benutzer & Rollen'], ['einstellungen', 'Einstellungen'], ['rechtliches', 'Rechtliches'], ['preise', 'Preisimport'], ['sicherungen', 'Sicherungen']];
 
 export default function Admin({ route }) {
   const reiter = route.parameter.reiter ?? 'uebersicht';
@@ -33,6 +33,7 @@ export default function Admin({ route }) {
         {reiter === 'einstellungen' && <AdminEinstellungen />}
         {reiter === 'rechtliches' && <Rechtliches />}
         {reiter === 'preise' && daten && <Preisimport d={daten} onNeu={laden} />}
+        {reiter === 'sicherungen' && <Sicherungen />}
       </div>
     </Layout>
   );
@@ -253,6 +254,57 @@ function Preisimport({ d, onNeu }) {
           .env setzen (optional zusätzlich <code>PRICECHARTING_TOKEN</code>). Details in der README.
         </p>
       )}
+    </div>
+  );
+}
+
+function Sicherungen() {
+  const zeigeHinweis = useHinweis();
+  const [s, setS] = useState(null);
+  const [laeuft, setLaeuft] = useState(false);
+  const laden = () => api.adminSicherungen().then(setS).catch((e) => zeigeHinweis(e.message, 'fehler'));
+  useEffect(() => { laden(); }, []);
+  if (!s) return <p className="text-leise">Wird geladen …</p>;
+  const Liste = ({ titel, eintraege }) => (
+    <section className="karte space-y-2 p-4 text-sm">
+      <h2 className="font-semibold">{titel} ({eintraege.length})</h2>
+      {eintraege.length === 0 ? <p className="text-leise">Noch keine Sicherung vorhanden.</p> : (
+        <ul className="divide-y divide-rand">
+          {eintraege.map((e) => (
+            <li key={e.name} className="flex flex-wrap justify-between gap-2 py-1.5">
+              <code className="break-all">{e.name}</code>
+              <span className="text-leise">{dateigroesse(e.groesse)} · {new Date(e.erstellt_am).toLocaleString('de-DE')}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+  return (
+    <div className="space-y-3">
+      <section className="karte space-y-2 p-4 text-sm">
+        <h2 className="font-semibold">Automatische Datenbank-Sicherung</h2>
+        {!s.verzeichnis ? <p className="text-leise">Nicht verfügbar (Datenbank im Arbeitsspeicher).</p> : (
+          <>
+            <p className="text-leise">
+              {s.aktiv ? `Aktiv: täglich eine Sicherung, aufbewahrt werden die letzten ${s.tage} Tage und ${s.monate} Monate.` : 'Ausgeschaltet (Administration → Einstellungen).'}
+              {' '}Ordner: <code className="break-all">{s.verzeichnis}</code>
+            </p>
+            <p className="text-leise">
+              Gesichert wird die Datenbank (Sammlungen, Konten, Katalog, Einstellungen). Fotos und Scans liegen im Upload-Ordner –
+              sichere das gesamte Datenverzeichnis zusätzlich, z. B. per Proxmox-Backup, und bewahre eine Kopie außer Haus auf.
+            </p>
+            {s.letzterFehler && <p className="text-gefahr">Letzter Fehler: {s.letzterFehler}</p>}
+            <button type="button" className="knopf-primaer" disabled={laeuft} onClick={async () => {
+              setLaeuft(true);
+              try { setS(await api.adminSicherungStarten()); zeigeHinweis('Sicherung erstellt.'); } catch (e) { zeigeHinweis(e.message, 'fehler'); }
+              setLaeuft(false);
+            }}>{laeuft ? 'Wird gesichert …' : 'Jetzt sichern'}</button>
+          </>
+        )}
+      </section>
+      <Liste titel="Tägliche Sicherungen" eintraege={s.taeglich} />
+      <Liste titel="Monatliche Sicherungen" eintraege={s.monatlich} />
     </div>
   );
 }

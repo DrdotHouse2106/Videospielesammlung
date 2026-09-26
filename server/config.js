@@ -52,6 +52,13 @@ export function ladeKonfiguration(env = process.env) {
     oeffentlicheUrl: basisUrl(env.PUBLIC_URL),
     linkDomains: (env.LINK_DOMAINS || '').split(',').map((d) => d.trim().toLowerCase().replace(/^www\./, '')).filter(Boolean),
     cacheTtlStunden: zahl(env.CACHE_TTL_HOURS, 24 * 7),
+    // Automatische Datenbank-Sicherung: die letzten X Tage täglich, die letzten Y Monate monatlich
+    sicherung: {
+      aktiv: jaNein(env.BACKUP_ENABLED, true),
+      tage: Math.max(1, zahl(env.BACKUP_DAYS, 7)),
+      monate: Math.max(0, zahl(env.BACKUP_MONTHS, 12)),
+      verzeichnis: env.BACKUP_DIR ? pfad(env.BACKUP_DIR, '') : '',
+    },
     igdb: {
       clientId: (env.TWITCH_CLIENT_ID || '').trim(),
       clientSecret: (env.TWITCH_CLIENT_SECRET || '').trim(),

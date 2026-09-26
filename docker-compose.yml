@@ -78,6 +78,10 @@ services:
       MEDIA_MAX_MB: "200"
       # Dürfen Benutzer eigene Scans zur Freigabe für alle einreichen?
       MEDIA_SHARING: "true"
+      # Automatische Datenbank-Sicherung im Datenordner: 7 Tage täglich, 12 Monate monatlich
+      BACKUP_ENABLED: "true"
+      BACKUP_DAYS: "7"
+      BACKUP_MONTHS: "12"
 
       # ── Spieledaten (IGDB) & Barcodes ───────────────────────────
       # Kostenlos unter https://dev.twitch.tv/console → „Anwendung registrieren“

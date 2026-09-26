@@ -210,6 +210,8 @@ Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 | `MAX_UPLOAD_MB`        | `8`                       | Maximale Dateigröße für Artikelfotos |
 | `MEDIA_MAX_MB`         | `200`                     | Maximale Dateigröße für Scans und PDF-Handbücher |
 | `MEDIA_SHARING`        | `true`                    | Dürfen Scans mit anderen Benutzern geteilt werden? |
+| `BACKUP_ENABLED`       | `true`                    | Automatische Datenbank-Sicherung im Datenordner (`sicherungen/`) |
+| `BACKUP_DAYS` / `BACKUP_MONTHS` | `7` / `12`       | Aufbewahrung der täglichen bzw. monatlichen Sicherungen |
 | `STORAGE_QUOTA_MB`     | `1024`                    | Speicherplatz je Benutzer für eigene Fotos und Scans in MB (`0` = unbegrenzt) |
 | `CACHE_TTL_HOURS`      | `168`                     | Gültigkeit zwischengespeicherter Online-Suchen (Stunden) |
 | `TWITCH_CLIENT_ID`     | –                         | Client-ID für IGDB (siehe unten) |
@@ -709,7 +711,15 @@ Für die Entwicklung mit Hot-Reload: `npm run dev` (Oberfläche unter <http://lo
 **Sicherung über die Oberfläche (je Benutzer):** *Mehr → Datensicherung → JSON-Export*. Die Datei kann jederzeit
 wieder importiert werden. Der CSV-Export ist für Excel/LibreOffice gedacht (Semikolon, Dezimalkomma).
 
-**Sicherung der Datenbank (Docker):**
+**Automatische Sicherung:** ZockDB sichert die Datenbank selbst – einmal täglich, aufbewahrt werden die letzten
+**7 Tage** und zusätzlich je eine Sicherung der letzten **12 Monate** (einstellbar mit `BACKUP_DAYS`/`BACKUP_MONTHS` oder
+unter *Administration → Einstellungen*). Die Dateien liegen im Datenordner unter `sicherungen/taeglich` und
+`sicherungen/monatlich`; unter *Administration → Sicherungen* siehst du alle Sicherungen und kannst sofort eine erstellen.
+Zum Wiederherstellen den Container stoppen, die gewünschte Datei als `sammlung.db` in den Datenordner kopieren
+(die Dateien `sammlung.db-wal` und `sammlung.db-shm` vorher löschen) und neu starten.
+Die Sicherungen liegen auf demselben Datenträger – bewahre zusätzlich eine Kopie **außer Haus** auf.
+
+**Sicherung der Datenbank von Hand (Docker):**
 
 ```bash
 docker compose exec sammlung node -e "require('better-sqlite3')('/app/data/sammlung.db').backup('/app/data/sicherung.db')"

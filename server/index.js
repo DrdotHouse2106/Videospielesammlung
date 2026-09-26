@@ -52,6 +52,13 @@ if (konfiguration.preisimportStunden > 0 && kontext.preisimport.aktiv()) {
   console.log(`   Preisimport: alle ${konfiguration.preisimportStunden} Stunden`);
 }
 
+// Datenbank-Sicherung: kurz nach dem Start und danach stündlich prüfen, ob die Tagessicherung fehlt
+const sichern = () => {
+  if (kontext.sicherung.status().aktiv) kontext.sicherung.lauf().catch((e) => console.warn('[sicherung]', e.message));
+};
+setTimeout(sichern, 60_000).unref();
+setInterval(sichern, 60 * 60 * 1000).unref();
+
 function beenden(signal) {
   console.log(`${signal} empfangen – Server wird beendet …`);
   server.close(() => {

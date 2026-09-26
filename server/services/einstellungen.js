@@ -25,6 +25,11 @@ export const EINSTELLUNGEN = [
   { schluessel: 'MEDIA_MAX_MB', gruppe: 'Uploads & Speicher', titel: 'Maximale Größe von Scans/PDFs (MB)', typ: 'zahl', min: 1, max: 2000 },
   { schluessel: 'MEDIA_SHARING', gruppe: 'Uploads & Speicher', titel: 'Scans dürfen geteilt werden', ...JA_NEIN,
     hinweis: 'Benutzer können eigene Scans zur Freigabe für alle einreichen.' },
+  { schluessel: 'BACKUP_ENABLED', gruppe: 'Uploads & Speicher', titel: 'Automatische Datenbank-Sicherung', ...JA_NEIN,
+    hinweis: 'Täglich eine Sicherung der Datenbank im Datenordner (Unterordner „sicherungen“).' },
+  { schluessel: 'BACKUP_DAYS', gruppe: 'Uploads & Speicher', titel: 'Tägliche Sicherungen aufbewahren (Tage)', typ: 'zahl', min: 1, max: 90 },
+  { schluessel: 'BACKUP_MONTHS', gruppe: 'Uploads & Speicher', titel: 'Monatliche Sicherungen aufbewahren (Monate)', typ: 'zahl', min: 0, max: 120,
+    hinweis: '0 = keine monatlichen Sicherungen.' },
   // Öffentlicher Katalog
   { schluessel: 'PUBLIC_CATALOG', gruppe: 'Öffentlicher Katalog & Suchmaschinen', titel: 'Katalog ohne Anmeldung sichtbar', ...JA_NEIN,
     hinweis: 'Voraussetzung dafür, dass Suchmaschinen die Spieleseiten finden.' },

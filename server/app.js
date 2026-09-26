@@ -21,6 +21,7 @@ import { erstelleEbayDienst } from './services/ebay.js';
 import { erstellePreisImport } from './services/preisimport.js';
 import { erstelleKiDienst } from './services/ki.js';
 import { erstelleEinstellungsDienst } from './services/einstellungen.js';
+import { erstelleSicherungsDienst } from './services/sicherung.js';
 import { seoRouter } from './routes/seo.js';
 import { seitenRouter, seitenAdminRouter } from './routes/seiten.js';
 import { meldenRouter, meldungenModerationRouter } from './routes/meldungen.js';
@@ -65,10 +66,11 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const speicher = erstelleSpeicherDienst(db, { standardMb: () => konfiguration.speicherKontingentMb ?? 1024, dateien });
   const preise = erstellePreisDienst(db, konfiguration.preise, { cache, fetchFn });
   const preisimport = erstellePreisImport(db, { preise, ebay, cache });
+  const sicherung = erstelleSicherungsDienst(db, konfiguration);
   const neueKi = () => erstelleKiDienst(db, konfiguration.ki ?? { anbieter: 'aus' }, { katalog, fetchFn, anbieterFn: konfiguration.kiAnbieterFn });
   const ki = neueKi();
   const kontext = {
-    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, konfiguration, version,
+    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, konfiguration, version,
   };
 
   /**
