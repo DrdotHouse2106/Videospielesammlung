@@ -1,4 +1,4 @@
-# Mitwirken an der Videospielesammlung
+# Mitwirken an ZockDB
 
 Schön, dass du helfen möchtest! Beiträge jeder Art sind willkommen: Fehlerberichte,
 Ideen, Übersetzungen, Dokumentation und Code.
@@ -6,7 +6,7 @@ Ideen, Übersetzungen, Dokumentation und Code.
 ## Sicherheitslücken
 
 **Bitte nicht als öffentliches Issue melden!** Sicherheit ist mir sehr wichtig – nutze die vertrauliche Meldung über
-[GitHub Security Advisories](https://github.com/DrdotHouse2106/Videospielesammlung/security/advisories/new).
+[GitHub Security Advisories](https://github.com/DrdotHouse2106/ZockDB/security/advisories/new).
 Details stehen in der [SECURITY.md](SECURITY.md). Danke!
 
 ## Fehler melden & Wünsche äußern
@@ -21,8 +21,8 @@ Details stehen in der [SECURITY.md](SECURITY.md). Danke!
 Voraussetzung: Node.js ≥ 22.
 
 ```bash
-git clone https://github.com/DrdotHouse2106/Videospielesammlung.git
-cd Videospielesammlung
+git clone https://github.com/DrdotHouse2106/ZockDB.git
+cd ZockDB
 npm install
 cp .env.example .env     # optional: IGDB-Zugangsdaten eintragen
 npm run dev              # Server (Port 3000) + Oberfläche mit Hot-Reload (Port 5173)

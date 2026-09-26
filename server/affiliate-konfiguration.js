@@ -14,7 +14,7 @@
 export const AFFILIATE_STANDARD = {
   // Eigene Website(s), die im Amazon-PartnerNet bzw. eBay Partner Network angemeldet sind,
   // z. B. ['sammlung.example.de']. Subdomains sind eingeschlossen, „www.“ wird ignoriert.
-  domains: [],
+  domains: ['zockdb.de', 'zock-db.de'],
   amazon: {
     // Partner-ID aus dem Amazon-PartnerNet, z. B. "meinprojekt-21"
     tag: '',
@@ -23,6 +23,6 @@ export const AFFILIATE_STANDARD = {
   ebay: {
     // Kampagnen-ID aus dem eBay Partner Network (10-stellige Zahl)
     campid: '',
-    customid: 'videospielesammlung',
+    customid: 'zockdb',
   },
 };

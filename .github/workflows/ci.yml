@@ -45,8 +45,8 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          # ghcr.io/drdothouse2106/videospielesammlung (wird automatisch kleingeschrieben)
-          images: ghcr.io/${{ github.repository }}
+          # ghcr.io/drdothouse2106/zockdb (fester Name, unabhängig vom Namen des Repositorys; wird kleingeschrieben)
+          images: ghcr.io/${{ github.repository_owner }}/zockdb
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}

@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Videospielesammlung – Docker Compose
+# ZockDB – Docker Compose
 #
 # Diese Datei genügt, um die App zu betreiben – kein git clone nötig.
 # Einfach als docker-compose.yml speichern (oder in Portainer, Dockge, Synology
@@ -22,10 +22,10 @@ services:
   sammlung:
     # Fertiges Image von der GitHub Container Registry (amd64 und arm64, z. B. Raspberry Pi/NAS).
     # „latest“ = aktueller Stand; für feste Versionen z. B. :1.2 verwenden.
-    image: ghcr.io/drdothouse2106/videospielesammlung:latest
+    image: ghcr.io/drdothouse2106/zockdb:latest
     # Wer das Repository geklont hat und selbst bauen möchte, ersetzt „image“ durch:
     # build: .
-    container_name: videospielesammlung
+    container_name: zockdb
 
     # Nach Absturz oder Neustart des Hosts automatisch wieder starten –
     # außer der Container wurde bewusst angehalten.

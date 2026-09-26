@@ -41,8 +41,8 @@ export function exportRouter({ db, plattformen }) {
     const eigeneKatalogeintraege = db.prepare(`SELECT * FROM katalog WHERE quelle = 'eigen'
       AND id IN (SELECT katalog_id FROM artikel WHERE benutzer_id = @b UNION SELECT id FROM katalog WHERE erstellt_von = @b)
       ORDER BY id`).all({ b: req.benutzer.id }).map(({ erstellt_von: _e, ...rest }) => rest);
-    res.attachment(`videospielesammlung-${datumHeute()}.json`);
-    res.json({ format: 'videospielesammlung', version: 1, exportiert_am: new Date().toISOString(), artikel, eigeneKatalogeintraege });
+    res.attachment(`zockdb-${datumHeute()}.json`);
+    res.json({ format: 'zockdb', version: 1, exportiert_am: new Date().toISOString(), artikel, eigeneKatalogeintraege });
   });
 
   // CSV im deutschen Excel-Format: Semikolon als Trenner, Dezimalkomma, UTF-8 mit BOM.
@@ -52,7 +52,7 @@ export function exportRouter({ db, plattformen }) {
       CSV_SPALTEN.map(([, kopf]) => csvFeld(kopf)).join(';'),
       ...artikel.map((a) => CSV_SPALTEN.map(([feld, , format]) => csvFeld(format ? format(a[feld]) : a[feld])).join(';')),
     ];
-    res.attachment(`videospielesammlung-${datumHeute()}.csv`);
+    res.attachment(`zockdb-${datumHeute()}.csv`);
     res.type('text/csv; charset=utf-8').send(`﻿${zeilen.join('\r\n')}\r\n`);
   });
 

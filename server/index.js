@@ -6,7 +6,7 @@ const konfiguration = ladeKonfiguration();
 const { app, db, kontext } = erstelleApp(konfiguration);
 
 const server = app.listen(konfiguration.port, konfiguration.host, () => {
-  console.log(`🎮 ${MARKE.name} (Videospielesammlung) läuft auf http://localhost:${konfiguration.port}`);
+  console.log(`🎮 ${MARKE.name} läuft auf http://localhost:${konfiguration.port}`);
   console.log(`   Datenbank: ${konfiguration.datenbankPfad}`);
   console.log(`   IGDB: ${kontext.igdb.konfiguriert ? 'aktiv' : 'nicht konfiguriert (nur eigene Einträge)'}`);
   console.log(`   Barcode-Dienste: ${kontext.barcode.aktiveAnbieter.join(', ') || 'keine'}`);

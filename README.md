@@ -1,8 +1,10 @@
-# 🎮 Videospielesammlung
+# 🎮 ZockDB
 
-**Deine Retro- und Videospielsammlung – selbst gehostet, mobil, auf Deutsch.**
+**Deine Spielesammlung an einem Platz – selbst gehostet, mobil, auf Deutsch.**
 
-Videospielesammlung ist eine quelloffene Progressive Web App (PWA) zur Verwaltung von
+<p><img src="client/public/icons/icon.svg" alt="ZockDB-Logo" width="96"></p>
+
+ZockDB (vormals „Videospielesammlung“) ist eine quelloffene Progressive Web App (PWA) zur Verwaltung von
 **Spielen, Konsolen und Zubehör** – für dich allein oder als öffentlich gehostete Plattform
 mit vielen Benutzerkonten. Sie ist für Sammler im deutschsprachigen
 Raum gemacht: PAL-/USK-Regionen, CIB-Status, Sonderfarben, Editionen und Modellrevisionen
@@ -12,7 +14,7 @@ eigener Eintrag für Raritäten, die in keiner Datenbank stehen.
 > 🇬🇧 An English version of this document is available in [README.en.md](README.en.md).
 
 > 🔒 **Sicherheit hat höchste Priorität.** Du hast eine Sicherheitslücke gefunden? Ich freue mich über jeden Hinweis –
-> bitte **vertraulich** über [GitHub Security Advisories](https://github.com/DrdotHouse2106/Videospielesammlung/security/advisories/new)
+> bitte **vertraulich** über [GitHub Security Advisories](https://github.com/DrdotHouse2106/ZockDB/security/advisories/new)
 > melden. Details in der [Sicherheitsrichtlinie (SECURITY.md)](SECURITY.md).
 
 <p align="center">
@@ -108,7 +110,7 @@ Portainer, Dockge oder den Container Manager einer Synology/QNAP.
 
 **Du brauchst nur die Datei [`docker-compose.yml`](docker-compose.yml)** – kein `git clone`, kein Bauen.
 Das fertige Image wird automatisch von der GitHub Container Registry geladen
-(`ghcr.io/drdothouse2106/videospielesammlung`, für normale Server/PCs und ARM-Geräte wie Raspberry Pi).
+(`ghcr.io/drdothouse2106/zockdb`, für normale Server/PCs und ARM-Geräte wie Raspberry Pi).
 
 1. Inhalt der [`docker-compose.yml`](docker-compose.yml) kopieren und als `docker-compose.yml` speichern
    bzw. in Portainer/Dockge als neuen **Stack** einfügen.
@@ -153,8 +155,8 @@ liegen (`env_file: .env`). Für Portainer & Co. sind die Einträge in der yml ab
 
 | Eintrag | Bedeutung |
 | --- | --- |
-| `image` | Das fertige Image `ghcr.io/drdothouse2106/videospielesammlung:latest`. Für eine feste Version z. B. `:1.2` statt `:latest` verwenden. |
-| `container_name` | Name des Containers (`videospielesammlung`), z. B. für `docker logs videospielesammlung`. |
+| `image` | Das fertige Image `ghcr.io/drdothouse2106/zockdb:latest`. Für eine feste Version z. B. `:1.2` statt `:latest` verwenden. |
+| `container_name` | Name des Containers (`zockdb`), z. B. für `docker logs zockdb`. |
 | `restart: unless-stopped` | Startet den Container nach einem Absturz oder Neustart des Servers automatisch wieder – außer du hast ihn bewusst angehalten. |
 | `ports: "3000:3000"` | Host-Port links, Port im Container rechts (immer 3000). Für Port 8080: `"8080:3000"`. |
 | `volumes: sammlung-daten:/app/data` | Speichert Datenbank, Fotos, Scans und `geheimnis.key` dauerhaft im Docker-Volume. |
@@ -184,7 +186,7 @@ zeigen `healthy`, sobald die App bereit ist.
 
 > **Für den Betreiber des Repositorys:** Das Image wird bei jedem Push auf `main` (und bei Tags `v*`) von
 > GitHub Actions gebaut und veröffentlicht. Nach dem ersten Lauf das Paket einmalig unter
-> *GitHub → Profil → Packages → videospielesammlung → Package settings → Change visibility* auf **Public** stellen,
+> *GitHub → Profil → Packages → zockdb → Package settings → Change visibility* auf **Public** stellen,
 > damit es ohne Anmeldung heruntergeladen werden kann.
 
 ---
@@ -612,7 +614,7 @@ Alte Links auf `/#/katalog/42` leiten Besucher ohne Anmeldung automatisch auf di
 1. Melde dich unter <https://dev.twitch.tv/console> mit einem Twitch-Konto an
    (Zwei-Faktor-Authentifizierung muss aktiviert sein).
 2. **Anwendungen → Deine Anwendung registrieren**
-   - Name: frei wählbar, z. B. `Meine Videospielesammlung`
+   - Name: frei wählbar, z. B. `ZockDB`
    - OAuth-Redirect-URL: `http://localhost`
    - Kategorie: `Application Integration`
    - Client-Typ: `Vertraulich`
@@ -690,8 +692,8 @@ oder ein vorhandener Proxy auf dem NAS (Synology, Unraid, Nginx Proxy Manager).
 Voraussetzung: **Node.js 22** oder neuer.
 
 ```bash
-git clone https://github.com/DrdotHouse2106/Videospielesammlung.git
-cd Videospielesammlung
+git clone https://github.com/DrdotHouse2106/ZockDB.git
+cd ZockDB
 npm ci
 cp .env.example .env
 npm run build     # Oberfläche bauen
@@ -722,7 +724,7 @@ Ein komplettes Backup des Volumes (der Volume-Name beginnt mit dem Namen des Pro
 `docker volume ls` zeigt ihn an):
 
 ```bash
-docker run --rm -v videospielesammlung_sammlung-daten:/daten -v "$PWD":/ziel alpine \
+docker run --rm -v zockdb_sammlung-daten:/daten -v "$PWD":/ziel alpine \
   tar czf /ziel/sammlung-backup.tar.gz -C /daten .
 ```
 
@@ -814,7 +816,7 @@ Fehlermeldungen kommen immer auf Deutsch im Feld `fehler`, bei Validierungsfehle
 
 **Sicherheit hat in diesem Projekt einen sehr hohen Stellenwert – ich freue mich über jede Meldung eines Sicherheitsproblems!**
 Bitte melde Schwachstellen vertraulich über
-[GitHub Security Advisories](https://github.com/DrdotHouse2106/Videospielesammlung/security/advisories/new) und nicht als öffentliches Issue.
+[GitHub Security Advisories](https://github.com/DrdotHouse2106/ZockDB/security/advisories/new) und nicht als öffentliches Issue.
 Alle Details stehen in der [Sicherheitsrichtlinie](SECURITY.md). Die App liefert außerdem eine `/.well-known/security.txt` aus.
 
 Eingebaute Schutzmaßnahmen (Auswahl): scrypt-Passwort-Hashes, TOTP-2FA mit verschlüsselt gespeicherten Geheimnissen,

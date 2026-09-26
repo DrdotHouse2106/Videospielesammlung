@@ -164,7 +164,7 @@ Sicherheit hat für dieses Projekt einen sehr hohen Stellenwert. Passwörter wer
 
 **Wir freuen uns sehr über jeden Hinweis auf ein Sicherheitsproblem!** Bitte melde Schwachstellen vertraulich und nicht öffentlich:
 
-- **Für die Software (Open Source):** über die vertrauliche Meldefunktion auf GitHub: [Sicherheitslücke melden](https://github.com/DrdotHouse2106/Videospielesammlung/security/advisories/new)
+- **Für die Software (Open Source):** über die vertrauliche Meldefunktion auf GitHub: [Sicherheitslücke melden](https://github.com/DrdotHouse2106/ZockDB/security/advisories/new)
 - **Für diese Installation:** [E-Mail-Adresse des Betreibers]
 
 Bitte beschreibe, wie sich das Problem nachvollziehen lässt. Wir melden uns so schnell wie möglich, beheben das Problem und nennen dich – wenn du möchtest – gern als Entdecker.

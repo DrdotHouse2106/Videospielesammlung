@@ -1,15 +1,15 @@
-# 🎮 Videospielesammlung (Video Game Collection)
+# 🎮 ZockDB
 
-**Your self-hosted, mobile-first retro & video game collection manager.**
+**Your game collection in one place – self-hosted, mobile-first retro & video game collection manager.**
 
 > 🇩🇪 The primary documentation is in German: [README.md](README.md). The app's user interface is German only.
 
-Videospielesammlung is a source-available Progressive Web App for managing **games, consoles/hardware and accessories**,
+ZockDB (formerly “Videospielesammlung”) is a source-available Progressive Web App for managing **games, consoles/hardware and accessories**,
 tailored to collectors in German-speaking countries (PAL/USK regions, CIB status, special colours, editions and
 model revisions).
 
 > 🔒 **Security is a top priority.** Found a vulnerability? Every report is appreciated – please report it privately via
-> [GitHub Security Advisories](https://github.com/DrdotHouse2106/Videospielesammlung/security/advisories/new). See [SECURITY.md](SECURITY.md).
+> [GitHub Security Advisories](https://github.com/DrdotHouse2106/ZockDB/security/advisories/new). See [SECURITY.md](SECURITY.md).
 
 ## Features
 
@@ -55,7 +55,7 @@ Data is stored in the `sammlung-daten` Docker volume – back up the whole direc
 ### docker-compose.yml
 
 You only need the file `docker-compose.yml` – no `git clone`, no build. It pulls the ready-made image
-`ghcr.io/drdothouse2106/videospielesammlung` (amd64 + arm64), and all settings are entries under `environment:`
+`ghcr.io/drdothouse2106/zockdb` (amd64 + arm64), and all settings are entries under `environment:`
 (commented in German; empty `""` = default). Paste it as a stack into Portainer/Dockge or run `docker compose up -d`.
 Update with `docker compose pull && docker compose up -d`. Data (SQLite database, uploads, `geheimnis.key`) lives in
 the named volume `sammlung-daten` – `docker compose down -v` deletes it. Behind a reverse proxy bind to localhost only

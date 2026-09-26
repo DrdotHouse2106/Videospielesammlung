@@ -49,6 +49,8 @@ export function ladeSchluessel(appGeheimnis, datenVerzeichnis) {
       fs.writeFileSync(datei, geheimnis, { mode: 0o600 });
     }
   }
+  // Der Präfix stammt vom früheren Projektnamen und darf NIE geändert werden – sonst lassen sich
+  // gespeicherte 2FA-Geheimnisse und API-Schlüssel nicht mehr entschlüsseln.
   return crypto.createHash('sha256').update(`videospielesammlung:${geheimnis}`).digest();
 }
 

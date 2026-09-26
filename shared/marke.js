@@ -1,6 +1,5 @@
-// Sichtbare Marke dieser Installation (Titel, App-Name, Suchmaschinen-Seiten).
-// Das Projekt heißt im Code und im Repository weiterhin „Videospielesammlung“ –
-// wer eine eigene Installation betreibt, passt hier Name und Untertitel an.
+// Sichtbare Marke (Titel, App-Name, Suchmaschinen-Seiten).
+// Wer eine eigene Installation unter anderem Namen betreibt, passt hier Name und Untertitel an.
 export const MARKE = {
   name: 'ZockDB',
   untertitel: 'Deine Spielesammlung an einem Platz',

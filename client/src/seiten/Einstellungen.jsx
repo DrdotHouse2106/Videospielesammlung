@@ -155,7 +155,7 @@ export default function Einstellungen({ route }) {
         </section>
 
         <section className="space-y-1 px-1 pb-4 text-xs text-leise">
-          <p>{MARKE.name} basiert auf dem Open-Source-Projekt <a className="underline" href="https://github.com/DrdotHouse2106/Videospielesammlung" target="_blank" rel="noreferrer">Videospielesammlung</a> unter der PolyForm-Noncommercial-Lizenz – private und gemeinnützige Nutzung frei, kommerzielle Nutzung nur mit Erlaubnis.</p>
+          <p>{MARKE.name} ist <a className="underline" href="https://github.com/DrdotHouse2106/ZockDB" target="_blank" rel="noreferrer">quelloffen auf GitHub</a> unter der PolyForm-Noncommercial-Lizenz – private und gemeinnützige Nutzung frei, kommerzielle Nutzung nur mit Erlaubnis.</p>
           <p>Marktpreise optional von <a className="underline" href="https://www.pricecharting.com" target="_blank" rel="noreferrer">PriceCharting</a>, Wechselkurs von der Europäischen Zentralbank.</p>
           <p>Spieldaten und Coverbilder werden von <a className="underline" href="https://www.igdb.com" target="_blank" rel="noreferrer">IGDB.com</a> bereitgestellt.</p>
         </section>

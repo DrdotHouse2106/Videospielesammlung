@@ -1,4 +1,4 @@
-// Service-Worker der Videospielesammlung.
+// Service-Worker von ZockDB.
 // - App-Hülle: Netzwerk zuerst, bei fehlender Verbindung aus dem Cache
 // - Gebaute Assets & Coverbilder: Cache zuerst (Dateinamen enthalten Hashes)
 // - API-GET-Anfragen: Netzwerk zuerst, offline die zuletzt gesehene Antwort

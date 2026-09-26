@@ -1,5 +1,5 @@
 {
-  "name": "videospielesammlung",
+  "name": "zockdb",
   "version": "1.0.0",
   "description": "Quelloffene PWA zur Verwaltung deiner Retro- und Videospielsammlung – Spiele, Konsolen und Zubehör, mit Barcode-Scanner und IGDB-Anbindung.",
   "license": "PolyForm-Noncommercial-1.0.0",

@@ -1,6 +1,6 @@
 # Lizenz – Zusammenfassung auf Deutsch
 
-Die Videospielesammlung steht unter der **[PolyForm Noncommercial License 1.0.0](LICENSE)**.
+ZockDB steht unter der **[PolyForm Noncommercial License 1.0.0](LICENSE)**.
 Rechtlich verbindlich ist ausschließlich der englische Lizenztext in der Datei [`LICENSE`](LICENSE);
 diese Zusammenfassung dient nur dem besseren Verständnis.
 
@@ -23,7 +23,7 @@ diese Zusammenfassung dient nur dem besseren Verständnis.
 ## Kommerzielle Lizenz
 
 Du möchtest die Software kommerziell einsetzen? Frag gern nach einer gesonderten Lizenz – über ein
-[Issue](https://github.com/DrdotHouse2106/Videospielesammlung/issues) im Repository.
+[Issue](https://github.com/DrdotHouse2106/ZockDB/issues) im Repository.
 
 ## Hinweise
 

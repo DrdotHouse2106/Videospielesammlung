@@ -8,7 +8,7 @@ egal wie klein er erscheint.
 
 Bitte melde Schwachstellen **vertraulich** und **nicht** als öffentliches Issue:
 
-👉 **[Sicherheitslücke vertraulich melden](https://github.com/DrdotHouse2106/Videospielesammlung/security/advisories/new)**
+👉 **[Sicherheitslücke vertraulich melden](https://github.com/DrdotHouse2106/ZockDB/security/advisories/new)**
 (GitHub „Private vulnerability reporting“)
 
 Hilfreich sind:
@@ -45,4 +45,4 @@ eine Kontaktadresse für deine Installation ein und passe `client/public/.well-k
 ---
 
 <sub>🇬🇧 Security is taken very seriously. Please report vulnerabilities privately via
-[GitHub Security Advisories](https://github.com/DrdotHouse2106/Videospielesammlung/security/advisories/new). Thank you!</sub>
+[GitHub Security Advisories](https://github.com/DrdotHouse2106/ZockDB/security/advisories/new). Thank you!</sub>
