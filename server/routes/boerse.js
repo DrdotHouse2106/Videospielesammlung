@@ -1,5 +1,6 @@
 // Tauschbörse: Angebote, Wunschliste, Nachrichten, Bewertungen, gewerbliche Anbieter und Massen-Upload.
 import { Router } from 'express';
+import { erstelleDrossel } from '../services/drossel.js';
 import { beschriftung, ZUSTAENDE, VOLLSTAENDIGKEITEN, REGIONEN, ANGEBOTSARTEN, ANGEBOTSSTATUS } from '../../shared/konstanten.js';
 
 /** Schützt Zellen vor Formel-Ausführung in Tabellenprogrammen (=, +, -, @ am Anfang). */
@@ -10,8 +11,15 @@ const zelle = (wert) => {
   return /[";\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
 };
 
-export function boerseRouter({ boerse, boersenImport }) {
+export function boerseRouter({ boerse, boersenImport, anbindungen }) {
   const router = Router();
+  // Manuelle Abgleiche und Verbindungstests schonen die Systeme der Händler
+  const abrufDrossel = erstelleDrossel({ maxVersuche: 10, fensterMs: 60 * 60 * 1000 });
+  const gedrosselt = (req, res) => {
+    if (abrufDrossel.gesperrt(`a:${req.benutzer.id}`)) { res.status(429).json({ fehler: 'Zu viele Abrufe. Bitte in einer Stunde erneut versuchen.' }); return true; }
+    abrufDrossel.fehlschlag(`a:${req.benutzer.id}`);
+    return false;
+  };
 
   // Ist die Börse abgeschaltet, sind alle Endpunkte (außer dem Status) nicht erreichbar
   router.use('/boerse', (req, res, next) => (boerse.aktiv() ? next() : res.status(404).json({ fehler: 'Die Tauschbörse ist auf diesem Server abgeschaltet.', code: 'boerse_aus' })));
@@ -104,6 +112,22 @@ export function boerseRouter({ boerse, boersenImport }) {
       beendeFehlende: req.body?.beendeFehlende === true,
       standard: req.body?.standard ?? {},
     }));
+  });
+
+  // ── Automatische Shop-/ERP-Anbindung (Händler-Pro) ───────────
+  router.get('/boerse/haendler/anbindung', (req, res) => res.json(anbindungen.info(req.benutzer.id)));
+  router.put('/boerse/haendler/anbindung', (req, res) => res.json(anbindungen.speichere(req.benutzer, req.body ?? {})));
+  router.delete('/boerse/haendler/anbindung', (req, res) => {
+    anbindungen.entferne(req.benutzer.id);
+    res.status(204).end();
+  });
+  router.post('/boerse/haendler/anbindung/test', async (req, res) => {
+    if (gedrosselt(req, res)) return;
+    res.json(await anbindungen.teste(req.benutzer));
+  });
+  router.post('/boerse/haendler/anbindung/abgleich', async (req, res) => {
+    if (gedrosselt(req, res)) return;
+    res.json(await anbindungen.synchronisiere(req.benutzer.id));
   });
 
   return router;

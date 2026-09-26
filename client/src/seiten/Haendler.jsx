@@ -36,6 +36,8 @@ export default function Haendler({ route }) {
             <Vorteile profil={profil} />
             <Kennzeichnung profil={profil} onGespeichert={setProfil} />
             {profil.status && <MassenUpload profil={profil} />}
+            {profil.status && <ProBereich profil={profil} />}
+            <IndividuelleAnbindung profil={profil} />
           </>
         )}
       </div>
@@ -50,9 +52,10 @@ function Vorteile({ profil }) {
       <ul className="list-disc space-y-1 pl-5">
         <li><strong>Massen-Upload per CSV</strong> – z. B. direkt aus dem Export deines Shops (Shopware, WooCommerce, JTL …) oder einer Tabelle. Mit Artikelnummer wird der Bestand bei jedem Upload abgeglichen.</li>
         <li><strong>Sammler mit passender Wunschliste</strong> werden automatisch über deine Angebote informiert.</li>
-        <li><strong>Nachfrage-Auswertung</strong>: Welche Spiele gesucht werden, wie viel Sammler zahlen würden und wofür es noch kein Angebot gibt (für verifizierte Händler).</li>
+        <li><strong>Nachfrage-Auswertung</strong>: Welche Spiele gesucht werden, wie viel Sammler zahlen würden und wofür es noch kein Angebot gibt (mit Händler-Pro).</li>
         <li><strong>Händlerprofil</strong> mit Anbieterkennzeichnung, Link zu deinem Shop und Bewertungen.</li>
         <li>Verifizierte Händler: bis zu {profil.status === 'verifiziert' ? anzahl(profil.limit) : 'mehrere tausend'} aktive Angebote.</li>
+        <li><strong>Händler-Pro:</strong> automatischer Bestandsabgleich mit deinem Shop oder ERP und die vollständige Nachfrage-Auswertung.</li>
       </ul>
       <p className="text-xs text-leise">
         Status: {profil.status === 'verifiziert' ? '✓ Verifizierter Händler' : profil.status === 'angemeldet' ? 'Als Händler angemeldet – die Verifizierung durch den Betreiber steht noch aus.' : 'Privat'}
@@ -251,6 +254,150 @@ function MassenUpload({ profil }) {
         </div>
       )}
       <p className="text-xs text-leise">Preise gelten als Endpreise inkl. MwSt. Nicht zugeordnete Spiele kannst du im Katalog vorschlagen oder einzeln anbieten.</p>
+    </section>
+  );
+}
+
+/** Kontaktangabe des Betreibers als Link (E-Mail oder https-Adresse). */
+function KontaktLink({ kontakt, betreff }) {
+  if (!kontakt) return <span>über das <a className="underline" href="#/seite/impressum">Impressum</a></span>;
+  const href = kontakt.includes('@') && !kontakt.startsWith('http') ? `mailto:${kontakt}?subject=${encodeURIComponent(betreff)}` : kontakt;
+  return <a className="text-akzent-hell underline" href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer">{kontakt}</a>;
+}
+
+function IndividuelleAnbindung({ profil }) {
+  return (
+    <section className="karte space-y-2 border-akzent/40 p-4 text-sm">
+      <h2 className="flex items-center gap-2 font-semibold"><Symbol name="link" className="size-5 text-akzent-hell" />Dein System ist nicht dabei?</h2>
+      <p>
+        Wir entwickeln gern eine <strong>individuelle Anbindung an deine Warenwirtschaft (ERP) oder Shopsoftware</strong> – z. B. JTL-Wawi,
+        WooCommerce, Plentymarkets, Xentral, Magento oder eine eigene Lösung. Danach trägst du hier im Händlerbereich nur noch deinen
+        API-Schlüssel ein, und dein Bestand wird automatisch abgeglichen.
+      </p>
+      <p>Anfragen: <KontaktLink kontakt={profil.pro_kontakt} betreff={`${MARKE.name}: Individuelle Anbindung`} /></p>
+    </section>
+  );
+}
+
+const SYSTEME = [
+  ['shopware6', 'Shopware 6 (Admin-API)'],
+  ['csv_url', 'CSV-Feed (Adresse eines Produktexports)'],
+];
+
+function ProBereich({ profil }) {
+  const zeigeHinweis = useHinweis();
+  const [info, setInfo] = useState(undefined);
+  const [w, setW] = useState(null);
+  const [laeuft, setLaeuft] = useState(false);
+  const [test, setTest] = useState(null);
+  const laden = () => api.anbindung().then((i) => {
+    setInfo(i);
+    setW({ typ: i?.typ ?? 'shopware6', url: i?.url ?? '', client_id: i?.client_id ?? '', client_secret: '', token: '', intervall_stunden: i?.intervall_stunden ?? 6, beende_fehlende: i?.beende_fehlende ?? false, aktiv: i?.aktiv ?? true });
+  }).catch(() => setInfo(null));
+  useEffect(() => { if (profil.pro) laden(); }, [profil.pro]);
+
+  if (!profil.pro) {
+    return (
+      <section className="karte space-y-2 p-4 text-sm">
+        <h2 className="flex items-center gap-2 font-semibold"><Symbol name="schloss" className="size-5 text-akzent-hell" />Händler-Pro</h2>
+        <ul className="list-disc space-y-1 pl-5">
+          <li><strong>Automatische Anbindung</strong> an Shopware 6 oder einen CSV-Produktexport: Bestand, Preise und neue Artikel werden regelmäßig übernommen.</li>
+          <li><strong>Vollständige Nachfrage-Auswertung</strong> mit Preisbereitschaft und Spielen, für die es noch kein Angebot gibt.</li>
+          <li>Auf Wunsch eine <strong>individuelle Anbindung</strong> an dein ERP oder Shopsystem.</li>
+        </ul>
+        {profil.pro_info && <p className="font-medium">{profil.pro_info}</p>}
+        <p>
+          {profil.status !== 'verifiziert' ? 'Händler-Pro ist nach der Verifizierung deines Händlerkontos verfügbar. ' : ''}
+          Freischalten: <KontaktLink kontakt={profil.pro_kontakt} betreff={`${MARKE.name}: Händler-Pro`} />
+        </p>
+        {profil.pro_bis && <p className="text-xs text-leise">Dein Pro-Paket ist am {profil.pro_bis.split('-').reverse().join('.')} abgelaufen.</p>}
+      </section>
+    );
+  }
+  if (info === undefined || !w) return <p className="text-leise">Wird geladen …</p>;
+
+  const setze = (feld) => (e) => setW({ ...w, [feld]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
+  const ausfuehren = async (fn, erfolg) => {
+    setLaeuft(true);
+    try { const r = await fn(); if (erfolg) zeigeHinweis(erfolg(r)); return r; } catch (err) { zeigeHinweis(ersterFehler(err), 'fehler'); laden(); return null; } finally { setLaeuft(false); }
+  };
+  const speichern = (e) => {
+    e.preventDefault();
+    ausfuehren(() => api.anbindungSpeichern({ ...w, intervall_stunden: Number(w.intervall_stunden) }), () => 'Anbindung gespeichert. Der erste Abgleich folgt in den nächsten Minuten.')
+      .then((i) => { if (i) { setInfo(i); setW({ ...w, client_secret: '', token: '' }); } });
+  };
+  const e = info?.letztes_ergebnis;
+
+  return (
+    <section className="karte space-y-3 p-4 text-sm">
+      <h2 className="flex items-center gap-2 font-semibold"><Symbol name="aktualisieren" className="size-5 text-akzent-hell" />Automatische Anbindung <span className="abzeichen text-erfolg">Pro bis {profil.pro_bis.split('-').reverse().join('.')}</span></h2>
+      <p className="text-leise">
+        Deine Zugangsdaten werden verschlüsselt gespeichert und nie wieder angezeigt. Es werden nur Produktdaten gelesen – lege dafür
+        möglichst einen Zugang mit reinen Leserechten an.
+      </p>
+      <form onSubmit={speichern} className="space-y-3">
+        <label className="block"><span className="beschriftung">System</span>
+          <select className="eingabe" value={w.typ} onChange={setze('typ')}>{SYSTEME.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+        </label>
+        <label className="block"><span className="beschriftung">{w.typ === 'shopware6' ? 'Adresse des Shops' : 'Adresse des CSV-Exports'}</span>
+          <input className="eingabe" type="url" required value={w.url} onChange={setze('url')} placeholder={w.typ === 'shopware6' ? 'https://mein-shop.de' : 'https://mein-shop.de/export/zockdb.csv'} />
+        </label>
+        {w.typ === 'shopware6' ? (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block"><span className="beschriftung">Zugangs-ID</span><input className="eingabe" value={w.client_id} onChange={setze('client_id')} autoComplete="off" /></label>
+              <label className="block"><span className="beschriftung">Sicherheitsschlüssel</span>
+                <input className="eingabe" type="password" value={w.client_secret} onChange={setze('client_secret')} autoComplete="new-password"
+                  placeholder={info?.geheimnis_gesetzt && info.typ === 'shopware6' ? '•••••••• (unverändert)' : ''} /></label>
+            </div>
+            <p className="text-xs text-leise">
+              In Shopware: <em>Einstellungen → System → Integrationen → Integration hinzufügen</em>, Leserechte für Produkte.
+              Zuordnung über EAN oder Name; genauer mit den Zusatzfeldern <code>zockdb_id</code>, <code>zockdb_plattform</code>,
+              <code>zockdb_zustand</code>, <code>zockdb_vollstaendigkeit</code> und <code>zockdb_region</code>. Die Artikelnummer dient als Abgleichsschlüssel.
+            </p>
+          </>
+        ) : (
+          <>
+            <label className="block"><span className="beschriftung">Zugriffstoken (optional, wird als „Bearer“ gesendet)</span>
+              <input className="eingabe" type="password" value={w.token} onChange={setze('token')} autoComplete="new-password"
+                placeholder={info?.geheimnis_gesetzt && info.typ === 'csv_url' ? '•••••••• (unverändert)' : ''} /></label>
+            <p className="text-xs text-leise">Die Datei braucht dieselben Spalten wie beim CSV-Upload (mindestens Artikelnummer, Titel/EAN/ZockDB-ID, Preis, Bestand).</p>
+          </>
+        )}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block"><span className="beschriftung">Abgleich alle … Stunden</span>
+            <input className="eingabe" type="number" min={1} max={168} value={w.intervall_stunden} onChange={setze('intervall_stunden')} /></label>
+          <div className="space-y-1 self-end pb-2">
+            <label className="flex items-center gap-2"><input type="checkbox" checked={w.aktiv} onChange={setze('aktiv')} />Automatischer Abgleich aktiv</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={w.beende_fehlende} onChange={setze('beende_fehlende')} />Nicht mehr gelistete Artikel beenden</label>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button type="submit" className="knopf-primaer" disabled={laeuft}>Speichern</button>
+          {info && (
+            <>
+              <button type="button" className="knopf-sekundaer" disabled={laeuft} onClick={() => ausfuehren(api.anbindungTesten, (r) => `Verbindung ok – ${r.artikel} Artikel gefunden.`).then((r) => r && setTest(r))}>Verbindung testen</button>
+              <button type="button" className="knopf-sekundaer" disabled={laeuft} onClick={() => ausfuehren(api.anbindungAbgleichen, (r) => `${r.angelegt} neu, ${r.aktualisiert} aktualisiert, ${r.beendet} beendet.`).then(laden)}>Jetzt abgleichen</button>
+              <button type="button" className="knopf-gefahr" disabled={laeuft} onClick={() => window.confirm('Anbindung und gespeicherte Zugangsdaten löschen? Deine Angebote bleiben bestehen.')
+                && ausfuehren(api.anbindungEntfernen, () => 'Anbindung gelöscht.').then(laden)}>Löschen</button>
+            </>
+          )}
+        </div>
+      </form>
+      {test && <p className="text-xs text-leise">Test: {test.artikel} Artikel, z. B. {test.vorschau.slice(0, 3).map((z) => z.titel || z.sku).join(', ')}</p>}
+      {info && (
+        <div className="rounded-xl border border-rand p-3 text-xs" role="status">
+          <p>Letzter Abgleich: {info.letzter_lauf ? new Date(`${info.letzter_lauf.replace(' ', 'T')}Z`).toLocaleString('de-DE') : 'noch keiner'}{!info.aktiv && ' · automatischer Abgleich pausiert'}</p>
+          {info.letzter_fehler && <p className="text-gefahr">Fehler: {info.letzter_fehler}</p>}
+          {!info.letzter_fehler && e && <p>{e.angelegt} neu · {e.aktualisiert} aktualisiert · {e.beendet} beendet · {e.uebersprungen} übersprungen</p>}
+          {!info.letzter_fehler && e?.fehlerhaft?.length > 0 && (
+            <details><summary className="cursor-pointer">Übersprungene Artikel</summary>
+              <ul className="mt-1 max-h-48 overflow-y-auto">{e.fehlerhaft.map((f, i) => <li key={i}>{f.titel ?? `Zeile ${f.zeile}`}: {f.grund}</li>)}</ul>
+            </details>
+          )}
+          <p className="mt-1 text-leise">Nach fünf Fehlern in Folge wird der automatische Abgleich pausiert.</p>
+        </div>
+      )}
     </section>
   );
 }

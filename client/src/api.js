@@ -216,6 +216,12 @@ export const api = {
   boersePlz: (plz) => anfrage('/api/boerse/plz', { methode: 'PUT', daten: { plz } }),
   haendlerImportAnalyse: (text) => anfrage('/api/boerse/haendler/import/analyse', { methode: 'POST', daten: { text } }),
   haendlerImport: (daten) => anfrage('/api/boerse/haendler/import', { methode: 'POST', daten }),
+  anbindung: () => anfrage('/api/boerse/haendler/anbindung'),
+  anbindungSpeichern: (daten) => anfrage('/api/boerse/haendler/anbindung', { methode: 'PUT', daten }),
+  anbindungEntfernen: () => anfrage('/api/boerse/haendler/anbindung', { methode: 'DELETE' }),
+  anbindungTesten: () => anfrage('/api/boerse/haendler/anbindung/test', { methode: 'POST', daten: {} }),
+  anbindungAbgleichen: () => anfrage('/api/boerse/haendler/anbindung/abgleich', { methode: 'POST', daten: {} }),
+  adminPro: (id, bis) => anfrage(`/api/admin/benutzer/${id}/pro`, { methode: 'POST', daten: { bis } }),
   adminHaendler: (id, verifiziert) => anfrage(`/api/admin/benutzer/${id}/haendler`, { methode: 'POST', daten: { verifiziert } }),
 
   // Administration

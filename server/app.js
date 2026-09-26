@@ -32,6 +32,7 @@ import { importCsvRouter } from './routes/importcsv.js';
 import { erstelleBoersenDienst } from './services/boerse.js';
 import { erstelleBoersenImport } from './services/boersenimport.js';
 import { boerseRouter } from './routes/boerse.js';
+import { erstelleAnbindungsDienst } from './services/anbindungen.js';
 import { erstelleBesucherDienst } from './services/besucher.js';
 import { seoRouter } from './routes/seo.js';
 import { seitenRouter, seitenAdminRouter } from './routes/seiten.js';
@@ -88,10 +89,11 @@ export function erstelleApp(konfiguration, { db = oeffneDatenbank(konfiguration.
   const besucher = erstelleBesucherDienst(db);
   const boerse = erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, katalog });
   const boersenImport = erstelleBoersenImport(db, { boerse, plattformen, konfiguration });
+  const anbindungen = erstelleAnbindungsDienst(db, { schluessel, boerse, boersenImport, fetchFn });
   const neueKi = () => erstelleKiDienst(db, konfiguration.ki ?? { anbieter: 'aus' }, { katalog, fetchFn, anbieterFn: konfiguration.kiAnbieterFn, benachrichtigungen });
   const ki = neueKi();
   const kontext = {
-    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, mail, kontoMail, benachrichtigungen, erfolge, besucher, captcha, boerse, boersenImport, konfiguration, version,
+    db, cache, igdb, barcode, katalog, konten, dateien, speicher, preise, plattformen, affiliate, ebay, preisimport, ki, einstellungen, sicherung, mail, kontoMail, benachrichtigungen, erfolge, besucher, captcha, boerse, boersenImport, anbindungen, konfiguration, version,
   };
 
   /**

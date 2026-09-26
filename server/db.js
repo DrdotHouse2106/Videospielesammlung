@@ -538,6 +538,23 @@ const MIGRATIONEN = [
   ALTER TABLE benutzer ADD COLUMN haendler_daten TEXT;     -- JSON: Anbieterkennzeichnung, Shop-Adresse …
   ALTER TABLE benutzer ADD COLUMN boerse_plz TEXT;         -- Standard-PLZ-Bereich für eigene Angebote
   `,
+  // 17: Händler-Pro (kostenpflichtiges Paket) und automatische Shop-/ERP-Anbindungen
+  `
+  ALTER TABLE benutzer ADD COLUMN haendler_pro_bis TEXT;   -- Datum (JJJJ-MM-TT), bis zu dem das Pro-Paket gilt
+  CREATE TABLE haendler_anbindungen (
+    benutzer_id       INTEGER PRIMARY KEY REFERENCES benutzer (id) ON DELETE CASCADE,
+    typ               TEXT    NOT NULL,                  -- shopware6, csv_url
+    zugang            TEXT    NOT NULL,                  -- JSON mit Adresse und Zugangsdaten, AES-256-GCM-verschlüsselt
+    intervall_stunden INTEGER NOT NULL DEFAULT 6,
+    beende_fehlende   INTEGER NOT NULL DEFAULT 0,
+    aktiv             INTEGER NOT NULL DEFAULT 1,
+    letzter_lauf      TEXT,
+    letztes_ergebnis  TEXT,                              -- JSON
+    letzter_fehler    TEXT,
+    fehler_in_folge   INTEGER NOT NULL DEFAULT 0,
+    geaendert_am      TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

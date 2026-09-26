@@ -133,6 +133,9 @@ export function ladeKonfiguration(env = process.env) {
       maxAngeboteHaendler: Math.max(1, zahl(env.MARKET_DEALER_MAX_OFFERS, 5000)),
       // Neue Konten dürfen erst nach X Tagen Nachrichten schreiben – mit bestätigter E-Mail-Adresse sofort
       mindestKontoalterTage: Math.max(0, zahl(env.MARKET_MIN_ACCOUNT_DAYS, 3)),
+      // Händler-Pro: Kontakt (E-Mail oder https-Adresse) und kurzer Text zu Preisen/Leistungen
+      proKontakt: (env.MARKET_PRO_CONTACT || '').trim(),
+      proInfo: (env.MARKET_PRO_INFO || '').trim(),
     },
     vertrauteProxies: env.TRUST_PROXY || '',
     affiliate: ladeAffiliateKonfiguration(env),

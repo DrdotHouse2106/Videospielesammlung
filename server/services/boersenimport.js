@@ -149,9 +149,19 @@ export function erstelleBoersenImport(db, { boerse, plattformen, konfiguration }
    * die nicht (mehr) in der Datei stehen – so bleibt der Bestand synchron.
    */
   function importiere(benutzer, { text, zuordnung: zuordnungEingabe, beendeFehlende = false, standard = {} } = {}) {
-    const b = sicherHaendler(benutzer);
+    sicherHaendler(benutzer);
     const csv = lies(text);
     const zuordnung = zuordnungAus(zuordnungEingabe, csv.kopf);
+    return verarbeite(benutzer, csv.zeilen.map((z) => zeileZuAngebot(z, zuordnung)), { beendeFehlende, standard });
+  }
+
+  /**
+   * Legt Angebote aus bereits gelesenen Zeilen an bzw. aktualisiert sie – gemeinsam genutzt vom CSV-Upload
+   * und von den automatischen Shop-Anbindungen. `rohZeilen` im Format von zeileZuAngebot().
+   */
+  function verarbeite(benutzer, rohZeilen, { beendeFehlende = false, standard = {} } = {}) {
+    const b = sicherHaendler(benutzer);
+    if (rohZeilen.length > MAX_ZEILEN) throw new ValidierungsFehler({ datei: `Maximal ${MAX_ZEILEN.toLocaleString('de-DE')} Artikel pro Abgleich.` });
     const vorgaben = pruefeAngebot({
       versand: standard.versand ?? true, abholung: standard.abholung ?? false, verhandelbar: standard.verhandelbar ?? false,
       plz_bereich: standard.plz_bereich ?? b.boerse_plz ?? '',
@@ -169,8 +179,7 @@ export function erstelleBoersenImport(db, { boerse, plattformen, konfiguration }
     };
 
     db.transaction(() => {
-      csv.zeilen.forEach((zeile, index) => {
-        const roh = zeileZuAngebot(zeile, zuordnung);
+      rohZeilen.forEach((roh, index) => {
         if (roh.sku) {
           if (skusInDatei.has(roh.sku)) return fehler(index, roh, `Artikelnummer ${roh.sku} kommt mehrfach vor.`);
           skusInDatei.add(roh.sku);
@@ -238,8 +247,8 @@ export function erstelleBoersenImport(db, { boerse, plattformen, konfiguration }
     })();
 
     const t = boerse.benachrichtigeTreffer(fuerTreffer);
-    return { ...ergebnis, zeilen: csv.zeilen.length, sammler_informiert: t.sammler };
+    return { ...ergebnis, zeilen: rohZeilen.length, sammler_informiert: t.sammler };
   }
 
-  return { analyse, importiere };
+  return { analyse, importiere, verarbeite, lies, zuordnungAus };
 }

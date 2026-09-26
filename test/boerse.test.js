@@ -275,7 +275,10 @@ test('Gewerbliche Anbieter: Kennzeichnung, Verifizierung, Massen-Upload', async 
   assert.match(exp.text, /ZockDB-ID;Titel/);
   assert.match(exp.text, /Super Metroid/);
 
-  // Nachfrage: verifizierte Händler sehen die volle Auswertung
+  // Nachfrage: volle Auswertung nur mit Händler-Pro
+  assert.equal((await shop.api('/api/boerse/nachfrage')).json.voll, false);
+  assert.equal((await post(admin, `/api/admin/benutzer/${shopId}/pro`, { bis: '2099-12-31' })).status, 200);
+  assert.equal((await shop.api('/api/boerse/haendler')).json.pro, true);
   const nf = (await shop.api('/api/boerse/nachfrage')).json;
   assert.equal(nf.voll, true);
   assert.ok(nf.eintraege.some((e) => e.titel === 'Super Metroid' && e.max_preis_hoechst === 80));

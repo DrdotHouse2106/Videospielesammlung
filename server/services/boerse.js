@@ -109,6 +109,13 @@ export function pruefeHaendlerDaten(eingabe = {}) {
   return d;
 }
 
+const heute = () => new Date().toISOString().slice(0, 10);
+
+/** Hat der Händler ein gültiges Pro-Paket? (Nur verifizierte Händler, bis einschließlich Ablaufdatum.) */
+export function istPro(b) {
+  return Boolean(b?.haendler_status === 'verifiziert' && b.haendler_pro_bis && b.haendler_pro_bis >= heute());
+}
+
 /** Passt ein Angebot zu einem Wunsch? (Katalogeintrag wird vorher verglichen.) */
 export function passtZuWunsch(wunsch, angebot) {
   if (wunsch.plattform_id && angebot.plattform_id && wunsch.plattform_id !== angebot.plattform_id) return false;
@@ -139,7 +146,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     OR (x.benutzer_id = a.benutzer_id AND x.blockiert_id = @ich))`;
 
   const q = {
-    benutzer: db.prepare('SELECT id, benutzername, anzeigename, email, rolle, gesperrt, erstellt_am, haendler_status, haendler_daten, boerse_plz FROM benutzer WHERE id = ?'),
+    benutzer: db.prepare('SELECT id, benutzername, anzeigename, email, rolle, gesperrt, erstellt_am, haendler_status, haendler_daten, haendler_pro_bis, boerse_plz FROM benutzer WHERE id = ?'),
     angebot: db.prepare(`SELECT ${ANGEBOT_SPALTEN} ${ANGEBOT_JOIN} WHERE a.id = ?`),
     angebotRoh: db.prepare('SELECT * FROM angebote WHERE id = ?'),
     anzahlAktiv: db.prepare(`SELECT COUNT(*) AS n FROM angebote WHERE benutzer_id = ? AND status IN ${SICHTBARE_STATUS}`),
@@ -510,8 +517,9 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
    * Nachfrage: meistgesuchte Spiele (anonym). Verifizierte Händler und das Moderationsteam sehen
    * die vollständige Auswertung mit Preisbereitschaft und Einträgen ohne Angebot.
    */
-  function nachfrage(benutzer, filter = {}) {
-    const voll = benutzer.haendler_status === 'verifiziert' || istModerator(benutzer);
+  function nachfrage(benutzerRoh, filter = {}) {
+    const benutzer = q.benutzer.get(benutzerRoh.id);
+    const voll = istPro(benutzer) || istModerator(benutzer);
     const bed = ["k.status = 'freigegeben'"];
     const p = {};
     if (filter.plattform_id) {
@@ -750,7 +758,27 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
       plz: b.boerse_plz,
       limit: limitFuer(b),
       aktive_angebote: q.anzahlAktiv.get(b.id).n,
+      pro: istPro(b),
+      pro_bis: b.haendler_pro_bis,
+      pro_kontakt: k().proKontakt || null,
+      pro_info: k().proInfo || null,
     };
+  }
+
+  /** Admin: Pro-Paket bis zu einem Datum freischalten (null = beenden). Abrechnung erfolgt außerhalb der App. */
+  function setzePro(benutzerId, bis) {
+    const b = q.benutzer.get(Number(benutzerId));
+    if (!b) throw new KontoFehler('Benutzer nicht gefunden.', 404);
+    if (bis !== null && !/^\d{4}-\d{2}-\d{2}$/.test(String(bis))) throw new ValidierungsFehler({ bis: 'Bitte ein Datum im Format JJJJ-MM-TT angeben.' });
+    if (bis && b.haendler_status !== 'verifiziert') throw new KontoFehler('Pro gibt es nur für verifizierte Händler.', 409);
+    db.prepare('UPDATE benutzer SET haendler_pro_bis = ? WHERE id = ?').run(bis, b.id);
+    if (bis && bis >= heute()) {
+      benachrichtigungen.sende(b.id, {
+        art: 'boerse', titel: 'Händler-Pro ist freigeschaltet',
+        text: `Gültig bis ${bis.split('-').reverse().join('.')}: automatische Shop-Anbindung und vollständige Nachfrage-Auswertung.`,
+        link: '#/boerse/haendler',
+      });
+    }
   }
 
   /** Als gewerblich kennzeichnen (mit Anbieterkennzeichnung) oder zurück auf privat. */
@@ -800,6 +828,6 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     blockiere, entblocke, blockierte,
     frageAn, antworte, unterhaltungen, unterhaltung, ungeleseneNachrichten,
     bewerte, bewertungFuer, anbieterProfil,
-    haendlerProfil, setzeHaendler, setzePlz, verifiziere,
+    haendlerProfil, setzeHaendler, setzePlz, verifiziere, setzePro, istPro: (id) => istPro(q.benutzer.get(id)),
   };
 }

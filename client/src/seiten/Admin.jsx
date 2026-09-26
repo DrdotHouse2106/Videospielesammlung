@@ -167,6 +167,16 @@ function Benutzer() {
               <button type="button" className="knopf-sekundaer mt-2 px-3 py-1" onClick={aktion(
                 () => api.adminHaendler(b.id, b.haendler_status !== 'verifiziert'), b.haendler_status === 'verifiziert' ? 'Verifizierung zurückgenommen.' : 'Händler verifiziert.',
               )}>{b.haendler_status === 'verifiziert' ? 'Verifizierung zurücknehmen' : 'Als Händler verifizieren'}</button>
+              {b.haendler_status === 'verifiziert' && (
+                <p className="mt-2 flex flex-wrap items-center gap-2">
+                  <span>Händler-Pro: {b.haendler_pro_bis ? `bis ${datumDe(b.haendler_pro_bis)}` : 'nicht gebucht'}</span>
+                  <button type="button" className="knopf-sekundaer px-3 py-1" onClick={() => {
+                    const vorschlag = new Date(Date.now() + 31 * 86_400_000).toISOString().slice(0, 10);
+                    const bis = window.prompt('Pro freischalten bis (JJJJ-MM-TT), leer = beenden:', b.haendler_pro_bis ?? vorschlag);
+                    if (bis !== null) aktion(() => api.adminPro(b.id, bis.trim() || null), bis.trim() ? 'Pro freigeschaltet.' : 'Pro beendet.')();
+                  }}>{b.haendler_pro_bis ? 'Pro ändern' : 'Pro freischalten'}</button>
+                </p>
+              )}
             </details>
           )}
           <p className="text-xs text-leise">

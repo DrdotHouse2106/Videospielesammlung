@@ -128,6 +128,9 @@ services:
       MARKET_DEALER_MAX_OFFERS: "5000"
       # Neue Konten ohne bestätigte E-Mail dürfen erst nach X Tagen Nachrichten schreiben
       MARKET_MIN_ACCOUNT_DAYS: "3"
+      # Händler-Pro und individuelle Anbindungen: Kontakt (E-Mail oder https-Adresse) und Preishinweis
+      MARKET_PRO_CONTACT: ""
+      MARKET_PRO_INFO: ""
 
     # Ein Healthcheck (GET /api/health) ist bereits im Image hinterlegt –
     # „docker compose ps“ zeigt „healthy“, sobald die App bereit ist.

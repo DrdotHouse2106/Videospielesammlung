@@ -234,6 +234,7 @@ Geheimnisse und wird durch `.gitignore` nie ins Repository übernommen.**
 | `MARKET_OFFER_DAYS`    | `90`                      | Laufzeit eines Angebots in Tagen |
 | `MARKET_MAX_OFFERS` / `MARKET_DEALER_MAX_OFFERS` | `100` / `5000` | Aktive Angebote je Benutzer bzw. je verifiziertem Händler |
 | `MARKET_MIN_ACCOUNT_DAYS` | `3`                    | Neue Konten ohne bestätigte E-Mail dürfen erst nach X Tagen Nachrichten schreiben |
+| `MARKET_PRO_CONTACT` / `MARKET_PRO_INFO` | –   | Kontakt (E-Mail oder https-Adresse) und Preishinweis für Händler-Pro und individuelle Anbindungen |
 
 Ohne IGDB-Zugangsdaten funktioniert die App vollständig – die Online-Suche entfällt dann,
 und du legst Artikel als eigene Einträge an. Alle weiteren Einträge sind in der
@@ -341,6 +342,11 @@ Bezahlung und Versand vereinbaren die Beteiligten direkt miteinander.
   und laden Angebote per **CSV** hoch (z. B. aus dem Export eines Onlineshops). Zuordnung über ZockDB-ID, EAN oder
   Titel + Plattform; mit Artikelnummer werden Angebote bei jedem Upload aktualisiert, Bestand 0 beendet sie. Nach Prüfung
   durch einen Administrator (*Benutzerverwaltung → Anbieterkennzeichnung prüfen*) gelten höhere Limits.
+- **Händler-Pro** (kostenpflichtiges Paket, Freischaltung durch den Administrator mit Ablaufdatum – die Abrechnung erfolgt
+  außerhalb der App): automatischer Bestandsabgleich mit **Shopware 6** (Admin-API) oder einem **CSV-Feed** per https,
+  vollständige Nachfrage-Auswertung. Zugangsdaten der Händler werden verschlüsselt gespeichert; Abrufe gehen nur an
+  öffentliche https-Adressen. Für andere Systeme (ERP, Shopsoftware) weist der Händlerbereich auf individuelle
+  Anbindungen hin – Kontakt und Preishinweis über `MARKET_PRO_CONTACT` und `MARKET_PRO_INFO`.
 
 Wer die Börse nicht braucht, schaltet sie mit `MARKET_ENABLED=false` oder unter *Administration → Einstellungen* ab.
 

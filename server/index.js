@@ -62,6 +62,14 @@ setTimeout(sichern, 60_000).unref();
 setInterval(() => {
   try { kontext.boerse.raeumeAuf(); } catch (e) { console.warn('[boerse]', e.message); }
 }, 60 * 60 * 1000).unref();
+
+// Händler-Pro: automatische Shop-/ERP-Anbindungen alle 15 Minuten auf fällige Abgleiche prüfen
+let anbindungLaeuft = false;
+setInterval(() => {
+  if (anbindungLaeuft) return;
+  anbindungLaeuft = true;
+  kontext.anbindungen.lauf().catch((e) => console.warn('[anbindung]', e.message)).finally(() => { anbindungLaeuft = false; });
+}, 15 * 60 * 1000).unref();
 setInterval(sichern, 60 * 60 * 1000).unref();
 
 function beenden(signal) {

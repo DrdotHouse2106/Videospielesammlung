@@ -82,6 +82,10 @@ export const EINSTELLUNGEN = [
   { schluessel: 'MARKET_DEALER_MAX_OFFERS', gruppe: 'Tauschbörse', titel: 'Aktive Angebote je verifiziertem Händler', typ: 'zahl', min: 1, max: 1000000 },
   { schluessel: 'MARKET_MIN_ACCOUNT_DAYS', gruppe: 'Tauschbörse', titel: 'Nachrichten erst ab Kontoalter (Tage)', typ: 'zahl', min: 0, max: 60,
     hinweis: 'Schutz vor Spam. Mit bestätigter E-Mail-Adresse sofort möglich.' },
+  { schluessel: 'MARKET_PRO_CONTACT', gruppe: 'Tauschbörse', titel: 'Kontakt für Händler-Pro und individuelle Anbindungen', typ: 'text',
+    platzhalter: 'haendler@example.de oder https://example.de/haendler', hinweis: 'E-Mail-Adresse oder https-Adresse. Wird im Händlerbereich angezeigt.' },
+  { schluessel: 'MARKET_PRO_INFO', gruppe: 'Tauschbörse', titel: 'Hinweis zu Preisen und Leistungen von Händler-Pro', typ: 'text',
+    platzhalter: 'z. B. 19 € im Monat zzgl. MwSt., monatlich kündbar' },
   // Affiliate
   { schluessel: 'AFFILIATE_LINKS', gruppe: 'Affiliate-Links („Hier kaufen“)', titel: 'Kauflinks anzeigen', ...JA_NEIN,
     hinweis: 'Nein = keine Amazon-/eBay-Suchlinks und keine eBay-Angebote mit Partner-ID.' },

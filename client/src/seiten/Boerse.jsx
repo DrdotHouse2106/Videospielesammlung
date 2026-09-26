@@ -145,7 +145,7 @@ function Gesucht({ route, plattformen }) {
         )}
       </div>
       {daten && !daten.voll && (
-        <p className="text-xs text-leise">Die 30 meistgesuchten Einträge. Verifizierte Händler sehen die vollständige Auswertung mit Preisbereitschaft.</p>
+        <p className="text-xs text-leise">Die 30 meistgesuchten Einträge. Händler mit Pro-Paket sehen die vollständige Auswertung mit Preisbereitschaft.</p>
       )}
       {!daten ? <p className="text-leise">Wird geladen …</p> : daten.eintraege.length === 0 ? (
         <p className="karte p-6 text-center text-leise">Noch stehen keine Spiele auf Wunschlisten.</p>
