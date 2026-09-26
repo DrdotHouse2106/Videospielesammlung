@@ -269,7 +269,7 @@ function Pakete({ profil }) {
   return (
     <section className="karte space-y-3 p-4 text-sm">
       <h2 className="flex items-center gap-2 font-semibold"><Symbol name="wert" className="size-5 text-akzent-hell" />Pakete</h2>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         {stufen.map((s) => {
           const gewaehlt = s.angebote === aktuell;
           return (
@@ -281,6 +281,16 @@ function Pakete({ profil }) {
             </div>
           );
         })}
+        {profil.pakete.length > 0 && (
+          <div className={`rounded-xl border p-3 ${profil.paket > Math.max(...profil.pakete.map((p) => p.angebote)) ? 'border-akzent bg-akzent/10' : 'border-dashed border-rand'}`}>
+            <p className="font-semibold">Individuell</p>
+            <p className="text-lg font-bold">auf Anfrage</p>
+            <p className="text-xs text-leise">mehr als {anzahl(Math.max(...profil.pakete.map((p) => p.angebote)))} aktive Angebote · Konditionen nach Absprache</p>
+            {profil.paket > Math.max(...profil.pakete.map((p) => p.angebote)) && (
+              <p className="mt-1 text-xs font-semibold text-akzent-hell">{anzahl(profil.paket)} Angebote, gebucht bis {datum(profil.paket_bis)}</p>
+            )}
+          </div>
+        )}
       </div>
       <p className="text-xs text-leise">
         Zusatzpaket API-Anbindung: {euroMonat(profil.api_preis)}. {profil.preis_hinweis ?? ''}

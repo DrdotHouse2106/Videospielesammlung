@@ -798,7 +798,12 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
   function setzePaket(benutzerId, { angebote, bis }) {
     const b = verifizierterHaendler(benutzerId, bis);
     const anzahl = bis ? Number(angebote) : null;
-    if (bis && !k().pakete.some((p) => p.angebote === anzahl)) throw new ValidierungsFehler({ angebote: 'Bitte eines der eingestellten Pakete wählen.' });
+    // Eingestellte Pakete oder – oberhalb des größten Pakets – ein individuell vereinbartes Kontingent
+    const groesstes = Math.max(0, ...k().pakete.map((p) => p.angebote));
+    const individuell = Number.isInteger(anzahl) && anzahl > groesstes && anzahl <= 1_000_000;
+    if (bis && !k().pakete.some((p) => p.angebote === anzahl) && !individuell) {
+      throw new ValidierungsFehler({ angebote: `Bitte eines der eingestellten Pakete wählen oder individuell mehr als ${groesstes.toLocaleString('de-DE')} Angebote.` });
+    }
     db.prepare('UPDATE benutzer SET haendler_paket = ?, haendler_paket_bis = ? WHERE id = ?').run(anzahl, bis, b.id);
     if (bis && bis >= heute()) {
       benachrichtigungen.sende(b.id, {

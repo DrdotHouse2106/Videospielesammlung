@@ -227,6 +227,7 @@ function HaendlerBuchungen({ b, onGeaendert }) {
   const zeigeHinweis = useHinweis();
   const [pakete, setPakete] = useState(null);
   const [paket, setPaket] = useState(b.haendler_paket ?? '');
+  const [individuell, setIndividuell] = useState('');
   const [paketBis, setPaketBis] = useState(b.haendler_paket_bis ?? inEinemMonat());
   const [apiBis, setApiBis] = useState(b.haendler_api_bis ?? inEinemMonat());
   useEffect(() => { api.adminPakete().then(setPakete).catch(() => setPakete({ pakete: [] })); }, []);
@@ -242,10 +243,15 @@ function HaendlerBuchungen({ b, onGeaendert }) {
         <select className="eingabe w-auto py-1" value={paket} onChange={(e) => setPaket(e.target.value)} aria-label="Paket">
           <option value="">Paket wählen</option>
           {pakete?.pakete.map((p) => <option key={p.angebote} value={p.angebote}>{anzahl(p.angebote)} Angebote – {p.preis.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</option>)}
+          <option value="individuell">Individuell …</option>
+          {paket && paket !== 'individuell' && pakete && !pakete.pakete.some((p) => String(p.angebote) === String(paket)) && <option value={paket}>{anzahl(paket)} Angebote (individuell)</option>}
         </select>
+        {paket === 'individuell' && (
+          <input className="eingabe w-28 py-1" type="number" min={1} value={individuell} onChange={(e) => setIndividuell(e.target.value)} placeholder="Angebote" aria-label="Individuelle Anzahl Angebote" />
+        )}
         <input className="eingabe w-auto py-1" type="date" value={paketBis} onChange={(e) => setPaketBis(e.target.value)} aria-label="Paket gültig bis" />
-        <button type="button" className="knopf-sekundaer px-3 py-1" disabled={!paket}
-          onClick={() => speichern(() => api.adminPaket(b.id, { angebote: Number(paket), bis: paketBis }), 'Paket freigeschaltet.')}>Freischalten</button>
+        <button type="button" className="knopf-sekundaer px-3 py-1" disabled={!paket || (paket === 'individuell' && !individuell)}
+          onClick={() => speichern(() => api.adminPaket(b.id, { angebote: Number(paket === 'individuell' ? individuell : paket), bis: paketBis }), 'Paket freigeschaltet.')}>Freischalten</button>
         {b.haendler_paket_bis && <button type="button" className="text-xs underline" onClick={() => speichern(() => api.adminPaket(b.id, { bis: null }), 'Paket beendet.')}>Beenden</button>}
       </div>
       <p className="font-semibold">API-Anbindung{pakete ? ` (${pakete.api_preis.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €/Monat)` : ''}: {status(b.haendler_api_bis)}</p>

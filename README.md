@@ -346,7 +346,7 @@ Bezahlung und Versand vereinbaren die Beteiligten direkt miteinander.
   durch einen Administrator (*Benutzerverwaltung → Anbieterkennzeichnung prüfen*) gilt der Händler als verifiziert.
 - **Kostenlos und Pakete:** Ohne Bezahlung sind `MARKET_MAX_OFFERS` (Standard 50) aktive Angebote möglich – auch per CSV.
   Verifizierte Händler können **Pakete** mit mehr Angeboten buchen (Standard 500, 1.000 oder 5.000; Preise über
-  `MARKET_PACKAGES`), inklusive vollständiger Nachfrage-Auswertung. Läuft ein Paket aus, werden Angebote über dem
+  `MARKET_PACKAGES`; darüber individuell nach Absprache), inklusive vollständiger Nachfrage-Auswertung. Läuft ein Paket aus, werden Angebote über dem
   kostenlosen Limit beendet (die zuletzt bearbeiteten bleiben aktiv).
 - **Zusatzpaket API-Anbindung** (`MARKET_API_PRICE`, Standard 19,90 € im Monat): automatischer Bestandsabgleich mit
   **Shopware 6** (Admin-API) oder einem **CSV-Feed** per https. Zugangsdaten der Händler werden verschlüsselt gespeichert;

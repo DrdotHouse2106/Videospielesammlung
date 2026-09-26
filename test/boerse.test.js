@@ -218,6 +218,9 @@ test('Gewerbliche Anbieter: Kennzeichnung, Verifizierung, Massen-Upload', async 
   assert.equal((await shop.api('/api/boerse/haendler')).json.limit, 3, 'Verifizierung allein erhöht das Limit nicht');
   // Händler-Paket: nur eingestellte Pakete, danach gilt dessen Limit
   assert.equal((await post(admin, `/api/admin/benutzer/${shopId}/paket`, { angebote: 777, bis: '2099-12-31' })).status, 400);
+  // Oberhalb des größten Pakets: individuell vereinbar
+  assert.equal((await post(admin, `/api/admin/benutzer/${shopId}/paket`, { angebote: 12000, bis: '2099-12-31' })).status, 200);
+  assert.equal((await shop.api('/api/boerse/haendler')).json.limit, 12000);
   assert.equal((await post(admin, `/api/admin/benutzer/${shopId}/paket`, { angebote: 500, bis: '2099-12-31' })).status, 200);
   const profil = (await shop.api('/api/boerse/haendler')).json;
   assert.equal(profil.limit, 500);
