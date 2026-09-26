@@ -4,7 +4,7 @@
   "description": "Deine Spielesammlung an einem Platz: Spiele, Konsolen und Zubehör sammeln, bewerten und verwalten – mit Barcode-Scanner.",
   "lang": "de-DE",
   "dir": "ltr",
-  "start_url": "/",
+  "start_url": "/?app=1",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
@@ -18,7 +18,7 @@
     { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
   ],
   "shortcuts": [
-    { "name": "Barcode scannen", "short_name": "Scannen", "url": "/#/neu?scan=1" },
-    { "name": "Artikel hinzufügen", "short_name": "Hinzufügen", "url": "/#/neu" }
+    { "name": "Barcode scannen", "short_name": "Scannen", "url": "/?app=1#/neu?scan=1" },
+    { "name": "Artikel hinzufügen", "short_name": "Hinzufügen", "url": "/?app=1#/neu" }
   ]
 }

@@ -1,5 +1,6 @@
 // Benachrichtigungen in der App (Glocke) und – wenn der Benutzer es einschaltet – per E-Mail.
 import { MARKE } from '../../shared/marke.js';
+import { APP_START } from '../../shared/seo.js';
 import { mailHtml } from './mail.js';
 
 const MAX_JE_BENUTZER = 200;
@@ -28,7 +29,7 @@ export function erstelleBenachrichtigungsDienst(db, { mail, konfiguration }) {
     const { id } = q.anlegen.get(b.id, art, String(titel).slice(0, 200), text ? String(text).slice(0, 1000) : null, link);
     q.kuerzen.run({ b: b.id });
     if (b.benachrichtigung_email && b.email && mail.aktiv && konfiguration.oeffentlicheUrl) {
-      const url = link ? `${konfiguration.oeffentlicheUrl}/${link.replace(/^\/+/, '')}` : konfiguration.oeffentlicheUrl;
+      const url = `${konfiguration.oeffentlicheUrl}${APP_START}${link ? link.replace(/^\/+/, '') : ''}`;
       const gruss = `Hallo ${b.anzeigename || b.benutzername},`;
       mail.sende({
         an: b.email,

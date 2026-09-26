@@ -26,3 +26,8 @@ export function katalogPfad(eintrag, plattformKurz) {
 export const plattformPfad = (plattform) => `/plattform/${slug(plattform.kurz || plattform.name)}`;
 
 export const KATALOG_PRAEFIXE = Object.values(PRAEFIX);
+
+/** Startadresse der App (Single-Page-App). „/“ ohne ?app zeigt Besuchern ohne Anmeldung die Startseite. */
+export const APP_START = '/?app=1';
+/** Link in die App, z. B. appLink('/katalog/5') → /?app=1#/katalog/5 */
+export const appLink = (hashPfad = '/') => `${APP_START}#${hashPfad.startsWith('/') ? hashPfad : `/${hashPfad}`}`;

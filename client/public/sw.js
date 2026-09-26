@@ -3,9 +3,9 @@
 // - Gebaute Assets & Coverbilder: Cache zuerst (Dateinamen enthalten Hashes)
 // - API-GET-Anfragen: Netzwerk zuerst, offline die zuletzt gesehene Antwort
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 // Server-gerenderte öffentliche Seiten (Suchmaschinen) nicht durch die App-Hülle ersetzen
-const SERVERSEITEN = /^\/(spiel|konsole|zubehoer|plattform|plattformen)(\/|$)|^\/(sitemap[^/]*\.xml|robots\.txt)$/;
+const SERVERSEITEN = /^\/(spiel|konsole|zubehoer|plattform|plattformen|suche)(\/|$)|^\/(sitemap[^/]*\.xml|robots\.txt)$/;
 const HUELLE = `huelle-${VERSION}`;
 const DATEN = `daten-${VERSION}`;
 const BILDER = `bilder-${VERSION}`;
@@ -14,7 +14,7 @@ const MAX_BILDER = 400;
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(HUELLE)
-      .then((cache) => cache.addAll(['/', '/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-192.png']))
+      .then((cache) => cache.addAll(['/?app=1', '/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-192.png']))
       .then(() => self.skipWaiting()),
   );
 });
@@ -67,6 +67,8 @@ self.addEventListener('fetch', (event) => {
   }
   if (url.origin !== self.location.origin) return;
   if (SERVERSEITEN.test(url.pathname)) return;
+  // „/“ ohne ?app entscheidet der Server (Startseite für Besucher, App für Angemeldete)
+  if (request.mode === 'navigate' && url.pathname === '/' && !url.searchParams.has('app')) return;
 
   if (url.pathname.startsWith('/api/')) {
     // Anmeldung, Exporte und Online-Suchen nie zwischenspeichern.
@@ -80,7 +82,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   if (request.mode === 'navigate') {
-    event.respondWith(netzwerkZuerst(new Request('/'), HUELLE));
+    event.respondWith(netzwerkZuerst(new Request('/?app=1'), HUELLE));
     return;
   }
   event.respondWith(netzwerkZuerst(request, HUELLE));

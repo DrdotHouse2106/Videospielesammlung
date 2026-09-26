@@ -7,7 +7,7 @@ import Fusszeile from '../komponenten/Fusszeile.jsx';
 
 export default function Anmelden() {
   const { auth, aktualisiere } = useSitzung();
-  const [modus, setModus] = useState(auth?.ersteinrichtung ? 'registrieren' : 'anmelden');
+  const [modus, setModus] = useState(auth?.ersteinrichtung || (auth?.registrierungOffen && window.location.hash.includes('registrieren=1')) ? 'registrieren' : 'anmelden');
   const [werte, setWerte] = useState({ benutzername: '', passwort: '', passwort2: '', anzeigename: '', email: '' });
   const [akzeptiert, setAkzeptiert] = useState(false);
   const [zweiFaktor, setZweiFaktor] = useState(null); // { token }
@@ -172,7 +172,7 @@ export default function Anmelden() {
         </form>
 
         {auth?.oeffentlicherKatalog && !zweiFaktor && (
-          <p className="text-center text-sm"><a href="#/katalog" className="text-akzent-hell underline">Katalog ohne Anmeldung durchstöbern</a></p>
+          <p className="text-center text-sm"><a href="/suche" className="text-akzent-hell underline">Spiele ohne Anmeldung suchen und stöbern</a></p>
         )}
         <Fusszeile className="py-2" />
         {!registrierungMoeglich && !zweiFaktor && (

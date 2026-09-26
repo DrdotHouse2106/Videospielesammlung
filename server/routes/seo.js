@@ -9,7 +9,10 @@
 // Reine IGDB-Suchtreffer bleiben aufrufbar, sind aber für Suchmaschinen gesperrt.
 import { Router } from 'express';
 import { HERSTELLER_REIHENFOLGE, ARTIKELTYPEN, MEDIENARTEN, beschriftung } from '../../shared/konstanten.js';
-import { katalogPfad, plattformPfad, slug, KATALOG_PRAEFIXE } from '../../shared/seo.js';
+import { katalogPfad, plattformPfad, slug, KATALOG_PRAEFIXE, APP_START, appLink } from '../../shared/seo.js';
+import { leseCookies } from '../middleware/auth.js';
+import { COOKIE_NAME } from '../services/konten.js';
+import { erstelleDrossel } from '../services/drossel.js';
 import { MARKE } from '../../shared/marke.js';
 import { katalogZeileZuObjekt } from '../services/katalog.js';
 
@@ -65,7 +68,10 @@ body{margin:0;background:var(--hg);color:var(--text);font:16px/1.55 system-ui,-a
 a{color:var(--akzent-hell)}
 .kopf{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--rand)}
 .kopf a.marke{display:flex;align-items:center;gap:8px;color:var(--text);font-weight:700;text-decoration:none}
-.kopf img{width:32px;height:32px}.kopf .marke span{display:flex;flex-direction:column;line-height:1.15}.kopf .marke small{font-weight:400;font-size:12px;color:var(--leise)}@media(max-width:380px){.kopf .marke small{display:none}}
+.kopf img{width:32px;height:32px}.kopf-rechts{display:flex;align-items:center;gap:6px}.suchknopf{color:var(--text);padding:8px;border-radius:10px;display:inline-flex}
+.suche{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.suche input{flex:1 1 100%;min-width:0;padding:12px 14px;border-radius:12px;border:1px solid var(--rand);background:var(--karte);color:var(--text);font-size:16px}.suche select{flex:1;padding:12px;border-radius:12px;border:1px solid var(--rand);background:var(--karte);color:var(--text);font-size:15px}@media(min-width:640px){.suche input{flex:1}.suche select{flex:0 0 auto}}
+.held{text-align:center;padding:24px 0 8px}.held img{width:88px;height:88px}.held h1{font-size:34px;margin:8px 0 2px}.held .unter{color:var(--akzent-hell);font-weight:600;margin:0 0 10px}.knoepfe{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:14px 0}
+.merkmale{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}.merkmale div{background:var(--karte);border:1px solid var(--rand);border-radius:14px;padding:12px}.kopf .marke span{display:flex;flex-direction:column;line-height:1.15}.kopf .marke small{font-weight:400;font-size:12px;color:var(--leise)}@media(max-width:380px){.kopf .marke small{display:none}}
 .knopf{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:12px;background:var(--akzent);color:var(--akzent-text);font-weight:600;text-decoration:none}
 .knopf.zweit{background:transparent;border:1px solid var(--rand);color:var(--text)}
 main{max-width:860px;margin:0 auto;padding:16px}
@@ -87,7 +93,7 @@ ul.liste{list-style:none;padding:0;margin:0}ul.liste li{padding:8px 0;border-top
 footer{max-width:860px;margin:24px auto;padding:16px;color:var(--leise);font-size:14px;display:flex;flex-wrap:wrap;gap:12px}footer a{color:var(--leise)}
 `;
 
-export function seoRouter({ db, konfiguration, preise, affiliate, preisimport }) {
+export function seoRouter({ db, konfiguration, preise, affiliate, preisimport, katalog, igdb }) {
   const router = Router();
   const basis = (req) => konfiguration.oeffentlicheUrl || `${req.protocol}://${req.get('host')}`;
 
@@ -109,7 +115,7 @@ export function seoRouter({ db, konfiguration, preise, affiliate, preisimport })
 
   const sichtbarOeffentlich = () => konfiguration.oeffentlicherKatalog;
 
-  function seite(req, { titel, beschreibung, pfad, indexierbar = true, bild, inhalt, strukturiert = [], appZiel = '/' }) {
+  function seite(req, { titel, beschreibung, pfad, indexierbar = true, bild, inhalt, strukturiert = [], appZiel = APP_START }) {
     const url = `${basis(req)}${pfad}`;
     return `<!doctype html>
 <html lang="de">
@@ -137,16 +143,18 @@ ${strukturiert.map(jsonLd).join('\n')}
 <body>
 <header class="kopf">
   <a class="marke" href="/plattformen"><img src="/icons/icon.svg" alt="" width="28" height="28"><span>${APP}<small>${esc(MARKE.untertitel)}</small></span></a>
-  <a class="knopf" href="${esc(appZiel)}">Zur App</a>
+  <span class="kopf-rechts"><a class="suchknopf" href="/suche" aria-label="Spiele suchen"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></a>
+  <a class="knopf" href="${esc(appZiel)}">Zur App</a></span>
 </header>
 <main>
 ${inhalt}
 </main>
 <footer>
   <a href="/plattformen">Alle Plattformen</a>
-  <a href="/#/seite/impressum">Impressum</a>
-  <a href="/#/seite/datenschutz">Datenschutz</a>
-  <a href="/#/seite/nutzungsbedingungen">Nutzungsbedingungen</a>
+  <a href="/suche">Suche</a>
+  <a href="${appLink('/seite/impressum')}">Impressum</a>
+  <a href="${appLink('/seite/datenschutz')}">Datenschutz</a>
+  <a href="${appLink('/seite/nutzungsbedingungen')}">Nutzungsbedingungen</a>
 </footer>
 </body>
 </html>`;
@@ -176,7 +184,7 @@ ${inhalt}
   // ── Einzelne Katalogseite ───────────────────────────────────────────
   function katalogSeite(req, res) {
     const id = Number.parseInt(req.params.teil, 10);
-    if (!sichtbarOeffentlich()) return res.redirect(302, `/#/katalog/${id}`);
+    if (!sichtbarOeffentlich()) return res.redirect(302, appLink(`/katalog/${id}`));
     const zeile = Number.isInteger(id) ? eintragPerId.get(id) : null;
     if (!zeile || zeile.status !== 'freigegeben') return nichtGefunden(req, res);
     const e = katalogZeileZuObjekt(zeile);
@@ -260,7 +268,7 @@ ${inhalt}
     if (!wertText.length) wertText.push('Für diesen Eintrag liegen noch keine Preisdaten vor. Sammler können in der App Preise melden.');
 
     const medienAnzahl = medien.reduce((s, m) => s + m.anzahl, 0);
-    const appZiel = `/#/katalog/${e.id}?app=1`;
+    const appZiel = appLink(`/katalog/${e.id}?app=1`);
     const inhalt = `
 <nav class="pfad" aria-label="Brotkrumen"><a href="/plattformen">Plattformen</a>${plattformen[0] ? ` › <a href="${plattformPfad(plattformen[0])}">${esc(plattformen[0].name)}</a>` : ''} › ${esc(e.titel)}</nav>
 <div class="kopfbereich">
@@ -299,6 +307,116 @@ ${kaufen.map((k) => `<li><a href="${esc(k.url)}" rel="sponsored noopener" target
   }
   for (const praefix of KATALOG_PRAEFIXE) router.get(`/${praefix}/:teil`, katalogSeite);
 
+  // Kachelliste (Cover, Titel, Jahr, Sammler) – für Startseite, Suche und Plattformen
+  const symbol = (typ) => ARTIKELTYPEN.find((t) => t.value === typ)?.icon ?? '🎮';
+  const kurzVon = db.prepare(`SELECT p.kurz FROM katalog_plattformen kp JOIN plattformen p ON p.id = kp.plattform_id
+    WHERE kp.katalog_id = ? ORDER BY p.erscheinungsjahr LIMIT 1`).pluck();
+  function kacheln(eintraege, kurz) {
+    return `<ul class="raster">${eintraege.map((e) => `<li><a href="${katalogPfad(e, kurz ?? e.kurz ?? kurzVon.get(e.id))}">${e.cover_url
+      ? `<img src="${esc(e.cover_url)}" alt="${esc(`${e.titel} – Cover`)}" loading="lazy" width="150" height="200">`
+      : `<span class="platzhalter" aria-hidden="true">${symbol(e.typ)}</span>`}<b>${esc(e.titel)}</b><br><span class="leise">${[e.erscheinungsjahr, e.besitzer ? `${zahl(e.besitzer)} Sammler` : null].filter(Boolean).join(' · ')}</span></a></li>`).join('')}</ul>`;
+  }
+  function suchformular({ q = '', typ = '' } = {}) {
+    return `<form class="suche" action="/suche" method="get" role="search">
+<input type="search" name="q" value="${esc(q)}" placeholder="Spiel, Konsole oder Zubehör suchen …" aria-label="Suchbegriff" maxlength="100">
+<select name="typ" aria-label="Art"><option value="">Alles</option>${ARTIKELTYPEN.map((t) => `<option value="${t.value}"${t.value === typ ? ' selected' : ''}>${esc(t.mehrzahl)}</option>`).join('')}</select>
+<button class="knopf" type="submit">Suchen</button></form>`;
+  }
+  const BESITZER_SQL = '(SELECT COUNT(DISTINCT a.benutzer_id) FROM artikel a WHERE a.katalog_id = k.id)';
+
+  // ── Startseite für Besucher ─────────────────────────────────────────
+  // Angemeldete Benutzer (Sitzungs-Cookie) und die installierte App (?app) bekommen die App.
+  const neueste = db.prepare(`SELECT k.id, k.titel, k.typ, k.cover_url, k.erscheinungsjahr, ${BESITZER_SQL} AS besitzer
+    FROM katalog k WHERE ${INDEXIERBAR_SQL}
+    ORDER BY COALESCE((SELECT MIN(a.erstellt_am) FROM artikel a WHERE a.katalog_id = k.id), k.geprueft_am, k.erstellt_am) DESC LIMIT 12`);
+  const beliebteste = db.prepare(`SELECT * FROM (SELECT k.id, k.titel, k.typ, k.cover_url, k.erscheinungsjahr, ${BESITZER_SQL} AS besitzer
+    FROM katalog k WHERE ${INDEXIERBAR_SQL}) WHERE besitzer > 0 ORDER BY besitzer DESC, titel COLLATE NOCASE LIMIT 12`);
+  const kennzahlen = db.prepare(`SELECT
+    (SELECT COUNT(*) FROM katalog WHERE status = 'freigegeben') AS eintraege,
+    (SELECT COUNT(*) FROM benutzer) AS sammler,
+    (SELECT COALESCE(SUM(anzahl), 0) FROM artikel) AS exemplare`);
+
+  router.get('/', (req, res, next) => {
+    if (!sichtbarOeffentlich() || req.query.app !== undefined || leseCookies(req.headers.cookie)[COOKIE_NAME]) return next();
+    const k = kennzahlen.get();
+    const neu = neueste.all();
+    const beliebt = beliebteste.all();
+    const plattformListe = allePlattformen().filter((p) => p.anzahl > 0).sort((a, b) => b.anzahl - a.anzahl).slice(0, 16);
+    const b = basis(req);
+    const inhalt = `
+<section class="held">
+  <img src="/icons/icon.svg" alt="${esc(MARKE.name)}-Logo" width="88" height="88">
+  <h1>${esc(MARKE.name)}</h1>
+  <p class="unter">${esc(MARKE.untertitel)}</p>
+  <p>Erfasse deine Spiele, Konsolen und dein Zubehör per Barcode-Scanner, behalte den Wert deiner Sammlung im Blick
+  und finde Varianten, Preise und Sammlerhinweise – kostenlos.</p>
+  ${suchformular()}
+  <div class="knoepfe"><a class="knopf" href="${appLink('/?registrieren=1')}">Kostenlos registrieren</a><a class="knopf zweit" href="${appLink('/')}">Anmelden</a></div>
+  ${k.eintraege ? `<p class="leise">${zahl(k.eintraege)} Einträge im Katalog · ${zahl(k.sammler)} Sammler · ${zahl(k.exemplare)} erfasste Exemplare</p>` : ''}
+</section>
+${beliebt.length ? `<section class="karte"><h2>Beliebt bei Sammlern</h2>${kacheln(beliebt)}</section>` : ''}
+${neu.length ? `<section class="karte"><h2>Neu in ${esc(MARKE.name)}</h2>${kacheln(neu)}</section>` : ''}
+${plattformListe.length ? `<section class="karte"><h2>Nach Plattform stöbern</h2><div class="chips">${plattformListe.map((p) => `<a class="chip" href="${p.pfad}">${esc(p.name)} <span class="leise">(${zahl(p.anzahl)})</span></a>`).join('')}</div><p><a href="/plattformen">Alle Plattformen</a></p></section>` : ''}
+<section class="karte"><h2>Was ${esc(MARKE.name)} kann</h2><div class="merkmale">
+  <div><b>📷 Barcode-Scanner</b><br><span class="leise">Spiel mit der Handykamera scannen – fertig erfasst.</span></div>
+  <div><b>💶 Wert im Blick</b><br><span class="leise">Preisverlauf, aktuelle Angebote und der Wert deiner Sammlung.</span></div>
+  <div><b>🧩 Varianten & Revisionen</b><br><span class="leise">PAL/USK, Editionen, Modellnummern – sauber getrennt.</span></div>
+  <div><b>📖 Cover & Handbücher</b><br><span class="leise">Hochauflösende Scans zum Nachdrucken beschädigter Cover.</span></div>
+</div></section>`;
+    sende(res, seite(req, {
+      titel: `${MARKE.name} – ${MARKE.untertitel}`,
+      beschreibung: kuerze(`${MARKE.untertitel}: Spiele, Konsolen und Zubehör sammeln, bewerten und verwalten – mit Barcode-Scanner, Preisverlauf, Varianten und Sammlerhinweisen. Kostenlos.`, 158),
+      pfad: '/', indexierbar: true, bild: `${b}/icons/icon-512.png`, inhalt,
+      strukturiert: [{
+        '@context': 'https://schema.org', '@type': 'WebSite', name: MARKE.name, url: `${b}/`, inLanguage: 'de-DE',
+        potentialAction: { '@type': 'SearchAction', target: `${b}/suche?q={search_term_string}`, 'query-input': 'required name=search_term_string' },
+      }],
+    }));
+  });
+
+  // ── Suche für alle (auch ohne Konto) ────────────────────────────────
+  const onlineDrossel = erstelleDrossel({ maxVersuche: 30, fensterMs: 60 * 60 * 1000 });
+  router.get('/suche', async (req, res) => {
+    if (!sichtbarOeffentlich()) return res.redirect(302, appLink('/katalog'));
+    const q = String(req.query.q ?? '').trim().slice(0, 100);
+    const typ = ARTIKELTYPEN.some((t) => t.value === req.query.typ) ? req.query.typ : '';
+    const seiteNr = Math.max(1, Number.parseInt(req.query.seite, 10) || 1);
+    const muster = `%${q.replace(/[\\%_]/g, (z) => `\\${z}`)}%`;
+    const abfrage = (grenze, versatz) => db.prepare(`SELECT k.id, k.titel, k.typ, k.cover_url, k.erscheinungsjahr, ${BESITZER_SQL} AS besitzer
+      FROM katalog k WHERE k.status = 'freigegeben' AND k.titel LIKE @muster ESCAPE '\\' AND (@typ = '' OR k.typ = @typ)
+      ORDER BY besitzer DESC, (k.titel LIKE @anfang ESCAPE '\\') DESC, length(k.titel), k.titel COLLATE NOCASE
+      LIMIT ${grenze} OFFSET ${versatz}`).all({ muster, anfang: `${muster.slice(1)}`, typ });
+    const zaehlen = () => db.prepare(`SELECT COUNT(*) AS n FROM katalog k WHERE k.status = 'freigegeben'
+      AND k.titel LIKE @muster ESCAPE '\\' AND (@typ = '' OR k.typ = @typ)`).get({ muster, typ }).n;
+
+    let gesamt = q ? zaehlen() : 0;
+    // Wenig Treffer? Einmal online bei IGDB nachschlagen (begrenzt je IP), Treffer landen im Katalog.
+    if (q.length >= 3 && gesamt < 5 && seiteNr === 1 && typ !== 'zubehoer' && igdb?.konfiguriert && !onlineDrossel.gesperrt(req.ip)) {
+      onlineDrossel.fehlschlag(req.ip);
+      try {
+        await katalog.sucheOnline(q, typ || 'spiel');
+        gesamt = zaehlen();
+      } catch (e) {
+        console.warn('[suche]', e.message);
+      }
+    }
+    const seiten = Math.max(1, Math.ceil(gesamt / PRO_SEITE));
+    const treffer = q ? abfrage(PRO_SEITE, (seiteNr - 1) * PRO_SEITE) : [];
+    const link = (n) => `/suche?q=${encodeURIComponent(q)}${typ ? `&typ=${typ}` : ''}${n > 1 ? `&seite=${n}` : ''}`;
+    const inhalt = `<h1>${q ? `Suche: „${esc(q)}“` : 'Spiele, Konsolen & Zubehör suchen'}</h1>
+${suchformular({ q, typ })}
+${!q ? `<p class="leise">Durchsuche den Katalog – ganz ohne Konto. Oder <a href="/plattformen">stöbere nach Plattform</a>.</p>`
+    : treffer.length ? `<p class="leise">${zahl(gesamt)} ${gesamt === 1 ? 'Treffer' : 'Treffer'}</p>${kacheln(treffer)}`
+      : `<p>Keine Treffer. Fehlt ein Spiel? Nach der Anmeldung kannst du es selbst anlegen und zur Aufnahme einreichen.</p><p><a class="knopf" href="${appLink('/')}">Anmelden oder registrieren</a></p>`}
+${seiten > 1 ? `<nav class="seiten">${seiteNr > 1 ? `<a class="knopf zweit" href="${link(seiteNr - 1)}">← Zurück</a>` : '<span></span>'}<span class="leise">Seite ${seiteNr} von ${seiten}</span>${seiteNr < seiten ? `<a class="knopf zweit" href="${link(seiteNr + 1)}">Weiter →</a>` : '<span></span>'}</nav>` : ''}`;
+    // Suchergebnisseiten gehören nicht in den Suchindex
+    sende(res, seite(req, {
+      titel: q ? `Suche: ${q} | ${APP}` : `Suche | ${APP}`,
+      beschreibung: 'Spiele, Konsolen und Zubehör im Katalog suchen – mit Wert, Varianten und Sammlerhinweisen.',
+      pfad: '/suche', indexierbar: false, inhalt,
+    }));
+  });
+
   // ── Plattformen ─────────────────────────────────────────────────────
   const plattformZaehler = db.prepare(`SELECT kp.plattform_id AS id, COUNT(DISTINCT k.id) AS anzahl
     FROM katalog_plattformen kp JOIN katalog k ON k.id = kp.katalog_id WHERE ${INDEXIERBAR_SQL} GROUP BY kp.plattform_id`);
@@ -309,7 +427,7 @@ ${kaufen.map((k) => `<li><a href="${esc(k.url)}" rel="sponsored noopener" target
   };
 
   router.get('/plattformen', (req, res) => {
-    if (!sichtbarOeffentlich()) return res.redirect(302, '/');
+    if (!sichtbarOeffentlich()) return res.redirect(302, APP_START);
     const liste = allePlattformen().filter((p) => p.anzahl > 0);
     const gruppen = new Map();
     for (const p of liste.sort((a, b) => (a.erscheinungsjahr ?? 9999) - (b.erscheinungsjahr ?? 9999))) {
@@ -321,7 +439,7 @@ ${kaufen.map((k) => `<li><a href="${esc(k.url)}" rel="sponsored noopener" target
 <p>Spiele, Konsolen und Zubehör aus den Sammlungen unserer Benutzer – mit Wert, Varianten und Sammlerhinweisen.</p>
 ${reihenfolge.map((h) => `<section class="karte"><h2>${esc(h || 'Sonstige')}</h2><div class="chips">${gruppen.get(h).map((p) => `<a class="chip" href="${p.pfad}">${esc(p.name)} <span class="leise">(${zahl(p.anzahl)})</span></a>`).join('')}</div></section>`).join('')}
 ${liste.length ? '' : '<p class="leise">Noch keine Einträge vorhanden.</p>'}
-<section class="karte"><h2>Deine Sammlung verwalten</h2><p>Kostenlos erfassen, bewerten und den Überblick behalten – mit Barcode-Scanner und Preisverlauf.</p><p><a class="knopf" href="/">Zur App</a></p></section>`;
+<section class="karte"><h2>Deine Sammlung verwalten</h2><p>Kostenlos erfassen, bewerten und den Überblick behalten – mit Barcode-Scanner und Preisverlauf.</p><p><a class="knopf" href="${APP_START}">Zur App</a></p></section>`;
     sende(res, seite(req, {
       titel: `Retro- und Videospiele nach Plattform – Werte & Varianten | ${APP} – ${MARKE.untertitel}`,
       beschreibung: `Spiele, Konsolen und Zubehör für ${zahl(liste.length)} Plattformen: aktuelle Werte, Varianten, Revisionen und wie viele Sammler sie besitzen.`,
@@ -330,7 +448,7 @@ ${liste.length ? '' : '<p class="leise">Noch keine Einträge vorhanden.</p>'}
   });
 
   router.get('/plattform/:slug', (req, res) => {
-    if (!sichtbarOeffentlich()) return res.redirect(302, '/');
+    if (!sichtbarOeffentlich()) return res.redirect(302, APP_START);
     const p = allePlattformen().find((x) => slug(x.kurz || x.name) === req.params.slug);
     if (!p) return nichtGefunden(req, res);
     const seiteNr = Math.max(1, Number.parseInt(req.query.seite, 10) || 1);
@@ -343,13 +461,10 @@ ${liste.length ? '' : '<p class="leise">Noch keine Einträge vorhanden.</p>'}
       WHERE kp.plattform_id = ? AND ${INDEXIERBAR_SQL}
       ORDER BY besitzer DESC, k.titel COLLATE NOCASE LIMIT ${PRO_SEITE} OFFSET ${(seiteNr - 1) * PRO_SEITE}`).all(p.id);
     const pfad = `${p.pfad}${seiteNr > 1 ? `?seite=${seiteNr}` : ''}`;
-    const symbol = (typ) => ARTIKELTYPEN.find((t) => t.value === typ)?.icon ?? '🎮';
     const inhalt = `<nav class="pfad" aria-label="Brotkrumen"><a href="/plattformen">Plattformen</a> › ${esc(p.name)}</nav>
 <h1>${esc(p.name)}${p.kurz && p.kurz !== p.name ? ` (${esc(p.kurz)})` : ''}</h1>
 <p>${zahl(p.anzahl)} Spiele, Konsolen und Zubehör für ${esc(p.name)}${p.erscheinungsjahr ? ` (erschienen ${p.erscheinungsjahr})` : ''} – sortiert danach, wie viele Sammler sie besitzen.</p>
-<ul class="raster">${eintraege.map((e) => `<li><a href="${katalogPfad(e, p.kurz)}">${e.cover_url
-      ? `<img src="${esc(e.cover_url)}" alt="${esc(`${e.titel} – Cover`)}" loading="lazy" width="150" height="200">`
-      : `<span class="platzhalter" aria-hidden="true">${symbol(e.typ)}</span>`}<b>${esc(e.titel)}</b><br><span class="leise">${[e.erscheinungsjahr, e.besitzer ? `${zahl(e.besitzer)} Sammler` : null].filter(Boolean).join(' · ')}</span></a></li>`).join('')}</ul>
+${kacheln(eintraege, p.kurz)}
 ${seiten > 1 ? `<nav class="seiten">${seiteNr > 1 ? `<a class="knopf zweit" href="${p.pfad}${seiteNr > 2 ? `?seite=${seiteNr - 1}` : ''}">← Zurück</a>` : '<span></span>'}<span class="leise">Seite ${seiteNr} von ${seiten}</span>${seiteNr < seiten ? `<a class="knopf zweit" href="${p.pfad}?seite=${seiteNr + 1}">Weiter →</a>` : '<span></span>'}</nav>` : ''}`;
     sende(res, seite(req, {
       titel: `${p.name} – Spiele, Konsolen & Sammlerwerte${seiteNr > 1 ? ` (Seite ${seiteNr})` : ''} | ${APP}`,
@@ -391,6 +506,7 @@ ${Array.from({ length: teile }, (_, i) => `<sitemap><loc>${esc(b)}/sitemap-katal
     const liste = sichtbarOeffentlich() ? allePlattformen().filter((p) => p.anzahl > 0) : [];
     xml(res, `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urlEintrag(`${b}/`)}
 ${liste.length ? urlEintrag(`${b}/plattformen`) : ''}
 ${liste.map((p) => urlEintrag(`${b}${p.pfad}`)).join('\n')}
 </urlset>`);

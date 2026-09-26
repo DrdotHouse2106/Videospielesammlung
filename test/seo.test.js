@@ -68,7 +68,7 @@ test('Sobald jemand das Spiel sammelt: indexierbar mit Metadaten, JSON-LD und Sa
   assert.match(s.text, /"@type":"BreadcrumbList"/);
   assert.match(s.text, /rel="sponsored noopener"/);
   assert.match(s.text, /Anzeige/);
-  assert.match(s.text, /href="\/#\/katalog\/\d+\?app=1"/);
+  assert.match(s.text, /href="\/\?app=1#\/katalog\/\d+\?app=1"/);
 
   const sitemap = await seite('/sitemap-katalog-1.xml');
   assert.match(sitemap.text, new RegExp(`<loc>https://sammlung\\.example\\.de${pfad}</loc><lastmod>\\d{4}-\\d\\d-\\d\\d</lastmod>`));
@@ -126,9 +126,36 @@ test('robots.txt, API ohne Indexierung und abgeschalteter öffentlicher Katalog'
   try {
     const r = await fetch(`${zu.basis}/spiel/1`, { redirect: 'manual' });
     assert.equal(r.status, 302);
-    assert.equal(r.headers.get('location'), '/#/katalog/1');
+    assert.equal(r.headers.get('location'), '/?app=1#/katalog/1');
     assert.match(await (await fetch(`${zu.basis}/robots.txt`)).text(), /Disallow: \/\n/);
   } finally {
     await zu.stoppe();
   }
+});
+
+test('Startseite für Besucher mit beliebten und neuen Spielen, App für Angemeldete', async () => {
+  const s = await seite('/');
+  assert.equal(s.status, 200);
+  assert.match(s.text, /<title>ZockDB – Deine Spielesammlung an einem Platz<\/title>/);
+  assert.match(s.text, /Beliebt bei Sammlern/);
+  assert.match(s.text, /Neu in ZockDB/);
+  assert.match(s.text, /super-mario-64-n64/);
+  assert.match(s.text, /"@type":"SearchAction"/);
+  assert.match(s.text, /href="\/\?app=1#\/"/);
+  // Mit Sitzungs-Cookie oder ?app geht es in die App (hier ohne gebaute Oberfläche: 404)
+  const angemeldet = await fetch(`${server.basis}/`, { headers: { Cookie: 'vss_sitzung=abc' }, redirect: 'manual' });
+  assert.doesNotMatch(await angemeldet.text(), /Beliebt bei Sammlern/);
+  assert.doesNotMatch((await seite('/?app=1')).text, /Beliebt bei Sammlern/);
+  assert.match((await seite('/sitemap-plattformen.xml')).text, /<loc>https:\/\/sammlung\.example\.de\/<\/loc>/);
+});
+
+test('Suche für alle: Treffer mit Sammleranzahl, nicht indexiert', async () => {
+  const s = await seite('/suche?q=mario');
+  assert.equal(s.status, 200);
+  assert.match(s.text, /Suche: „mario“/);
+  assert.match(s.text, /Super Mario 64/);
+  assert.match(s.text, /<meta name="robots" content="noindex,follow">/);
+  const leer = await seite('/suche?q=gibtsnicht');
+  assert.match(leer.text, /Keine Treffer/);
+  assert.match((await seite('/suche?q=%25')).text, /Keine Treffer/, 'Platzhalter werden maskiert');
 });

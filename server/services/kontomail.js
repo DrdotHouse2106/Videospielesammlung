@@ -8,6 +8,7 @@
 // - Antworten verraten nicht, ob ein Benutzername oder eine E-Mail-Adresse existiert.
 // - Der Token steht im Fragment (#/…), damit er nicht in Server-Logs oder Referrern landet.
 import { MARKE } from '../../shared/marke.js';
+import { APP_START } from '../../shared/seo.js';
 import { zufallsToken, sha256 } from './sicherheit.js';
 import { mailHtml } from './mail.js';
 import { ValidierungsFehler } from './validierung.js';
@@ -77,17 +78,17 @@ export function erstelleKontoMailDienst(db, { mail, konfiguration, konten }) {
         betreff: `${MARKE.name}: Deine E-Mail-Adresse wurde erneut angegeben`,
         text: `${gruss(vorhanden)}\n\njemand wollte diese E-Mail-Adresse für ein anderes Konto bei ${MARKE.name} verwenden. `
           + `Sie gehört bereits zu deinem Konto „${vorhanden.benutzername}“ und bleibt dort.\n\n`
-          + `Passwort vergessen? ${basisUrl()}/#/passwort-vergessen\n\nWarst du das nicht, kannst du diese E-Mail ignorieren.`,
+          + `Passwort vergessen? ${basisUrl()}${APP_START}#/passwort-vergessen\n\nWarst du das nicht, kannst du diese E-Mail ignorieren.`,
         html: mailHtml({
           titel: 'Deine E-Mail-Adresse wurde erneut angegeben',
           absaetze: [gruss(vorhanden), `Jemand wollte diese Adresse für ein anderes Konto verwenden. Sie gehört bereits zu deinem Konto „${vorhanden.benutzername}“ und bleibt dort.`, 'Warst du das nicht, kannst du diese E-Mail ignorieren.'],
-          knopf: { text: 'Passwort vergessen?', url: `${basisUrl()}/#/passwort-vergessen` },
+          knopf: { text: 'Passwort vergessen?', url: `${basisUrl()}${APP_START}#/passwort-vergessen` },
         }),
       });
       return;
     }
     const token = neuerToken(benutzer.id, 'email', email);
-    const url = `${basisUrl()}/#/email-bestaetigen?token=${token}`;
+    const url = `${basisUrl()}${APP_START}#/email-bestaetigen?token=${token}`;
     await mail.sende({
       an: email,
       betreff: `${MARKE.name}: Bitte bestätige deine E-Mail-Adresse`,
@@ -122,7 +123,7 @@ export function erstelleKontoMailDienst(db, { mail, konfiguration, konten }) {
     const b = text.includes('@') ? q.perEmail.get(text.toLowerCase()) : q.perName.get(text);
     if (!b || !b.email || b.gesperrt) return;
     const token = neuerToken(b.id, 'passwort');
-    const url = `${basisUrl()}/#/passwort-neu?token=${token}`;
+    const url = `${basisUrl()}${APP_START}#/passwort-neu?token=${token}`;
     await mail.sende({
       an: b.email,
       betreff: `${MARKE.name}: Passwort zurücksetzen`,

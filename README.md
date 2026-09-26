@@ -578,6 +578,8 @@ der Server für den öffentlichen Katalog **eigene, schnelle HTML-Seiten ohne Ja
 
 | Adresse | Inhalt |
 | --- | --- |
+| `/` | **Startseite für Besucher:** beliebte und neu hinzugefügte Spiele, Suche, Plattformen, Registrierung. Angemeldete Benutzer und die installierte App (`/?app=1`) bekommen direkt die App. |
+| `/suche?q=…` | **Suche für alle** – auch ohne Konto (nicht indexiert). Bei wenigen Treffern wird einmal bei IGDB nachgeschlagen (max. 30 Online-Suchen je Stunde und IP). |
 | `/spiel/42-super-mario-64-n64` | Spieleseite (Konsolen: `/konsole/…`, Zubehör: `/zubehoer/…`) |
 | `/plattform/n64` | Alle Einträge einer Plattform, sortiert nach Anzahl der Sammler |
 | `/plattformen` | Übersicht aller Plattformen |

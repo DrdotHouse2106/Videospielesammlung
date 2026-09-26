@@ -8,7 +8,7 @@ let server;
 let admin;
 
 const letzteMail = (an) => [...postfach].reverse().find((m) => m.to === an);
-const tokenAus = (mail, pfad) => mail.text.match(new RegExp(`/#/${pfad}\\?token=([\\w-]+)`))[1];
+const tokenAus = (mail, pfad) => mail.text.match(new RegExp(`#/${pfad}\\?token=([\\w-]+)`))[1];
 
 before(async () => {
   server = await starteTestServer({
@@ -26,7 +26,7 @@ test('Registrierung mit E-Mail: Bestätigungslink, danach ist die Adresse hinter
   assert.equal(r.status, 201, r.text);
   const mail = letzteMail('mia@example.org');
   assert.match(mail.subject, /bestätige deine E-Mail-Adresse/);
-  assert.match(mail.text, /https:\/\/zockdb\.example\/#\/email-bestaetigen\?token=/);
+  assert.match(mail.text, /https:\/\/zockdb\.example\/\?app=1#\/email-bestaetigen\?token=/);
   let konto = (await gast.api('/api/konto')).json;
   assert.equal(konto.email, null);
   assert.equal(konto.ausstehendeEmail, 'mia@example.org');

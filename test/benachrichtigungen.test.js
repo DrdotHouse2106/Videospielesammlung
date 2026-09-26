@@ -37,7 +37,7 @@ test('Freigabe und Ablehnung erzeugen Benachrichtigungen, optional auch per E-Ma
   await new Promise((r) => setTimeout(r, 20));
   assert.equal(postfach.length, 1);
   assert.equal(postfach[0].subject, 'ZockDB: „Selbstbau-Konsole“ wurde freigegeben');
-  assert.match(postfach[0].text, /https:\/\/zockdb\.example\/#\/katalog\//);
+  assert.match(postfach[0].text, /https:\/\/zockdb\.example\/\?app=1#\/katalog\//);
 
   n = (await nutzer.api('/api/benachrichtigungen/gelesen', { methode: 'POST', daten: {} })).json;
   assert.equal(n.ungelesen, 0);
