@@ -75,13 +75,13 @@ services:
       SMTP_SECURE: "auto"            # auto (465 = TLS, sonst STARTTLS), true, false
       SMTP_USER: ""
       SMTP_PASSWORD: ""
-      SMTP_FROM: ""                  # z. B. "ZockDB <noreply@zockdb.de>"
+      SMTP_FROM: ""                  # z. B. "ZockDB <noreply@example.de>"
       REQUIRE_EMAIL: "false"         # E-Mail bei der Registrierung Pflicht?
 
-      # ── Öffentlicher Katalog & Suchmaschinen ────────────────────
-      # Katalogseiten (Spiele, Preise, Kauflinks) ohne Anmeldung zeigen – Voraussetzung für Google
+      # ── Öffentliche Seiten ──────────────────────────────────────
+      # Startseite, Suche und Spieleseiten ohne Anmeldung zeigen ("false" = alles nur nach Anmeldung)
       PUBLIC_CATALOG: "true"
-      # Öffentliche Adresse ohne / am Ende, z. B. https://sammlung.example.de (Sitemap, Canonical-Links)
+      # Öffentliche Adresse ohne / am Ende, z. B. https://sammlung.example.de (nötig für Links in E-Mails)
       PUBLIC_URL: ""
       # Externe Cover-/Handbuch-Links nur zu diesen Domains erlauben (kommagetrennt, leer = alle HTTPS-Seiten)
       LINK_DOMAINS: ""
@@ -112,33 +112,13 @@ services:
       EBAY_CLIENT_ID: ""
       EBAY_CLIENT_SECRET: ""
       EBAY_MARKETPLACE: "EBAY_DE"
-      # Automatischer Preisimport alle X Stunden (0 = aus) und Einträge pro Durchlauf
+      # Automatischer Preisimport alle X Stunden (0 = aus)
       PRICE_IMPORT_HOURS: "24"
-      PRICE_IMPORT_MAX: "150"
       # Optional: Marktpreise von PriceCharting (kostenpflichtiges Abo)
       PRICECHARTING_TOKEN: ""
 
-      # ── Affiliate-Links („Hier kaufen“) ─────────────────────────
-      # Eigene Partner-IDs (Amazon-PartnerNet, eBay Partner Network). Leer = Standard-IDs aus
-      # server/affiliate-konfiguration.js – die gelten aber NUR, wenn PUBLIC_URL auf eine dort
-      # freigegebene Domain zeigt; sonst werden Kauflinks ohne Partnerkennung angezeigt.
-      AFFILIATE_AMAZON_TAG: ""
-      AFFILIATE_EBAY_CAMPID: ""
-      # „Hier kaufen“-Links ganz abschalten: "false"
+      # „Hier kaufen“-Links auf Katalogseiten ausblenden: "false"
       AFFILIATE_LINKS: "true"
-
-      # ── KI-Vorprüfung von Einreichungen (optional) ──────────────
-      # Anbieter: aus, anthropic, gemini oder openai (auch Mistral, Ollama … über AI_BASE_URL)
-      AI_PROVIDER: "aus"
-      AI_API_KEY: ""
-      # Leer = Standardmodell des Anbieters (falls vorhanden)
-      AI_MODEL: ""
-      # Nur für OpenAI-kompatible Dienste, z. B. https://api.mistral.ai/v1 oder http://ollama:11434/v1
-      AI_BASE_URL: ""
-      # Eindeutige Fälle automatisch freigeben/ablehnen, ab welcher Sicherheit (0,5–1)
-      AI_AUTO_APPROVE: "true"
-      AI_AUTO_REJECT: "true"
-      AI_MIN_CONFIDENCE: "0.85"
 
     # Ein Healthcheck (GET /api/health) ist bereits im Image hinterlegt –
     # „docker compose ps“ zeigt „healthy“, sobald die App bereit ist.
