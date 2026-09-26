@@ -47,6 +47,62 @@ export function exportRouter({ db, plattformen }) {
     res.json({ format: 'zockdb', version: 1, exportiert_am: new Date().toISOString(), artikel, eigeneKatalogeintraege });
   });
 
+  /**
+   * Datenauskunft (Art. 15 und 20 DSGVO): alle personenbezogenen Daten des Kontos in maschinenlesbarer Form.
+   * Geheimnisse (Passwort-Hash, 2FA-Geheimnis, Zugangsdaten von Shop-Anbindungen, Sitzungs-Tokens) werden nicht ausgegeben.
+   */
+  router.get('/export/datenauskunft.json', (req, res) => {
+    const b = req.benutzer.id;
+    const alle = (sql) => db.prepare(sql).all(b);
+    const konto = db.prepare(`SELECT id, benutzername, anzeigename, email, rolle, gesperrt, totp_aktiv, sammlung_oeffentlich, benachrichtigung_email,
+        freigabe_token IS NOT NULL AS freigabe_link_aktiv, freigabe_wert, speicher_limit_mb, bedingungen_akzeptiert_am, erstellt_am, letzte_anmeldung,
+        haendler_status, haendler_daten, haendler_paket, haendler_paket_bis, haendler_api_bis, haendler_test_bis, haendler_test_genutzt_am, boerse_plz, guthaben
+      FROM benutzer WHERE id = ?`).get(b);
+    let haendlerDaten = null;
+    try { haendlerDaten = JSON.parse(konto.haendler_daten || 'null'); } catch { /* ungültig */ }
+    const anbindung = db.prepare('SELECT typ, intervall_stunden, beende_fehlende, aktiv, letzter_lauf, letzter_fehler, geaendert_am FROM haendler_anbindungen WHERE benutzer_id = ?').get(b) ?? null;
+    const unterhaltungen = db.prepare(`SELECT u.id, u.titel, u.angebot_id, u.erstellt_am, u.letzte_nachricht_am,
+        CASE WHEN u.anfragender_id = @b THEN 'anfragender' ELSE 'anbieter' END AS rolle,
+        (SELECT COALESCE(anzeigename, benutzername) FROM benutzer WHERE id = CASE WHEN u.anfragender_id = @b THEN u.anbieter_id ELSE u.anfragender_id END) AS partner
+      FROM unterhaltungen u WHERE u.anfragender_id = @b OR u.anbieter_id = @b ORDER BY u.id`).all({ b })
+      .map((u) => ({
+        ...u,
+        nachrichten: db.prepare('SELECT absender_id = ? AS eigene, text, erstellt_am FROM nachrichten WHERE unterhaltung_id = ? ORDER BY id').all(b, u.id)
+          .map((n) => ({ ...n, eigene: Boolean(n.eigene) })),
+      }));
+    res.attachment(`zockdb-datenauskunft-${datumHeute()}.json`);
+    res.json({
+      hinweis: 'Datenauskunft nach Art. 15 DSGVO. Nicht enthalten sind Geheimnisse wie Passwort-Hash, 2FA-Schlüssel, Sitzungs-Tokens und Zugangsdaten von Shop-Anbindungen.',
+      erstellt_am: new Date().toISOString(),
+      konto: { ...konto, haendler_daten: haendlerDaten, totp_aktiv: Boolean(konto.totp_aktiv) },
+      angemeldete_geraete: alle('SELECT geraet, erstellt_am, laeuft_ab FROM sitzungen WHERE benutzer_id = ? AND stufe = \'voll\' ORDER BY erstellt_am'),
+      sammlung: alle('SELECT * FROM artikel WHERE benutzer_id = ? ORDER BY id').map(({ benutzer_id: _b, ...rest }) => rest),
+      eigene_katalogeintraege: alle("SELECT id, typ, titel, plattformen, erscheinungsjahr, hersteller, status, erstellt_am FROM katalog WHERE erstellt_von = ? ORDER BY id"),
+      scans_und_dokumente: alle('SELECT id, katalog_id, art, titel, sichtbarkeit, originalname, mime, groesse, erstellt_am FROM medien WHERE benutzer_id = ? ORDER BY id'),
+      kommentare: alle('SELECT katalog_id, text, erstellt_am, aktualisiert_am FROM kommentare WHERE benutzer_id = ? ORDER BY id'),
+      preismeldungen: alle('SELECT katalog_id, art, preis, datum, quelle, zustand, vollstaendigkeit, region, url, notiz, erstellt_am FROM preis_historie WHERE benutzer_id = ? ORDER BY id'),
+      links: alle('SELECT katalog_id, art, titel, url, status, erstellt_am FROM externe_links WHERE benutzer_id = ? ORDER BY id'),
+      meldungen: alle('SELECT bereich, ziel_id, grund, text, status, ergebnis, erstellt_am FROM inhalt_meldungen WHERE benutzer_id = ? ORDER BY id'),
+      benachrichtigungen: alle('SELECT art, titel, text, gelesen, erstellt_am FROM benachrichtigungen WHERE benutzer_id = ? ORDER BY id'),
+      erfolge: alle('SELECT schluessel, freigeschaltet_am FROM erfolge WHERE benutzer_id = ?'),
+      tauschboerse: {
+        angebote: alle('SELECT * FROM angebote WHERE benutzer_id = ? ORDER BY id').map(({ benutzer_id: _b, ...rest }) => rest),
+        wunschliste: alle('SELECT katalog_id, plattform_id, region, min_zustand, nur_cib, max_preis, notiz, erstellt_am FROM wunschliste WHERE benutzer_id = ?'),
+        unterhaltungen,
+        bewertungen_erhalten: alle(`SELECT r.wert, r.text, r.erstellt_am, COALESCE(v.anzeigename, v.benutzername) AS von FROM bewertungen r
+          LEFT JOIN benutzer v ON v.id = r.von_id WHERE r.fuer_id = ?`),
+        bewertungen_abgegeben: alle(`SELECT r.wert, r.text, r.erstellt_am, COALESCE(f.anzeigename, f.benutzername) AS fuer FROM bewertungen r
+          LEFT JOIN benutzer f ON f.id = r.fuer_id WHERE r.von_id = ?`),
+        blockiert: alle(`SELECT COALESCE(x.anzeigename, x.benutzername) AS benutzer, k.erstellt_am FROM blockierungen k JOIN benutzer x ON x.id = k.blockiert_id
+          WHERE k.benutzer_id = ?`),
+        shop_anbindung: anbindung,
+      },
+      abos: alle('SELECT anbieter, produkt, angebote, netto, status, laeuft_bis, erstellt_am FROM abos WHERE benutzer_id = ? ORDER BY id'),
+      zahlungen_und_rechnungen: alle(`SELECT anbieter, beschreibung, netto, verrechnet, steuersatz, brutto, zeitraum_von, zeitraum_bis, erpnext_rechnung AS rechnung,
+          faellig_am, bezahlt_am, erstellt_am FROM zahlungen WHERE benutzer_id = ? ORDER BY id`),
+    });
+  });
+
   // CSV im deutschen Excel-Format: Semikolon als Trenner, Dezimalkomma, UTF-8 mit BOM.
   router.get('/export.csv', (req, res) => {
     const artikel = db.prepare('SELECT * FROM artikel WHERE benutzer_id = ? ORDER BY titel COLLATE NOCASE').all(req.benutzer.id);

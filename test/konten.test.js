@@ -150,3 +150,30 @@ test('Registrierung kann geschlossen und 2FA zur Pflicht gemacht werden', async 
     await s.stoppe();
   }
 });
+
+test('Datenauskunft enthält alle Bereiche, aber keine Geheimnisse', async () => {
+  const s = await starteTestServer({ env: { MARKET_MIN_ACCOUNT_DAYS: '0' } });
+  try {
+    const admin = await s.registriere('admin');
+    const nutzer = await s.registriere('auskunft');
+    const spiel = (await admin.api('/api/katalog', { methode: 'POST', daten: { typ: 'spiel', titel: 'Tetris', plattformen: ['Game Boy'], veroeffentlichen: true } })).json;
+    await nutzer.api('/api/artikel', { methode: 'POST', daten: { typ: 'spiel', titel: 'Tetris', katalog_id: spiel.id } });
+    await nutzer.api(`/api/boerse/wunschliste/${spiel.id}`, { methode: 'PUT', daten: { max_preis: '10' } });
+    const angebot = (await admin.api('/api/boerse/angebote', { methode: 'POST', daten: { katalog_id: spiel.id, preis: 8 } })).json;
+    await nutzer.api(`/api/boerse/angebote/${angebot.id}/anfrage`, { methode: 'POST', daten: { text: 'Noch da?' } });
+    const r = await nutzer.api('/api/export/datenauskunft.json');
+    assert.equal(r.status, 200);
+    const d = r.json;
+    assert.equal(d.konto.benutzername, 'auskunft');
+    assert.equal(d.sammlung.length, 1);
+    assert.equal(d.tauschboerse.wunschliste.length, 1);
+    assert.equal(d.tauschboerse.unterhaltungen[0].nachrichten[0].text, 'Noch da?');
+    assert.equal(d.tauschboerse.unterhaltungen[0].partner, 'admin');
+    assert.ok(Array.isArray(d.zahlungen_und_rechnungen));
+    const text = JSON.stringify(d);
+    for (const geheim of ['passwort_hash', 'totp_geheimnis', 'wiederherstellungscodes', 'token_hash', 'zugang']) assert.ok(!text.includes(`"${geheim}"`), geheim);
+    assert.equal((await s.client().api('/api/export/datenauskunft.json')).status, 401);
+  } finally {
+    await s.stoppe();
+  }
+});

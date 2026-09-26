@@ -109,7 +109,7 @@ Kontodaten und Sammlungsdaten speichern wir, bis du dein Konto löschst. Die Lö
 
 ## 9. Deine Rechte
 
-Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20 – z. B. über den JSON-Export) und Widerspruch (Art. 21). Außerdem kannst du dich bei einer Datenschutz-Aufsichtsbehörde beschweren, z. B. [zuständige Landesbehörde].
+Du hast das Recht auf Auskunft (Art. 15 DSGVO – jederzeit selbst unter „Konto → Datenauskunft herunterladen“), Berichtigung (Art. 16), Löschung (Art. 17 – selbst unter „Konto löschen“; Rechnungsdaten bewahren wir wegen gesetzlicher Pflichten ohne Bezug zu deinem Konto auf), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20 – z. B. über den JSON-Export) und Widerspruch (Art. 21). Außerdem kannst du dich bei einer Datenschutz-Aufsichtsbehörde beschweren, z. B. [zuständige Landesbehörde].
 
 ## 10. Sicherheit
 

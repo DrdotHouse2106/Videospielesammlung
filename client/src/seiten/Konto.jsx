@@ -278,6 +278,14 @@ function KontoLoeschen() {
   const [passwort, setPasswort] = useState('');
   const [fehler, setFehler] = useState(null);
   return (
+    <>
+    <section className="karte space-y-2 p-4">
+      <h2 className="font-semibold">Meine Daten (Datenauskunft)</h2>
+      <p className="text-sm text-leise">
+        Alle zu deinem Konto gespeicherten Daten als Datei – Sammlung, Angebote, Wunschliste, Nachrichten, Bewertungen, Abos und Rechnungen.
+      </p>
+      <a className="knopf-sekundaer w-fit" href="/api/export/datenauskunft.json" download>Datenauskunft herunterladen</a>
+    </section>
     <section className="karte space-y-3 border-gefahr/40 p-4">
       <h2 className="font-semibold text-gefahr">Konto löschen</h2>
       {!offen ? (
@@ -285,7 +293,7 @@ function KontoLoeschen() {
       ) : (
         <form className="space-y-3" onSubmit={async (e) => {
           e.preventDefault();
-          if (!window.confirm('Wirklich endgültig löschen? Alle Artikel, Fotos und Scans gehen verloren.')) return;
+          if (!window.confirm('Wirklich endgültig löschen? Alle Artikel, Fotos, Scans und Angebote gehen verloren; laufende Abos werden sofort beendet.')) return;
           try {
             await api.kontoLoeschen(passwort);
             await aktualisiere();
@@ -293,12 +301,16 @@ function KontoLoeschen() {
             setFehler(Object.values(err.felder ?? {})[0] ?? err.message);
           }
         }}>
-          <p className="text-sm text-leise">Tipp: Erstelle vorher unter „Mehr → Datensicherung“ einen Export.</p>
+          <p className="text-sm text-leise">
+            Tipp: Erstelle vorher unter „Mehr → Datensicherung“ einen Export. Laufende Händler-Abos werden sofort beendet;
+            Rechnungen bleiben wegen der gesetzlichen Aufbewahrungspflicht ohne Bezug zu deinem Konto erhalten.
+          </p>
           <PasswortFeld wert={passwort} onChange={setPasswort} label="Passwort zur Bestätigung" />
           <Aktionen fehler={fehler} onAbbrechen={() => setOffen(false)} text="Endgültig löschen" gefahr />
         </form>
       )}
     </section>
+    </>
   );
 }
 
