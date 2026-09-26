@@ -11,6 +11,10 @@ Raum gemacht: PAL-/USK-Regionen, CIB-Status, Sonderfarben, Editionen und Modellr
 lassen sich sauber erfassen – per Titelsuche, **Barcode-Scan mit der Handykamera** oder als
 eigener Eintrag für Raritäten, die in keiner Datenbank stehen.
 
+> 🌐 **Kein eigener Server? Nutze die offizielle Seite [zockdb.de](https://zockdb.de)** – sofort startklar, mit Updates,
+> Sicherungen und der gemeinsamen Tauschbörse aller Sammler. Wer dort mitmacht oder Zusatzleistungen (z. B. mehr
+> Speicherplatz) bucht, **unterstützt die Weiterentwicklung von ZockDB** direkt. Danke! 💜
+
 > 🇬🇧 An English version of this document is available in [README.en.md](README.en.md).
 
 > 🔒 **Sicherheit hat höchste Priorität.** Du hast eine Sicherheitslücke gefunden? Ich freue mich über jeden Hinweis –
@@ -350,6 +354,10 @@ Bezahlung und Versand vereinbaren die Beteiligten direkt miteinander.
   (Grundlage für Preisentwicklungen und Marktberichte). Rechtstexte weisen auf die Nutzung hin.
 - **Tauschvorschläge:** Die App findet Sammler, die haben, was du suchst, und gleichzeitig suchen, was du tauschen möchtest.
 - **Nachrichten** zu Angeboten innerhalb der App (E-Mail-Adressen bleiben verborgen), danach gegenseitige **Bewertungen**.
+- **Verkaufsbestätigung:** Beim Markieren als verkauft fragt die App nach dem tatsächlichen Preis und dem Käufer (einer der
+  Interessenten, „außerhalb von ZockDB“ oder keine Angabe; später nachtragbar). Der Käufer bestätigt mit einem Klick, korrigiert
+  den Preis oder bestreitet den Kauf. Im Marktarchiv gibt es damit drei Stufen – *bestätigt*, *gemeldet* und *nur Angebotspreis* –,
+  bestrittene Verkäufe zählen nicht. Preisentwicklungen nutzen nur echte Verkaufspreise.
 - **Statistik** (*Meine Börse → Statistik*, Teil der Händler-Pakete): Aufrufe, Anfragen und Wunschlisten-Treffer je
   Angebot und Tag, Anfragequote, Vergleich zum Zeitraum davor und die meistgesuchten eigenen Titel. Ohne Paket gibt es nur
   die Gesamtzahlen der letzten 30 Tage; gezählt wird aber immer, sodass nach dem Buchen der Verlauf sofort da ist. Gespeichert werden nur Tageszähler – keine Namen,

@@ -18,6 +18,7 @@ export default function BoerseAngebot({ route, id }) {
   const [a, setA] = useState(null);
   const [fehler, setFehler] = useState(null);
   const [bearbeiten, setBearbeiten] = useState(false);
+  const [verkaufen, setVerkaufen] = useState(false);
   const [katalog, setKatalog] = useState(null);
   const laden = () => api.angebot(id).then(setA).catch((e) => setFehler(e.message));
   useEffect(() => { laden(); }, [id]);
@@ -87,7 +88,7 @@ export default function BoerseAngebot({ route, id }) {
                 {a.status === 'reserviert' && <button type="button" className="knopf-sekundaer px-3 py-1.5" onClick={() => aktion(() => api.angebotAendern(a.id, { status: 'aktiv' }), 'Wieder verfügbar.')}>Reservierung aufheben</button>}
                 {['aktiv', 'reserviert'].includes(a.status) && (
                   <>
-                    <button type="button" className="knopf-sekundaer px-3 py-1.5" onClick={() => aktion(() => api.angebotAendern(a.id, { status: 'verkauft' }), 'Als verkauft/getauscht markiert.')}>Verkauft/getauscht</button>
+                    <button type="button" className="knopf-sekundaer px-3 py-1.5" onClick={() => setVerkaufen(true)}>Verkauft/getauscht</button>
                     <button type="button" className="knopf-sekundaer px-3 py-1.5" onClick={() => aktion(() => api.angebotAendern(a.id, { verlaengern: true }), 'Laufzeit verlängert.')}>Verlängern</button>
                     <button type="button" className="knopf-sekundaer px-3 py-1.5" onClick={() => aktion(() => api.angebotAendern(a.id, { status: 'beendet' }), 'Angebot beendet.')}>Beenden</button>
                   </>
@@ -100,6 +101,7 @@ export default function BoerseAngebot({ route, id }) {
                   try { await api.angebotLoeschen(a.id); zeigeHinweis('Angebot gelöscht.'); navigiere('/boerse/meine'); } catch (err) { zeigeHinweis(err.message, 'fehler'); }
                 }}>Löschen</button>
               </div>
+              {a.status === 'verkauft' && <VerkaufStatus angebot={a} onNachtragen={() => setVerkaufen(true)} />}
             </section>
           ) : (
             <Kontakt angebot={a} />
@@ -109,6 +111,9 @@ export default function BoerseAngebot({ route, id }) {
           {!a.eigenes && <div className="text-right"><MeldenKnopf bereich="angebot" zielId={a.id} /></div>}
         </div>
       </div>
+      {verkaufen && (
+        <VerkaufDialog angebot={a} onFertig={(ok) => { setVerkaufen(false); if (ok) laden(); }} />
+      )}
       {bearbeiten && (
         <AngebotFormular angebot={a} plattformen={katalog?.plattformen ?? []} varianten={katalog?.varianten ?? []}
           onFertig={(neu) => { setBearbeiten(false); if (neu) setA(neu); }} />
@@ -239,5 +244,87 @@ export function AnbieterBox({ anbieter: b }) {
         <p className="text-xs text-leise">Privatverkauf – in der Regel ohne Gewährleistung und Widerrufsrecht.</p>
       )}
     </section>
+  );
+}
+
+const VERKAUF_STATUS = {
+  gemeldet: 'Verkaufspreis gemeldet – wartet auf Bestätigung des Käufers',
+  bestaetigt: '✓ Vom Käufer bestätigt',
+  bestritten: 'Der ausgewählte Interessent hat den Kauf nicht bestätigt',
+};
+
+function VerkaufStatus({ angebot: a, onNachtragen }) {
+  const v = a.verkauf;
+  const euro = (n) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+  if (!v) {
+    return (
+      <p className="text-sm text-leise">
+        Zu welchem Preis wurde verkauft? <button type="button" className="text-akzent-hell underline" onClick={onNachtragen}>Verkaufspreis nachtragen</button>
+        {' '}– das macht die Preisentwicklung für alle Sammler verlässlicher.
+      </p>
+    );
+  }
+  const preis = v.kaeufer_preis ?? v.preis;
+  return (
+    <p className="text-sm text-leise">
+      {preis !== null ? <>Verkauft für <strong className="text-text">{euro(preis)}</strong>. </> : 'Getauscht. '}
+      {v.kaeufer_id ? VERKAUF_STATUS[v.status] : v.extern ? 'Käufer außerhalb von ZockDB.' : ''}
+    </p>
+  );
+}
+
+/** Beim Markieren als verkauft: tatsächlichen Preis und Käufer erfragen (beides freiwillig, aber wertvoll für die Preisdaten). */
+function VerkaufDialog({ angebot: a, onFertig }) {
+  const zeigeHinweis = useHinweis();
+  const nachtragen = a.status === 'verkauft';
+  const [preis, setPreis] = useState(a.preis !== null && a.preis !== undefined ? String(a.preis).replace('.', ',') : '');
+  const [kaeufer, setKaeufer] = useState(a.interessenten?.length === 1 ? String(a.interessenten[0].unterhaltung_id) : '');
+  const [laeuft, setLaeuft] = useState(false);
+  const nurTausch = a.art === 'tausch';
+  async function speichern(e) {
+    e.preventDefault();
+    setLaeuft(true);
+    const verkauf = {
+      preis: nurTausch ? null : preis,
+      unterhaltung_id: /^\d+$/.test(kaeufer) ? Number(kaeufer) : null,
+      extern: kaeufer === 'extern',
+    };
+    try {
+      if (nachtragen) await api.verkaufMelden(a.id, verkauf);
+      else await api.angebotAendern(a.id, { status: 'verkauft', verkauf });
+      zeigeHinweis(verkauf.unterhaltung_id ? 'Als verkauft markiert – der Käufer wird um eine kurze Bestätigung gebeten.' : 'Als verkauft markiert.');
+      onFertig(true);
+    } catch (err) {
+      zeigeHinweis(Object.values(err.felder ?? {})[0] ?? err.message, 'fehler');
+    } finally {
+      setLaeuft(false);
+    }
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="verkauf-titel">
+      <form onSubmit={speichern} className="karte w-full max-w-md space-y-3 p-4">
+        <h2 id="verkauf-titel" className="text-lg font-semibold">{nachtragen ? 'Verkaufspreis nachtragen' : 'Verkauft oder getauscht?'}</h2>
+        {!nurTausch && (
+          <label className="block">
+            <span className="beschriftung">Tatsächlicher Verkaufspreis (€)</span>
+            <input className="eingabe" inputMode="decimal" value={preis} onChange={(e) => setPreis(e.target.value)} placeholder="z. B. 45,00" autoFocus />
+            <span className="text-xs text-leise">Der Preis, auf den ihr euch geeinigt habt – ohne Versand.</span>
+          </label>
+        )}
+        <label className="block">
+          <span className="beschriftung">An wen?</span>
+          <select className="eingabe" value={kaeufer} onChange={(e) => setKaeufer(e.target.value)}>
+            <option value="">Möchte ich nicht angeben</option>
+            {(a.interessenten ?? []).map((i) => <option key={i.unterhaltung_id} value={i.unterhaltung_id}>{i.name} (über ZockDB)</option>)}
+            <option value="extern">Jemand außerhalb von ZockDB</option>
+          </select>
+          <span className="text-xs text-leise">Wählst du einen Interessenten, bestätigt er den Kauf mit einem Klick. Bestätigte Preise fließen anonym in die Preisentwicklung ein.</span>
+        </label>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" className="knopf-sekundaer" onClick={() => onFertig(false)}>Abbrechen</button>
+          <button type="submit" className="knopf-primaer" disabled={laeuft}>{laeuft ? 'Wird gespeichert …' : nachtragen ? 'Speichern' : 'Als verkauft markieren'}</button>
+        </div>
+      </form>
+    </div>
   );
 }

@@ -139,6 +139,8 @@ export function Unterhaltung({ route, id }) {
           </a>
         ) : <p className="karte p-3 text-sm text-leise">{u.titel} – das Angebot ist nicht mehr verfügbar.</p>}
 
+        {u.verkauf && <KaufBestaetigung verkauf={u.verkauf} onFertig={laden} />}
+
         {u.partner && (
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <a className="font-semibold hover:underline" href={`#/boerse/anbieter/${u.partner.id}`}>{u.partner.name}</a>
@@ -212,5 +214,52 @@ function BewertungFormular({ unterhaltung: u, onFertig }) {
       <input className="eingabe" maxLength={500} value={text} onChange={(e) => setText(e.target.value)} placeholder={wert === 1 ? 'Optional: z. B. „Schneller Versand, alles wie beschrieben“' : 'Bitte kurz begründen'} />
       <button type="submit" className="knopf-primaer" disabled={wert === null}>Bewertung speichern</button>
     </form>
+  );
+}
+
+/** Käufer bestätigt (oder bestreitet) einen vom Verkäufer gemeldeten Kauf – optional mit tatsächlichem Preis. */
+function KaufBestaetigung({ verkauf: v, onFertig }) {
+  const zeigeHinweis = useHinweis();
+  const [anderer, setAnderer] = useState(false);
+  const [preis, setPreis] = useState('');
+  const euro = (n) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+  const endpreis = v.kaeufer_preis ?? v.preis;
+  async function antworten(daten) {
+    try {
+      await api.kaufBestaetigen(v.id, daten);
+      zeigeHinweis(daten.gekauft === false ? 'Danke für die Rückmeldung.' : 'Danke – Kauf bestätigt!');
+      onFertig();
+    } catch (err) {
+      zeigeHinweis(Object.values(err.felder ?? {})[0] ?? err.message, 'fehler');
+    }
+  }
+  if (!v.ich_kaeufer || v.status !== 'gemeldet') {
+    const text = v.status === 'bestaetigt' ? `✓ Kauf bestätigt${endpreis !== null ? ` · ${euro(endpreis)}` : ''}`
+      : v.status === 'bestritten' ? 'Kauf wurde nicht bestätigt.'
+        : `Verkauf gemeldet${endpreis !== null ? ` · ${euro(endpreis)}` : ''} – wartet auf Bestätigung.`;
+    return <p className="karte p-3 text-sm text-leise">{text}</p>;
+  }
+  return (
+    <section className="karte space-y-2 border-akzent/60 p-4 text-sm">
+      <h2 className="font-semibold">Hast du „{v.titel}“ gekauft?</h2>
+      <p className="text-leise">
+        Der Anbieter meldet {v.preis !== null ? <>einen Verkauf an dich für <strong className="text-text">{euro(v.preis)}</strong></> : 'einen Tausch mit dir'}.
+        Deine Bestätigung macht die Preise auf ZockDB für alle verlässlicher – in den Marktdaten erscheint dabei niemals dein Name.
+      </p>
+      {anderer ? (
+        <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); antworten({ gekauft: true, preis }); }}>
+          <label className="block"><span className="beschriftung">Tatsächlich bezahlt (€)</span>
+            <input className="eingabe w-36" inputMode="decimal" value={preis} onChange={(e) => setPreis(e.target.value)} autoFocus /></label>
+          <button type="submit" className="knopf-primaer" disabled={!preis.trim()}>Bestätigen</button>
+          <button type="button" className="knopf-sekundaer" onClick={() => setAnderer(false)}>Zurück</button>
+        </form>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="knopf-primaer" onClick={() => antworten({ gekauft: true })}>Ja, stimmt</button>
+          {v.preis !== null && <button type="button" className="knopf-sekundaer" onClick={() => setAnderer(true)}>Ja, aber anderer Preis</button>}
+          <button type="button" className="knopf-sekundaer" onClick={() => antworten({ gekauft: false })}>Nein, nicht gekauft</button>
+        </div>
+      )}
+    </section>
   );
 }

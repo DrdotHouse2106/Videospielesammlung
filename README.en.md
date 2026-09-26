@@ -4,6 +4,9 @@
 
 > 🇩🇪 The primary documentation is in German: [README.md](README.md). The app's user interface is German only.
 
+> 🌐 **No server of your own? Use the official site [zockdb.de](https://zockdb.de)** – ready to go, with updates, backups and the
+> shared trading market. Using it or booking extras (e.g. more storage) **directly supports the development of ZockDB**. Thank you! 💜
+
 ZockDB (formerly “Videospielesammlung”) is a source-available Progressive Web App for managing **games, consoles/hardware and accessories**,
 tailored to collectors in German-speaking countries (PAL/USK regions, CIB status, special colours, editions and
 model revisions).

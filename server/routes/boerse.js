@@ -80,6 +80,10 @@ export function boerseRouter({ db, boerse, boersenImport, anbindungen, angebotFo
     res.status(204).end();
   });
 
+  // Verkaufspreis melden (Verkäufer) bzw. Kauf bestätigen (Käufer)
+  router.post('/boerse/angebote/:id/verkauf', (req, res) => res.status(201).json(boerse.meldeVerkauf(req.benutzer, req.params.id, req.body ?? {})));
+  router.post('/boerse/verkaeufe/:id/bestaetigen', (req, res) => res.json(boerse.bestaetigeKauf(req.benutzer, req.params.id, req.body ?? {})));
+
   router.post('/boerse/angebote/:id/anfrage', (req, res) => {
     res.status(201).json({ unterhaltung_id: boerse.frageAn(req.benutzer, req.params.id, req.body?.text) });
   });

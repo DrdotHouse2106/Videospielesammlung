@@ -766,6 +766,30 @@ const MIGRATIONEN = [
     gesichert_am TEXT    NOT NULL DEFAULT (datetime('now'))
   );
   `,
+  // 28: Verkaufsbestätigung – tatsächlicher Verkaufspreis, vom Verkäufer gemeldet und vom Käufer bestätigt
+  `
+  CREATE TABLE verkaeufe (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    angebot_id      INTEGER REFERENCES angebote (id) ON DELETE SET NULL,
+    markt_id        INTEGER REFERENCES markt_angebote (id) ON DELETE SET NULL,
+    verkaeufer_id   INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    kaeufer_id      INTEGER REFERENCES benutzer (id) ON DELETE SET NULL,
+    unterhaltung_id INTEGER REFERENCES unterhaltungen (id) ON DELETE SET NULL,
+    titel           TEXT    NOT NULL,
+    preis           REAL,                              -- vom Verkäufer gemeldet (NULL bei Tausch)
+    kaeufer_preis   REAL,                              -- vom Käufer bestätigt/korrigiert
+    extern          INTEGER NOT NULL DEFAULT 0,        -- Käufer kam nicht über ZockDB
+    status          TEXT    NOT NULL DEFAULT 'gemeldet', -- gemeldet, bestaetigt, bestritten
+    erstellt_am     TEXT    NOT NULL DEFAULT (datetime('now')),
+    bestaetigt_am   TEXT
+  );
+  CREATE UNIQUE INDEX idx_verkaeufe_markt ON verkaeufe (markt_id) WHERE markt_id IS NOT NULL;
+  CREATE INDEX idx_verkaeufe_kaeufer ON verkaeufe (kaeufer_id, status);
+  CREATE INDEX idx_verkaeufe_unterhaltung ON verkaeufe (unterhaltung_id);
+  ALTER TABLE markt_angebote ADD COLUMN verkaufspreis REAL;
+  ALTER TABLE markt_angebote ADD COLUMN verkauf_status TEXT;   -- bestaetigt, gemeldet, bestritten; NULL = nur Angebotspreis
+  ALTER TABLE markt_angebote ADD COLUMN ueber_zockdb INTEGER;  -- 1 = Käufer über ZockDB, 0 = außerhalb, NULL = unbekannt
+  `,
 ];
 
 export function oeffneDatenbank(dateipfad) {

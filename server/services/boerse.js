@@ -357,11 +357,15 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     const wirdSichtbar = ['aktiv', 'reserviert'].includes(status) && !['aktiv', 'reserviert'].includes(a.status);
     if (wirdSichtbar) pruefeLimit(benutzer);
     if (wirdSichtbar || eingabe.verlaengern) laeuftAb = jetztPlus(k().laufzeitTage);
-    db.prepare(`UPDATE angebote SET art = @art, preis = @preis, verhandelbar = @verhandelbar, zustand = @zustand,
-        vollstaendigkeit = @vollstaendigkeit, region = @region, beschreibung = @beschreibung, anzahl = @anzahl, versand = @versand,
-        abholung = @abholung, plz_bereich = @plz_bereich, sku = @sku, plattform_id = @plattform_id, variante_id = @variante_id,
-        status = @status, laeuft_ab = @laeuft_ab, aktualisiert_am = datetime('now') WHERE id = @id`)
-      .run({ ...neu, status, laeuft_ab: laeuftAb });
+    db.transaction(() => {
+      db.prepare(`UPDATE angebote SET art = @art, preis = @preis, verhandelbar = @verhandelbar, zustand = @zustand,
+          vollstaendigkeit = @vollstaendigkeit, region = @region, beschreibung = @beschreibung, anzahl = @anzahl, versand = @versand,
+          abholung = @abholung, plz_bereich = @plz_bereich, sku = @sku, plattform_id = @plattform_id, variante_id = @variante_id,
+          status = @status, laeuft_ab = @laeuft_ab, aktualisiert_am = datetime('now') WHERE id = @id`)
+        .run({ ...neu, status, laeuft_ab: laeuftAb });
+      // Verkaufspreis und Käufer gleich mitmelden (optional) – bei ungültigen Angaben bleibt das Angebot unverändert
+      if (status === 'verkauft' && a.status !== 'verkauft' && eingabe.verkauf) meldeVerkauf(benutzer, a.id, eingabe.verkauf);
+    })();
     // Bei günstigerem Preis oder Reaktivierung können neue Treffer entstehen
     if (status === 'aktiv') benachrichtigeTreffer([a.id]);
     return hole(a.id, benutzer);
@@ -394,6 +398,10 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     if (benutzer && !eigenes) objekt.meine_anfrage = q.unterhaltungZuAngebot.get(zeile.id, benutzer.id)?.id ?? null;
     if (eigenes) {
       objekt.anfragen = db.prepare('SELECT COUNT(*) AS n FROM unterhaltungen WHERE angebot_id = ?').get(zeile.id).n;
+      // Für die Verkaufsmeldung: wer hat angefragt?
+      objekt.interessenten = db.prepare(`SELECT u.id AS unterhaltung_id, COALESCE(b.anzeigename, b.benutzername) AS name
+        FROM unterhaltungen u JOIN benutzer b ON b.id = u.anfragender_id WHERE u.angebot_id = ? ORDER BY u.letzte_nachricht_am DESC`).all(zeile.id);
+      objekt.verkauf = verkaufZuAngebot(zeile.id);
     }
     return objekt;
   }
@@ -738,6 +746,11 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
       // Bewerten ist erst möglich, wenn beide Seiten geschrieben haben (echter Kontakt)
       darf_bewerten: Boolean(partner && beideGeschrieben),
       meine_bewertung: bewertung,
+      // Gemeldeter Verkauf zu dieser Unterhaltung (Käufer kann bestätigen)
+      verkauf: (() => {
+        const v = db.prepare(`SELECT ${VERKAUF_FELDER} FROM verkaeufe WHERE unterhaltung_id = ? ORDER BY id DESC LIMIT 1`).get(u.id);
+        return v ? { ...v, extern: Boolean(v.extern), ich_kaeufer: v.kaeufer_id === benutzer.id } : null;
+      })(),
     };
   }
 
@@ -759,6 +772,88 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
       });
     }
     return bewertungFuer(daten.partner.id);
+  }
+
+  // ── Verkaufsbestätigung ───────────────────────────────────────
+  // Der Verkäufer meldet Preis und (optional) Käufer; der Käufer bestätigt oder korrigiert. In Preisindex und
+  // Marktarchiv zählen nur gemeldete bzw. bestätigte Preise – bestrittene Verkäufe werden ausgeschlossen.
+  const VERKAUF_FELDER = 'id, angebot_id, kaeufer_id, verkaeufer_id, unterhaltung_id, titel, preis, kaeufer_preis, extern, status, erstellt_am, bestaetigt_am';
+  function verkaufZuAngebot(angebotId) {
+    const v = db.prepare(`SELECT ${VERKAUF_FELDER} FROM verkaeufe WHERE angebot_id = ? ORDER BY id DESC LIMIT 1`).get(angebotId);
+    return v ? { ...v, extern: Boolean(v.extern) } : null;
+  }
+
+  function meldeVerkauf(benutzerRoh, angebotId, eingabe = {}) {
+    const benutzer = q.benutzer.get(benutzerRoh.id);
+    const a = eigenesOder404(benutzer, angebotId);
+    if (a.benutzer_id !== benutzer.id) throw new KontoFehler('Nur der Anbieter kann einen Verkauf melden.', 403);
+    if (a.status !== 'verkauft') throw new KontoFehler('Markiere das Angebot zuerst als verkauft.', 409);
+    const markt = db.prepare('SELECT id FROM markt_angebote WHERE angebot_id = ? ORDER BY id DESC LIMIT 1').get(a.id);
+    if (markt && db.prepare('SELECT 1 FROM verkaeufe WHERE markt_id = ?').get(markt.id)) throw new KontoFehler('Dieser Verkauf wurde schon gemeldet.', 409);
+
+    let preis = null;
+    if (!leer(eingabe.preis)) {
+      preis = leseEuro(eingabe.preis);
+      if (preis === null || preis < 0 || preis > 100_000) throw new ValidierungsFehler({ preis: 'Bitte einen gültigen Preis zwischen 0 und 100.000 € angeben.' });
+    } else if (a.art === 'verkauf') {
+      throw new ValidierungsFehler({ preis: 'Bitte den Verkaufspreis angeben.' });
+    }
+    let u = null;
+    if (!leer(eingabe.unterhaltung_id)) {
+      u = q.unterhaltung.get(Number(eingabe.unterhaltung_id));
+      if (!u || u.angebot_id !== a.id || u.anbieter_id !== benutzer.id || !u.anfragender_id) {
+        throw new ValidierungsFehler({ unterhaltung_id: 'Bitte einen Interessenten zu diesem Angebot auswählen.' });
+      }
+    }
+    const extern = !u && Boolean(eingabe.extern);
+    const titel = db.prepare('SELECT titel FROM katalog WHERE id = ?').get(a.katalog_id)?.titel ?? 'Angebot';
+    const v = db.prepare(`INSERT INTO verkaeufe (angebot_id, markt_id, verkaeufer_id, kaeufer_id, unterhaltung_id, titel, preis, extern)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`).get(a.id, markt?.id ?? null, benutzer.id, u?.anfragender_id ?? null, u?.id ?? null, titel, preis, extern ? 1 : 0);
+    if (markt) {
+      db.prepare('UPDATE markt_angebote SET verkaufspreis = ?, verkauf_status = ?, ueber_zockdb = ? WHERE id = ?')
+        .run(preis, preis === null ? null : 'gemeldet', u ? 1 : extern ? 0 : null, markt.id);
+    }
+    if (u) {
+      benachrichtigungen.sende(u.anfragender_id, {
+        art: 'boerse',
+        titel: `Hast du „${titel}“ gekauft?`,
+        text: preis !== null ? `${name(benutzer)} meldet einen Verkauf an dich für ${euroText(preis)}. Bitte kurz bestätigen – das macht die Preise für alle verlässlicher.`
+          : `${name(benutzer)} meldet einen Tausch mit dir. Bitte kurz bestätigen.`,
+        link: `#/nachrichten/${u.id}`,
+      });
+    }
+    return { ...verkaufZuAngebot(a.id), id: v.id };
+  }
+
+  /** Der Käufer bestätigt (optional mit tatsächlichem Preis) oder bestreitet den Kauf. */
+  function bestaetigeKauf(benutzer, verkaufId, eingabe = {}) {
+    const v = db.prepare('SELECT * FROM verkaeufe WHERE id = ?').get(Number(verkaufId));
+    if (!v || v.kaeufer_id !== benutzer.id) throw new KontoFehler('Verkauf nicht gefunden.', 404);
+    if (v.status !== 'gemeldet') throw new KontoFehler('Du hast diesen Kauf schon beantwortet.', 409);
+    if (eingabe.gekauft === false) {
+      db.prepare("UPDATE verkaeufe SET status = 'bestritten', bestaetigt_am = datetime('now') WHERE id = ?").run(v.id);
+      if (v.markt_id) db.prepare("UPDATE markt_angebote SET verkauf_status = 'bestritten' WHERE id = ?").run(v.markt_id);
+    } else {
+      let preis = v.preis;
+      if (!leer(eingabe.preis)) {
+        preis = leseEuro(eingabe.preis);
+        if (preis === null || preis < 0 || preis > 100_000) throw new ValidierungsFehler({ preis: 'Bitte einen gültigen Preis angeben.' });
+      }
+      db.prepare("UPDATE verkaeufe SET status = 'bestaetigt', kaeufer_preis = ?, bestaetigt_am = datetime('now') WHERE id = ?").run(preis, v.id);
+      if (v.markt_id) {
+        db.prepare("UPDATE markt_angebote SET verkaufspreis = ?, verkauf_status = CASE WHEN ? IS NULL THEN NULL ELSE 'bestaetigt' END, ueber_zockdb = 1 WHERE id = ?")
+          .run(preis, preis, v.markt_id);
+      }
+    }
+    if (v.verkaeufer_id) {
+      benachrichtigungen.sende(v.verkaeufer_id, {
+        art: 'boerse',
+        titel: eingabe.gekauft === false ? `Kauf von „${v.titel}“ nicht bestätigt` : `Kauf von „${v.titel}“ bestätigt`,
+        text: eingabe.gekauft === false ? 'Der Interessent gibt an, das Angebot nicht gekauft zu haben.' : 'Danke – der Verkauf fließt als bestätigter Preis in die Marktdaten ein.',
+        link: v.unterhaltung_id ? `#/nachrichten/${v.unterhaltung_id}` : '#/boerse/meine',
+      });
+    }
+    return db.prepare(`SELECT ${VERKAUF_FELDER} FROM verkaeufe WHERE id = ?`).get(v.id);
   }
 
   function bewertungenListe(benutzerId) {
@@ -983,5 +1078,7 @@ export function erstelleBoersenDienst(db, { konfiguration, benachrichtigungen, k
     apiAktiv: (id) => apiAktiv(q.benutzer.get(id)),
     statistik,
     statistikFuer,
+    meldeVerkauf,
+    bestaetigeKauf,
   };
 }

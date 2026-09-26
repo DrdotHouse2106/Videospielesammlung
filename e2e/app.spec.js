@@ -101,15 +101,36 @@ test('Angebot in der Tauschbörse ansehen und anfragen', async ({ page, browser 
   await expect(ben).toHaveURL(/#\/nachrichten\/\d+/);
   await expect(ben.getByText('Hallo, ist das Spiel noch zu haben?')).toBeVisible();
   await keinQuerScrollen(ben);
+  const unterhaltung = ben.url();
+  expect(benFehler).toEqual([]);
+
+  // Anbieter antwortet und markiert als verkauft – mit Preis und Käufer
+  const uid = unterhaltung.match(/nachrichten\/(\d+)/)[1];
+  await page.request.post(`/api/boerse/nachrichten/${uid}`, { data: { text: 'Ja, für 55 € gehört es dir.' } });
+  await page.goto(`/?app=1#/boerse/angebot/${angebot.id}`);
+  await page.getByRole('button', { name: 'Verkauft/getauscht' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Tatsächlicher Verkaufspreis (€)').fill('55');
+  await dialog.getByLabel('An wen?').selectOption({ label: 'ben (über ZockDB)' });
+  await keinQuerScrollen(page);
+  await dialog.getByRole('button', { name: 'Als verkauft markieren' }).click();
+  await expect(page.getByText(/Verkauft für 55,00\s€/)).toBeVisible();
+
+  // Käufer bestätigt in der Unterhaltung
+  await ben.reload();
+  await expect(ben.getByRole('heading', { name: /Hast du „Super Metroid“ gekauft\?/ })).toBeVisible();
+  await keinQuerScrollen(ben);
+  await ben.getByRole('button', { name: 'Ja, stimmt' }).click();
+  await expect(ben.getByText(/Kauf bestätigt · 55,00\s€/)).toBeVisible();
   expect(benFehler).toEqual([]);
   await benKontext.close();
 
-  // Der Anbieter sieht Anfrage und Aufruf in der Statistik
+  // Der Anbieter sieht Anfrage und Aufruf in der Statistik sowie die Bestätigung am Angebot
   await page.goto('/?app=1#/boerse/meine?tab=statistik');
   await expect(page.getByText('Deine Angebote im Zeitraum')).toBeVisible();
   await expect(page.getByText('1 Aufrufe · 1 Anfragen · 0 Treffer · 100 % Anfragequote')).toBeVisible();
   await page.goto(`/?app=1#/boerse/angebot/${angebot.id}`);
-  await expect(page.getByText('Mit Anleitung')).toBeVisible();
+  await expect(page.getByText('✓ Vom Käufer bestätigt')).toBeVisible();
   expect(fehler).toEqual([]);
 });
 

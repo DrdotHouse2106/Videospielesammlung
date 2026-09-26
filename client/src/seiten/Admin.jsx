@@ -560,7 +560,7 @@ function Marktdaten() {
       </p>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kachel titel="Anzeigen gesamt" wert={anzahl(d.anzeigen)} hinweis={d.seit ? `seit ${datumDe(d.seit)}` : 'noch keine'} />
-        <Kachel titel="Davon verkauft" wert={anzahl(d.verkauft)} hinweis={d.anzeigen ? `${Math.round((d.verkauft / d.anzeigen) * 100)} % Verkaufsquote` : null} />
+        <Kachel titel="Davon verkauft" wert={anzahl(d.verkauft)} hinweis={`${d.anzeigen ? `${Math.round((d.verkauft / d.anzeigen) * 100)} % Quote · ` : ''}${anzahl(d.bestaetigt)} bestätigt · ${anzahl(d.gemeldet)} gemeldet`} />
         <Kachel titel="Tage bis Verkauf" wert={d.tage_bis_verkauf == null ? '–' : d.tage_bis_verkauf.toLocaleString('de-DE')} hinweis="im Durchschnitt" />
         <Kachel titel="Titel im Archiv" wert={anzahl(d.titel)} hinweis={`${anzahl(d.laufend)} Anzeigen laufen · ${anzahl(d.gewerblich)} gewerblich`} />
       </div>
@@ -587,7 +587,7 @@ function Marktdaten() {
             {d.top.map((t) => (
               <li key={t.katalog_id} className="py-1.5">
                 <p className="break-words">{t.titel ?? `Katalogeintrag ${t.katalog_id}`}</p>
-                <p className="text-xs text-leise tabular-nums">{anzahl(t.verkauft)}× verkauft · Ø {euro(t.preis_schnitt)} · {euro(t.preis_min)} – {euro(t.preis_max)}</p>
+                <p className="text-xs text-leise tabular-nums">{anzahl(t.verkauft)}× verkauft ({anzahl(t.bestaetigt)} bestätigt) · Ø {euro(t.preis_schnitt)} · {euro(t.preis_min)} – {euro(t.preis_max)}</p>
               </li>
             ))}
           </ul>
