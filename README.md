@@ -323,6 +323,20 @@ Benachrichtigung. Offene Erfolge zeigen ihren Fortschritt. Dazu kommen **Sammlun
 Vergleich zu allen in der Datenbank bekannten Spielen der Plattform. Neue Erfolge lassen sich in
 `server/services/erfolge.js` ergänzen.
 
+### Import aus CLZ Games, Excel & Co.
+
+Unter *Mehr → Datensicherung → CSV importieren* lassen sich Sammlungen aus **CLZ Games** (Export als CSV), aus Tabellen
+(Excel/LibreOffice → „Speichern unter → CSV“) oder aus dem eigenen CSV-Export übernehmen:
+
+1. Datei wählen – Trennzeichen (`;`, `,`, Tab) und Zeichensatz (UTF-8 oder Windows-1252) werden erkannt.
+2. Spalten werden anhand der Überschriften automatisch zugeordnet (deutsch, englisch, CLZ) und lassen sich anpassen; eine
+   Vorschau zeigt die ersten Zeilen.
+3. Werte werden übersetzt: Regionen (Germany → PAL-DE, USA → NTSC-U, Japan → NTSC-J …), Vollständigkeit (Complete → CIB,
+   Loose → lose …), Zustand (Very Good → sehr gut, Sealed → Neu/OVP …), Beträge und Datumsangaben in deutscher und englischer Schreibweise.
+4. Optional werden Artikel mit dem öffentlichen Katalog verknüpft, wenn Titel und Plattform eindeutig passen.
+
+Bis zu 5.000 Zeilen pro Datei; fehlerhafte Zeilen werden mit Zeilennummer und Grund aufgelistet und übersprungen.
+
 ### Benachrichtigungen
 
 Die **Glocke** oben in der App zeigt neue Benachrichtigungen, z. B. wenn eine Einreichung (Katalogeintrag, Variante, Scan,

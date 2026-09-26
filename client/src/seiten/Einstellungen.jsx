@@ -97,6 +97,7 @@ export default function Einstellungen({ route }) {
               <Symbol name="hochladen" className="size-4" />JSON importieren
               <input type="file" accept="application/json,.json" className="sr-only" onChange={importieren} />
             </label>
+            <a className="knopf-sekundaer" href="#/import"><Symbol name="hochladen" className="size-4" />CSV importieren (CLZ, Excel)</a>
           </div>
           {importiert?.fehlerhaft?.length > 0 && (
             <div className="rounded-xl bg-warnung/10 p-3 text-sm">

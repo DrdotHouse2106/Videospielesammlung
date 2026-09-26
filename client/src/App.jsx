@@ -15,6 +15,7 @@ import Wert from './seiten/Wert.jsx';
 import Konto from './seiten/Konto.jsx';
 import Benachrichtigungen from './seiten/Benachrichtigungen.jsx';
 import Erfolge from './seiten/Erfolge.jsx';
+import Import from './seiten/Import.jsx';
 import Community from './seiten/Community.jsx';
 import CommunitySammlung from './seiten/CommunitySammlung.jsx';
 import Admin from './seiten/Admin.jsx';
@@ -36,6 +37,7 @@ function Seite({ route }) {
   if (pfad === '/konto') return <Konto route={route} />;
   if (pfad === '/benachrichtigungen') return <Benachrichtigungen route={route} />;
   if (pfad === '/erfolge') return <Erfolge route={route} />;
+  if (pfad === '/import') return <Import route={route} />;
   if (pfad === '/community') return <Community route={route} />;
   if (pfad === '/admin') return <Admin route={route} />;
   if (pfad === '/moderation') return <Moderation route={route} />;
